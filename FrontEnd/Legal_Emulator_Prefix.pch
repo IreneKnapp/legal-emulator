@@ -1,0 +1,7 @@
+//
+// Prefix header for all source files of the 'Legal Emulator' target in the 'Legal Emulator' project
+//
+
+#ifdef __OBJC__
+    #import <Cocoa/Cocoa.h>
+#endif
