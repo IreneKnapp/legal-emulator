@@ -1,4 +1,4 @@
-module Processor.Motorola.M6502
+module Processor.Motorola.CPU6502
   (
   )
   where
