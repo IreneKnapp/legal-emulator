@@ -157,7 +157,15 @@ decodeINESFile bytestring = do
                       hardwareStateTrainer =
                         maybeTrainer,
                       hardwareStatePlayChoice10HintScreen =
-                        maybePlayChoice10HintScreen
+                        maybePlayChoice10HintScreen,
+                      hardwareStateMapperNumber =
+                        inesHeaderMapperNumber header,
+                      hardwareStateMirroringType =
+                        inesHeaderMirroringType header,
+                      hardwareStateBatteryPresent =
+                        inesHeaderBatteryPresent header,
+                      hardwareStateSystem =
+                        inesHeaderSystem header
                     }
     else Nothing
 
