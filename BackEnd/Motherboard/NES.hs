@@ -3,10 +3,13 @@ module Motherboard.NES
    Mirroring(..),
    System(..),
    HardwareState(..),
+   SoftwareState(..),
    AddressMapping(..),
+   nesPowerOnSoftwareState,
    cpuDecodeAddress,
    cpuFetch,
-   cpuStore
+   cpuStore,
+   cpuCycle
   )
   where
 
@@ -53,6 +56,16 @@ data AddressMapping = MotherboardMemory
                     | NoMemory
 
 
+nesPowerOnSoftwareState :: SoftwareState
+nesPowerOnSoftwareState =
+  SoftwareState {
+      softwareStateCPUState = cpu6502PowerOnState,
+      softwareStateMotherboardMemory = array (0x0000, 0x07FF)
+                                             $ zip [0x0000 .. 0x07FF]
+                                                   $ repeat 0
+    }
+
+
 cpuDecodeAddress :: HardwareState
                  -> SoftwareState
                  -> Word16
@@ -97,3 +110,9 @@ cpuStore hardwareState softwareState address value =
            }
     (ProgramReadOnlyMemoryBank _, _) -> softwareState
     (NoMemory, _) -> softwareState
+
+
+cpuCycle :: HardwareState
+         -> SoftwareState
+         -> SoftwareState
+cpuCycle hardwareState softwareState = softwareState
