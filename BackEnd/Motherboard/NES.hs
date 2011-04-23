@@ -115,4 +115,27 @@ cpuStore hardwareState softwareState address value =
 cpuCycle :: HardwareState
          -> SoftwareState
          -> SoftwareState
-cpuCycle hardwareState softwareState = softwareState
+cpuCycle hardwareState softwareState =
+  let (_, softwareState') =
+        cpu6502Cycle ((\(hardwareState, softwareState) address ->
+                          let (softwareState', byte) =
+                                cpuFetch hardwareState
+                                         softwareState
+                                         address
+                          in (byte, (hardwareState, softwareState'))),
+                      (\(hardwareState, softwareState) address byte ->
+                          let softwareState' =
+                                cpuStore hardwareState
+                                         softwareState
+                                         address
+                                         byte
+                          in (hardwareState, softwareState')),
+                      (\(_, softwareState) ->
+                          softwareStateCPUState softwareState),
+                      (\(hardwareState, softwareState) cpuState ->
+                          (hardwareState,
+                           softwareState {
+                               softwareStateCPUState = cpuState
+                             })))
+                     (hardwareState, softwareState)
+  in softwareState'
