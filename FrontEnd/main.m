@@ -3,7 +3,7 @@
 //  Legal Emulator
 //
 //  Created by Dan Knapp on 4/21/11.
-//  Copyright 2011 __MyCompanyName__. All rights reserved.
+//  Copyright 2011 Dan Knapp. All rights reserved.
 //
 
 #import <Cocoa/Cocoa.h>
