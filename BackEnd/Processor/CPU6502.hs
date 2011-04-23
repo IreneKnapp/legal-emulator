@@ -674,7 +674,7 @@ decodeOperation opcode =
 buildMicrocodeInstruction :: MicrocodeInstruction
                           -> [MicrocodeInstruction -> MicrocodeInstruction]
                           -> MicrocodeInstruction
-buildMicrocodeInstruction = flip (foldl (.) id)
+buildMicrocodeInstruction base steps = (foldr ($)) base (reverse steps)
 
 
 fetchOpcodeMicrocodeInstruction :: MicrocodeInstruction
