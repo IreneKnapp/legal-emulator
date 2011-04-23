@@ -32,6 +32,7 @@ data AddressSource
 
 
 data ReadWrite = Read | Write
+               deriving (Eq)
 
 
 data InstructionMnemonic
@@ -41,6 +42,7 @@ data InstructionMnemonic
   | NOP | ORA | PHA | PHP | PHX | PHY | PLA | PLP | PLX | PLY | RMB | ROL
   | ROR | RTI | RTS | SBC | SEC | SED | SEI | SMB | STA | STX | STY | STZ
   | TAX | TAY | TRB | TSB | TSX | TXA | TXS | TYA
+  deriving (Eq)
 
 
 data AddressingMode
@@ -60,6 +62,7 @@ data AddressingMode
   | IndirectYIndexedAddressing
   | AbsoluteIndirectAddressing
   | IndirectAddressing
+  deriving (Eq)
 
 
 data InternalRegister
@@ -73,6 +76,7 @@ data InternalRegister
   | StoredAddressHighByte
   | StoredAddressLowByte
   | StoredValue
+  deriving (Eq)
 
 
 data ArithmeticOperation = ArithmeticOperation
@@ -159,10 +163,16 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                       microcodeInstruction
                     then programCounter + 1
                     else programCounter
+                microcodeInstructionQueue'' =
+                  if microcodeInstructionDecodeOperation
+                      microcodeInstruction
+                    then microcodeInstructionQueue'
+                         ++ decodeOperation fetchedByte
+                    else microcodeInstructionQueue'
                 cpuState'' = cpuState' {
                                  cpu6502StateProgramCounter = programCounter',
                                  cpu6502StateMicrocodeInstructionQueue =
-                                   microcodeInstructionQueue'
+                                   microcodeInstructionQueue''
                                }
             in (cpuState'', outerState')
       outerState'' = putState outerState' cpuState'
@@ -552,6 +562,95 @@ decodeInstructionMnemonicAndAddressingMode opcode =
     0xFD -> Just (SBC, AbsoluteXIndexedAddressing)
     0xFE -> Just (INC, AbsoluteXIndexedAddressing)
     0xFF -> Nothing
+
+
+decodeOperation :: Word8 -> [MicrocodeInstruction]
+decodeOperation opcode =
+  case decodeInstructionMnemonicAndAddressingMode opcode of
+    Nothing -> []
+    Just (mnemonic, ImpliedAddressing)
+      | mnemonic == BRK ->
+        [fetchOpcodeMicrocodeInstruction]
+      | mnemonic == RTI ->
+        [fetchOpcodeMicrocodeInstruction]
+      | mnemonic == RTS ->
+        [fetchOpcodeMicrocodeInstruction]
+      | elem mnemonic [PHA, PHP] ->
+        [fetchOpcodeMicrocodeInstruction]
+      | elem mnemonic [PLA, PLP] ->
+        [fetchOpcodeMicrocodeInstruction]
+    Just (JSR, AbsoluteAddressing) ->
+        [fetchOpcodeMicrocodeInstruction]
+    Just (mnemonic, addressing)
+      | elem addressing [AccumulatorAddressing, ImpliedAddressing] ->
+        [fetchOpcodeMicrocodeInstruction]
+    Just (mnemonic, ImmediateAddressing) ->
+        [fetchOpcodeMicrocodeInstruction]
+    Just (mnemonic, AbsoluteAddressing)
+      | mnemonic == JMP ->
+        [fetchOpcodeMicrocodeInstruction]
+      | elem mnemonic [LDA, LDX, LDY, EOR, AND, ORA,
+                       ADC, SBC, CMP, BIT, NOP] ->
+        [fetchOpcodeMicrocodeInstruction]
+      | elem mnemonic [ASL, LSR, ROL, ROR, INC, DEC] ->
+        [fetchOpcodeMicrocodeInstruction]
+      | elem mnemonic [STA, STX, STY] ->
+        [fetchOpcodeMicrocodeInstruction]
+    Just (mnemonic, ZeroPageAddressing)
+      | elem mnemonic [LDA, LDX, LDY, EOR, AND, ORA,
+                       ADC, SBC, CMP, BIT, NOP] ->
+        [fetchOpcodeMicrocodeInstruction]
+      | elem mnemonic [ASL, LSR, ROL, ROR, INC, DEC] ->
+        [fetchOpcodeMicrocodeInstruction]
+      | elem mnemonic [STA, STX, STY] ->
+        [fetchOpcodeMicrocodeInstruction]
+    Just (mnemonic, addressing)
+      | elem addressing [ZeroPageXIndexedAddressing,
+                         ZeroPageYIndexedAddressing]
+        && elem mnemonic [LDA, LDX, LDY, EOR, AND, ORA,
+                          ADC, SBC, CMP, BIT, NOP] ->
+        [fetchOpcodeMicrocodeInstruction]
+      | elem addressing [ZeroPageXIndexedAddressing,
+                         ZeroPageYIndexedAddressing]
+        && elem mnemonic [ASL, LSR, ROL, ROR, INC, DEC] ->
+        [fetchOpcodeMicrocodeInstruction]
+      | elem addressing [ZeroPageXIndexedAddressing,
+                         ZeroPageYIndexedAddressing]
+        && elem mnemonic [STA, STX, STY] ->
+        [fetchOpcodeMicrocodeInstruction]
+    Just (mnemonic, addressing)
+      | elem addressing [AbsoluteXIndexedAddressing,
+                         AbsoluteYIndexedAddressing]
+        && elem mnemonic [LDA, LDX, LDY, EOR, AND, ORA,
+                          ADC, SBC, CMP, BIT, NOP] ->
+        [fetchOpcodeMicrocodeInstruction]
+      | elem addressing [AbsoluteXIndexedAddressing,
+                         AbsoluteYIndexedAddressing]
+        && elem mnemonic [ASL, LSR, ROL, ROR, INC, DEC] ->
+        [fetchOpcodeMicrocodeInstruction]
+      | elem addressing [AbsoluteXIndexedAddressing,
+                         AbsoluteYIndexedAddressing]
+        && elem mnemonic [STA, STX, STY] ->
+        [fetchOpcodeMicrocodeInstruction]
+    Just (mnemonic, addressing)
+      | elem addressing [RelativeAddressing] ->
+        [fetchOpcodeMicrocodeInstruction]
+    Just (mnemonic, XIndexedIndirectAddressing)
+      | elem mnemonic [LDA, ORA, EOR, AND, ADC, CMP, SBC] ->
+        [fetchOpcodeMicrocodeInstruction]
+      | elem mnemonic [] ->
+        [fetchOpcodeMicrocodeInstruction]
+      | elem mnemonic [STA] ->
+        [fetchOpcodeMicrocodeInstruction]
+    Just (mnemonic, IndirectYIndexedAddressing)
+      | elem mnemonic [LDA, EOR, AND, ORA, ADC, SBC, CMP] ->
+        [fetchOpcodeMicrocodeInstruction]
+      | elem mnemonic [] ->
+        [fetchOpcodeMicrocodeInstruction]
+      | elem mnemonic [STA] ->
+        [fetchOpcodeMicrocodeInstruction]
+    Just (JMP, AbsoluteIndirectAddressing) ->
+        [fetchOpcodeMicrocodeInstruction]
 
 
 fetchOpcodeMicrocodeInstruction :: MicrocodeInstruction
