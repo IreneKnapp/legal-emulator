@@ -33,10 +33,10 @@ main = do
             if i == 0
               then return ()
               else do
-                softwareState <- return $ cpuCycle hardwareState softwareState
                 let cpuState = softwareStateCPUState softwareState
                     programCounter = cpu6502StateProgramCounter cpuState
                 putStrLn $ (showHexWord16 programCounter)
+                softwareState <- return $ cpuCycle hardwareState softwareState
                 loop (i - 1) softwareState
       loop 1000 nesPowerOnSoftwareState
 

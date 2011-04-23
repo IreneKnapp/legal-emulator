@@ -20,7 +20,7 @@ data CPU6502State =
       cpu6502StateStatusRegister :: Word8,
       cpu6502StateInternalAdditionOverflow :: Bool,
       cpu6502StateInternalStoredAddress :: Word16,
-      cpu6502StateInternalStoredValue :: Word8,
+      cpu6502StateInternalLatch :: Word8,
       cpu6502StateMicrocodeInstructionQueue :: [MicrocodeInstruction]
     }
 
@@ -75,7 +75,7 @@ data InternalRegister
   | StatusRegister
   | StoredAddressHighByte
   | StoredAddressLowByte
-  | StoredValue
+  | Latch
   deriving (Eq)
 
 
@@ -85,6 +85,7 @@ data ArithmeticOperation = ArithmeticOperation
 data MicrocodeInstruction =
   MicrocodeInstruction {
       microcodeInstructionRegister :: Maybe InternalRegister,
+      microcodeInstructionRegisterFromLatch :: Maybe InternalRegister,
       microcodeInstructionAddressSource :: AddressSource,
       microcodeInstructionAddressOffset :: Maybe InternalRegister,
       microcodeInstructionAddressAddOne :: Bool,
@@ -107,7 +108,7 @@ cpu6502PowerOnState =
       cpu6502StateStatusRegister = 0x00,
       cpu6502StateInternalAdditionOverflow = False,
       cpu6502StateInternalStoredAddress = 0x0000,
-      cpu6502StateInternalStoredValue = 0x00,
+      cpu6502StateInternalLatch = 0x00,
       cpu6502StateMicrocodeInstructionQueue =
         [fetchOpcodeMicrocodeInstruction]
     }
@@ -156,8 +157,17 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                                              effectiveAddress
                                              storedByte
                              in (0x00, cpuState, outerState')
+                cpuState'' =
+                  case microcodeInstructionRegisterFromLatch
+                        microcodeInstruction of
+                    Nothing -> cpuState'
+                    Just internalRegister ->
+                      computeStoreInternalRegister internalRegister
+                                                   cpuState'
+                                                   $ cpu6502StateInternalLatch
+                                                      cpuState'
                 programCounter =
-                  cpu6502StateProgramCounter cpuState'
+                  cpu6502StateProgramCounter cpuState''
                 programCounter' =
                   if microcodeInstructionIncrementProgramCounter
                       microcodeInstruction
@@ -169,12 +179,12 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                     then microcodeInstructionQueue'
                          ++ decodeOperation fetchedByte
                     else microcodeInstructionQueue'
-                cpuState'' = cpuState' {
-                                 cpu6502StateProgramCounter = programCounter',
-                                 cpu6502StateMicrocodeInstructionQueue =
-                                   microcodeInstructionQueue''
-                               }
-            in (cpuState'', outerState')
+                cpuState''' = cpuState'' {
+                                  cpu6502StateProgramCounter = programCounter',
+                                  cpu6502StateMicrocodeInstructionQueue =
+                                    microcodeInstructionQueue''
+                                }
+            in (cpuState''', outerState')
       outerState'' = putState outerState' cpuState'
   in outerState''
 
@@ -228,8 +238,8 @@ computeInternalRegister internalRegister cpuState =
     StoredAddressLowByte ->
       fromIntegral
       $ shiftR (cpu6502StateInternalStoredAddress cpuState) 0 .&. 0xFF
-    StoredValue ->
-      cpu6502StateInternalStoredValue cpuState
+    Latch ->
+      cpu6502StateInternalLatch cpuState
 
 
 computeStoreInternalRegister
@@ -296,9 +306,9 @@ computeStoreInternalRegister internalRegister cpuState byte =
       in cpuState {
              cpu6502StateInternalStoredAddress = storedAddress'
            }
-    StoredValue ->
+    Latch ->
       cpuState {
-          cpu6502StateInternalStoredValue = byte
+          cpu6502StateInternalLatch = byte
         }
 
 
@@ -570,93 +580,108 @@ decodeOperation opcode =
     Nothing -> []
     Just (mnemonic, ImpliedAddressing)
       | mnemonic == BRK ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
       | mnemonic == RTI ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
       | mnemonic == RTS ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
       | elem mnemonic [PHA, PHP] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
       | elem mnemonic [PLA, PLP] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
     Just (JSR, AbsoluteAddressing) ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
     Just (mnemonic, addressing)
       | elem addressing [AccumulatorAddressing, ImpliedAddressing] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
     Just (mnemonic, ImmediateAddressing) ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
     Just (mnemonic, AbsoluteAddressing)
       | mnemonic == JMP ->
-        [fetchOpcodeMicrocodeInstruction]
+        [buildMicrocodeInstruction
+          (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                          Latch)
+          [alsoIncrementProgramCounter],
+         buildMicrocodeInstruction
+          (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                          ProgramCounterHighByte)
+          [alsoCopyLatchToRegister ProgramCounterLowByte],
+         fetchOpcodeMicrocodeInstruction]
       | elem mnemonic [LDA, LDX, LDY, EOR, AND, ORA,
                        ADC, SBC, CMP, BIT, NOP] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
       | elem mnemonic [ASL, LSR, ROL, ROR, INC, DEC] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
       | elem mnemonic [STA, STX, STY] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
     Just (mnemonic, ZeroPageAddressing)
       | elem mnemonic [LDA, LDX, LDY, EOR, AND, ORA,
                        ADC, SBC, CMP, BIT, NOP] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
       | elem mnemonic [ASL, LSR, ROL, ROR, INC, DEC] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
       | elem mnemonic [STA, STX, STY] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
     Just (mnemonic, addressing)
       | elem addressing [ZeroPageXIndexedAddressing,
                          ZeroPageYIndexedAddressing]
         && elem mnemonic [LDA, LDX, LDY, EOR, AND, ORA,
                           ADC, SBC, CMP, BIT, NOP] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
       | elem addressing [ZeroPageXIndexedAddressing,
                          ZeroPageYIndexedAddressing]
         && elem mnemonic [ASL, LSR, ROL, ROR, INC, DEC] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
       | elem addressing [ZeroPageXIndexedAddressing,
                          ZeroPageYIndexedAddressing]
         && elem mnemonic [STA, STX, STY] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
     Just (mnemonic, addressing)
       | elem addressing [AbsoluteXIndexedAddressing,
                          AbsoluteYIndexedAddressing]
         && elem mnemonic [LDA, LDX, LDY, EOR, AND, ORA,
                           ADC, SBC, CMP, BIT, NOP] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
       | elem addressing [AbsoluteXIndexedAddressing,
                          AbsoluteYIndexedAddressing]
         && elem mnemonic [ASL, LSR, ROL, ROR, INC, DEC] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
       | elem addressing [AbsoluteXIndexedAddressing,
                          AbsoluteYIndexedAddressing]
         && elem mnemonic [STA, STX, STY] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
     Just (mnemonic, addressing)
       | elem addressing [RelativeAddressing] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
     Just (mnemonic, XIndexedIndirectAddressing)
       | elem mnemonic [LDA, ORA, EOR, AND, ADC, CMP, SBC] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
       | elem mnemonic [] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
       | elem mnemonic [STA] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
     Just (mnemonic, IndirectYIndexedAddressing)
       | elem mnemonic [LDA, EOR, AND, ORA, ADC, SBC, CMP] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
       | elem mnemonic [] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
       | elem mnemonic [STA] ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
     Just (JMP, AbsoluteIndirectAddressing) ->
-        [fetchOpcodeMicrocodeInstruction]
+        [] -- TODO
+
+
+buildMicrocodeInstruction :: MicrocodeInstruction
+                          -> [MicrocodeInstruction -> MicrocodeInstruction]
+                          -> MicrocodeInstruction
+buildMicrocodeInstruction = flip (foldl (.) id)
 
 
 fetchOpcodeMicrocodeInstruction :: MicrocodeInstruction
 fetchOpcodeMicrocodeInstruction =
   MicrocodeInstruction {
       microcodeInstructionRegister = Nothing,
+      microcodeInstructionRegisterFromLatch = Nothing,
       microcodeInstructionAddressSource = ProgramCounterAddressSource,
       microcodeInstructionAddressOffset = Nothing,
       microcodeInstructionAddressAddOne = False,
@@ -665,4 +690,36 @@ fetchOpcodeMicrocodeInstruction =
       microcodeInstructionDecodeOperation = True,
       microcodeInstructionFixStoredAddressHighByte = False,
       microcodeInstructionIncrementProgramCounter = True
+    }
+
+
+fetchValueMicrocodeInstruction
+    :: AddressSource -> InternalRegister -> MicrocodeInstruction
+fetchValueMicrocodeInstruction addressSource register =
+  MicrocodeInstruction {
+      microcodeInstructionRegister = Just register,
+      microcodeInstructionRegisterFromLatch = Nothing,
+      microcodeInstructionAddressSource = addressSource,
+      microcodeInstructionAddressOffset = Nothing,
+      microcodeInstructionAddressAddOne = False,
+      microcodeInstructionReadWrite = Read,
+      microcodeInstructionArithmeticOperation = Nothing,
+      microcodeInstructionDecodeOperation = False,
+      microcodeInstructionFixStoredAddressHighByte = False,
+      microcodeInstructionIncrementProgramCounter = False
+    }
+
+
+alsoIncrementProgramCounter :: MicrocodeInstruction -> MicrocodeInstruction
+alsoIncrementProgramCounter microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionIncrementProgramCounter = True
+    }
+
+
+alsoCopyLatchToRegister
+    :: InternalRegister -> MicrocodeInstruction -> MicrocodeInstruction
+alsoCopyLatchToRegister register microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionRegisterFromLatch = Just register
     }
