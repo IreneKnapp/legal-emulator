@@ -94,9 +94,13 @@ main = do
                                 AbsoluteYIndexedAddressing ->
                                   show addressingMode
                                 ImpliedAddressing ->
-                                  show addressingMode
+                                  ""
                                 RelativeAddressing ->
-                                  show addressingMode
+                                  let effectiveAddress
+                                       = programCounter
+                                         + (fromIntegral byte2)
+                                         + (fromIntegral nBytes)
+                                  in "$" ++ showHexWord16 effectiveAddress
                                 XIndexedIndirectAddressing ->
                                   show addressingMode
                                 IndirectYIndexedAddressing ->
