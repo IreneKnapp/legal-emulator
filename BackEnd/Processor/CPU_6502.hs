@@ -1466,22 +1466,27 @@ decodeOperation opcode =
                 [],
                fetchOpcodeMicrocodeInstruction]
         (IndirectYIndexedAddressing, WriteCharacter) ->
-              -- TODO NOW
-              -- STA
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [alsoIncrementProgramCounter],
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                StoredAddressLowByte)
+                [alsoIncrementProgramCounter,
+                 alsoZeroStoredAddressHighByte],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
                 [],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                StoredAddressHighByte)
+                [alsoCopyLatchToRegister StoredAddressLowByte,
+                 alsoAddRegisterToStoredAddress YIndexRegister],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                NoRegister)
+                [alsoFixStoredAddressHighByte],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (storeValueMicrocodeInstruction StoredAddressSource
+                                                $ mnemonicRegister mnemonic)
                 [],
                fetchOpcodeMicrocodeInstruction]
         (AbsoluteIndirectAddressing, ControlCharacter) ->
