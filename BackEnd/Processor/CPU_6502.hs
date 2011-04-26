@@ -42,12 +42,11 @@ data ReadWrite = Read | Write
 
 
 data InstructionMnemonic
-  = ADC | AND | ASL | BBR | BBS | BCC | BCS | BEQ | BIT | BMI | BNE | BPL
-  | BRA | BRK | BVC | BVS | CLC | CLD | CLI | CLV | CMP | CPX | CPY | DEC
-  | DEX | DEY | EOR | INC | INX | INY | JMP | JSR | LDA | LDX | LDY | LSR
-  | NOP | ORA | PHA | PHP | PHX | PHY | PLA | PLP | PLX | PLY | RMB | ROL
-  | ROR | RTI | RTS | SBC | SEC | SED | SEI | SMB | STA | STX | STY | STZ
-  | TAX | TAY | TRB | TSB | TSX | TXA | TXS | TYA
+  = ADC | AND | ASL | BCC | BCS | BEQ | BIT | BMI | BNE | BPL | BRK | BVC
+  | BVS | CLC | CLD | CLI | CLV | CMP | CPX | CPY | DEC | DEX | DEY | EOR
+  | INC | INX | INY | JMP | JSR | LDA | LDX | LDY | LSR | NOP | ORA | PHA
+  | PHP | PLA | PLP | ROL | ROR | RTI | RTS | SBC | SEC | SED | SEI | STA
+  | STX | STY | TAX | TAY | TSX | TXA | TXS | TYA
   deriving (Eq, Show)
 
 
@@ -90,6 +89,15 @@ data ArithmeticOperation
   | ArithmeticAdd
   | ArithmeticSubtract
   | ArithmeticCompare
+
+
+data InstructionCharacter
+  = StackCharacter
+  | ControlCharacter
+  | RegisterCharacter
+  | ReadCharacter
+  | ReadWriteCharacter
+  | WriteCharacter
 
 
 data MicrocodeInstruction =
@@ -686,469 +694,543 @@ decodeOperation :: Word8 -> [MicrocodeInstruction]
 decodeOperation opcode =
   case cpu6502DecodeInstructionMnemonicAndAddressingMode opcode of
     Nothing -> []
-    Just (mnemonic, ImpliedAddressing)
-      | mnemonic == BRK ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-      | mnemonic == RTI ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-      | mnemonic == RTS ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         fetchOpcodeMicrocodeInstruction]
-      | elem mnemonic [PHA, PHP] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-      | elem mnemonic [PLA, PLP] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-    Just (JSR, AbsoluteAddressing) ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-    Just (mnemonic, addressing)
-      | elem addressing [AccumulatorAddressing, ImpliedAddressing] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-    Just (mnemonic, ImmediateAddressing) ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (fetchValueMicrocodeInstruction ProgramCounterAddressSource
-                                          $ mnemonicRegister mnemonic)
-          [alsoIncrementProgramCounter,
-           usingArithmeticOperation $ mnemonicArithmeticOperation mnemonic],
-         fetchOpcodeMicrocodeInstruction]
-    Just (mnemonic, AbsoluteAddressing)
-      | mnemonic == JMP ->
-        [buildMicrocodeInstruction
-          (fetchValueMicrocodeInstruction ProgramCounterAddressSource
-                                          Latch)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (fetchValueMicrocodeInstruction ProgramCounterAddressSource
-                                          ProgramCounterHighByte)
-          [alsoCopyLatchToRegister ProgramCounterLowByte],
-         fetchOpcodeMicrocodeInstruction]
-      | elem mnemonic [LDA, LDX, LDY, EOR, AND, ORA,
-                       ADC, SBC, CMP, BIT, NOP] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-      | elem mnemonic [ASL, LSR, ROL, ROR, INC, DEC] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-      | elem mnemonic [STA, STX, STY] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-    Just (mnemonic, ZeroPageAddressing)
-      | elem mnemonic [LDA, LDX, LDY, EOR, AND, ORA,
-                       ADC, SBC, CMP, BIT, NOP] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-      | elem mnemonic [ASL, LSR, ROL, ROR, INC, DEC] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-      | elem mnemonic [STA, STX, STY] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-    Just (mnemonic, addressing)
-      | elem addressing [ZeroPageXIndexedAddressing,
-                         ZeroPageYIndexedAddressing]
-        && elem mnemonic [LDA, LDX, LDY, EOR, AND, ORA,
-                          ADC, SBC, CMP, BIT, NOP] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-      | elem addressing [ZeroPageXIndexedAddressing,
-                         ZeroPageYIndexedAddressing]
-        && elem mnemonic [ASL, LSR, ROL, ROR, INC, DEC] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-      | elem addressing [ZeroPageXIndexedAddressing,
-                         ZeroPageYIndexedAddressing]
-        && elem mnemonic [STA, STX, STY] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-    Just (mnemonic, addressing)
-      | elem addressing [AbsoluteXIndexedAddressing,
-                         AbsoluteYIndexedAddressing]
-        && elem mnemonic [LDA, LDX, LDY, EOR, AND, ORA,
-                          ADC, SBC, CMP, BIT, NOP] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-      | elem addressing [AbsoluteXIndexedAddressing,
-                         AbsoluteYIndexedAddressing]
-        && elem mnemonic [ASL, LSR, ROL, ROR, INC, DEC] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-      | elem addressing [AbsoluteXIndexedAddressing,
-                         AbsoluteYIndexedAddressing]
-        && elem mnemonic [STA, STX, STY] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-    Just (mnemonic, addressing)
-      | elem addressing [RelativeAddressing] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-    Just (mnemonic, XIndexedIndirectAddressing)
-      | elem mnemonic [LDA, ORA, EOR, AND, ADC, CMP, SBC] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-      | elem mnemonic [] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-      | elem mnemonic [STA] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-    Just (mnemonic, IndirectYIndexedAddressing)
-      | elem mnemonic [LDA, EOR, AND, ORA, ADC, SBC, CMP] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-      | elem mnemonic [] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-      | elem mnemonic [STA] ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
-    Just (JMP, AbsoluteIndirectAddressing) ->
-        -- TODO
-        [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [],
-         fetchOpcodeMicrocodeInstruction]
+    Just (mnemonic, addressing) ->
+      case (addressing, characterizeMnemonic mnemonic) of
+        (_, StackCharacter) ->
+          case mnemonic of
+            BRK ->
+              -- TODO
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+            RTI ->
+              -- TODO
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+            RTS ->
+              -- TODO
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               fetchOpcodeMicrocodeInstruction]
+            _ | elem mnemonic [PHA, PHP] ->
+              -- TODO
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+            _ | elem mnemonic [PLA, PLP] ->
+              -- TODO
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+            JSR ->
+              -- TODO
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+        (_, _) | elem addressing [AccumulatorAddressing, ImpliedAddressing] ->
+              -- TODO
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+        (ImmediateAddressing, _) ->
+              -- TODO
+              [buildMicrocodeInstruction
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                $ mnemonicRegister mnemonic)
+                [alsoIncrementProgramCounter,
+                 usingArithmeticOperation
+                  $ mnemonicArithmeticOperation mnemonic],
+               fetchOpcodeMicrocodeInstruction]
+        (AbsoluteAddressing, ControlCharacter) ->
+          case mnemonic of
+            JMP ->
+              [buildMicrocodeInstruction
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                Latch)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                ProgramCounterHighByte)
+                [alsoCopyLatchToRegister ProgramCounterLowByte],
+               fetchOpcodeMicrocodeInstruction]
+        (AbsoluteAddressing, ReadCharacter) ->
+              -- TODO
+              -- LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT, NOP
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+        (AbsoluteAddressing, ReadWriteCharacter) ->
+              -- TODO
+              -- ASL, LSR, ROL, ROR, INC, DEC
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+        (AbsoluteAddressing, WriteCharacter) ->
+              -- TODO
+              -- STA, STX, STY
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+        (ZeroPageAddressing, ReadCharacter) ->
+              -- TODO
+              -- LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT, NOP
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+        (ZeroPageAddressing, ReadWriteCharacter) ->
+              -- TODO
+              -- ASL, LSR, ROL, ROR, INC, DEC
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+        (ZeroPageAddressing, WriteCharacter) ->
+              -- TODO
+              -- STA, STX, STY
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+        (_, ReadCharacter)
+          | elem addressing [ZeroPageXIndexedAddressing,
+                             ZeroPageYIndexedAddressing] ->
+              -- TODO
+              -- LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT, NOP
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+        (_, ReadWriteCharacter)
+          | elem addressing [ZeroPageXIndexedAddressing,
+                             ZeroPageYIndexedAddressing] ->
+              -- TODO
+              -- ASL, LSR, ROL, ROR, INC, DEC
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+        (_, WriteCharacter)
+          | elem addressing [ZeroPageXIndexedAddressing,
+                             ZeroPageYIndexedAddressing] ->
+              -- TODO
+              -- STA, STX, STY
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+        (_, ReadCharacter)
+          | elem addressing [AbsoluteXIndexedAddressing,
+                             AbsoluteYIndexedAddressing] ->
+              -- TODO
+              -- LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT, NOP
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+        (_, ReadWriteCharacter)
+          | elem addressing [AbsoluteXIndexedAddressing,
+                             AbsoluteYIndexedAddressing] ->
+              -- TODO
+              -- ASL, LSR, ROL, ROR, INC, DEC
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+        (_, WriteCharacter)
+          | elem addressing [AbsoluteXIndexedAddressing,
+                             AbsoluteYIndexedAddressing] ->
+              -- TODO
+              -- STA, STX, STY
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+        (RelativeAddressing, ControlCharacter) ->
+              -- TODO
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+        (XIndexedIndirectAddressing, ReadCharacter) ->
+              -- TODO
+              -- LDA, ORA, EOR, AND, ADC, CMP, SBC
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+        (XIndexedIndirectAddressing, ReadWriteCharacter) ->
+              -- TODO
+              -- None (except extended).
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+        (XIndexedIndirectAddressing, WriteCharacter) ->
+              -- TODO
+              -- STA
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+        (IndirectYIndexedAddressing, ReadCharacter) ->
+              -- TODO
+              -- LDA, EOR, AND, ORA, ADC, SBC, CMP
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+        (IndirectYIndexedAddressing, ReadWriteCharacter) ->
+              -- TODO
+              -- None (except extended).
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+        (IndirectYIndexedAddressing, WriteCharacter) ->
+              -- TODO
+              -- STA
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+        (AbsoluteIndirectAddressing, ControlCharacter) ->
+              -- TODO
+              -- JMP
+              [buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [alsoIncrementProgramCounter],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               buildMicrocodeInstruction
+                (stubMicrocodeInstruction)
+                [],
+               fetchOpcodeMicrocodeInstruction]
+
+
+characterizeMnemonic :: InstructionMnemonic -> InstructionCharacter
+characterizeMnemonic mnemonic =
+  case mnemonic of
+    BRK -> StackCharacter
+    RTI -> StackCharacter
+    RTS -> StackCharacter
+    PHA -> StackCharacter
+    PHP -> StackCharacter
+    PLA -> StackCharacter
+    PLP -> StackCharacter
+    JSR -> StackCharacter
+    JMP -> ControlCharacter
+    BCC -> ControlCharacter
+    BCS -> ControlCharacter
+    BEQ -> ControlCharacter
+    BMI -> ControlCharacter
+    BNE -> ControlCharacter
+    BPL -> ControlCharacter
+    BVC -> ControlCharacter
+    BVS -> ControlCharacter
+    CLC -> RegisterCharacter
+    CLD -> RegisterCharacter
+    CLI -> RegisterCharacter
+    CLV -> RegisterCharacter
+    SEC -> RegisterCharacter
+    SED -> RegisterCharacter
+    SEI -> RegisterCharacter
+    DEX -> RegisterCharacter
+    DEY -> RegisterCharacter
+    INX -> RegisterCharacter
+    INY -> RegisterCharacter
+    TAX -> RegisterCharacter
+    TAY -> RegisterCharacter
+    TSX -> RegisterCharacter
+    TXA -> RegisterCharacter
+    TXS -> RegisterCharacter
+    TYA -> RegisterCharacter
+    LDA -> ReadCharacter
+    LDX -> ReadCharacter
+    LDY -> ReadCharacter
+    EOR -> ReadCharacter
+    AND -> ReadCharacter
+    ORA -> ReadCharacter
+    ADC -> ReadCharacter
+    SBC -> ReadCharacter
+    CMP -> ReadCharacter
+    CPX -> ReadCharacter
+    CPY -> ReadCharacter
+    BIT -> ReadCharacter
+    NOP -> ReadCharacter
+    ASL -> ReadWriteCharacter
+    LSR -> ReadWriteCharacter
+    ROL -> ReadWriteCharacter
+    ROR -> ReadWriteCharacter
+    INC -> ReadWriteCharacter
+    DEC -> ReadWriteCharacter
+    STA -> WriteCharacter
+    STX -> WriteCharacter
+    STY -> WriteCharacter
 
 
 mnemonicRegister
