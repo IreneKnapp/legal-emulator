@@ -1064,22 +1064,29 @@ decodeOperation opcode =
                 [],
                fetchOpcodeMicrocodeInstruction]
             RTI ->
-              -- TODO
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                NoRegister)
                 [],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (fetchValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                                NoRegister)
+                [usingAddressOffsetRegister StackPointer,
+                 alsoIncrementStackPointer],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (fetchValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                                StatusRegister)
+                [usingAddressOffsetRegister StackPointer,
+                 alsoIncrementStackPointer],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (fetchValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                                ProgramCounterLowByte)
+                [usingAddressOffsetRegister StackPointer,
+                 alsoIncrementStackPointer],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (fetchValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                                ProgramCounterHighByte)
+                [usingAddressOffsetRegister StackPointer],
                fetchOpcodeMicrocodeInstruction]
             RTS ->
               [buildMicrocodeInstruction
