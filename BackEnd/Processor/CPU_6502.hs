@@ -148,6 +148,7 @@ data MicrocodeInstruction =
       microcodeInstructionAddressOffset :: Maybe InternalRegister,
       microcodeInstructionAddressAddOne :: Bool,
       microcodeInstructionSettingStoredValueBits :: Maybe Word8,
+      microcodeInstructionClearingFetchedValueBits :: Maybe Word8,
       microcodeInstructionReadWrite :: ReadWrite,
       microcodeInstructionArithmeticOperation :: Maybe ArithmeticOperation,
       microcodeInstructionDecodeOperation :: Bool,
@@ -195,6 +196,8 @@ cpu6502Cycle :: ((outerState -> Word16 -> (Word8, outerState)),
 cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
   let checkForSetting =
         microcodeInstructionSettingStoredValueBits
+      checkForClearing =
+        microcodeInstructionClearingFetchedValueBits
       checkForInstead =
         microcodeInstructionInsteadFixProgramCounterHighByteIfNecessary
       checkForAddLatch =
@@ -215,6 +218,10 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                     Read ->
                       let (fetchedByte, outerState') =
                             fetchByte outerState effectiveAddress
+                          fetchedByte' =
+                            case checkForClearing microcodeInstruction of
+                              Nothing -> fetchedByte
+                              Just bits -> fetchedByte .&. complement bits
                           cpuState' =
                             case microcodeInstructionRegister
                                   microcodeInstruction of
@@ -230,17 +237,23 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                                       cpu6502StateStatusRegister cpuState
                                     (status', newByte) =
                                       case maybeArithmetic of
-                                        Nothing -> (status, fetchedByte)
+                                        Nothing -> (status, fetchedByte')
                                         Just arithmetic ->
                                           performArithmetic arithmetic
                                                             status
                                                             registerByte
-                                                            fetchedByte
-                                in (computeStoreInternalRegister
-                                     internalRegister cpuState newByte) {
-                                       cpu6502StateStatusRegister = status'
-                                     }
-                      in (fetchedByte, cpuState', outerState')
+                                                            fetchedByte'
+                                    statusPostprocessor cpuState' =
+                                      if internalRegister == StatusRegister
+                                        then cpuState'
+                                        else cpuState' {
+                                                 cpu6502StateStatusRegister =
+                                                   status'
+                                               }
+                                in statusPostprocessor
+                                    $ computeStoreInternalRegister
+                                       internalRegister cpuState newByte
+                      in (fetchedByte', cpuState', outerState')
                     Write -> let storedByte' =
                                    case microcodeInstructionRegister
                                          microcodeInstruction of
@@ -425,10 +438,10 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                           (latch', newCarry) =
                             transformWord8 transformation
                                            (latch, oldCarry)
-                          statusRegister' =
+                          statusRegister'' =
                             updateStatusRegisterForValueAndCarry
-                             statusRegister latch' newCarry
-                      in (latch', statusRegister')
+                             statusRegister' latch' newCarry
+                      in (latch', statusRegister'')
                 statusRegister''' =
                   case microcodeInstructionStatusRegisterOperation
                         microcodeInstruction of
@@ -1157,7 +1170,10 @@ decodeOperation opcode =
                buildMicrocodeInstruction
                 (fetchValueMicrocodeInstruction (FixedAddressSource 0x0100)
                                                 $ mnemonicRegister mnemonic)
-                [usingAddressOffsetRegister StackPointer],
+                [usingAddressOffsetRegister StackPointer,
+                 if mnemonic == PLP
+                   then clearingBFlagInFetchedValue
+                   else id],
                fetchOpcodeMicrocodeInstruction]
             JSR ->
               [buildMicrocodeInstruction
@@ -1878,6 +1894,7 @@ templateMicrocodeInstruction =
       microcodeInstructionAddressOffset = Nothing,
       microcodeInstructionAddressAddOne = False,
       microcodeInstructionSettingStoredValueBits = Nothing,
+      microcodeInstructionClearingFetchedValueBits = Nothing,
       microcodeInstructionReadWrite = undefined,
       microcodeInstructionArithmeticOperation = Nothing,
       microcodeInstructionDecodeOperation = False,
@@ -2059,6 +2076,14 @@ settingHardwareBFlagInStoredValue
 settingHardwareBFlagInStoredValue microcodeInstruction =
   microcodeInstruction {
       microcodeInstructionSettingStoredValueBits = Just 0x20
+    }
+
+
+clearingBFlagInFetchedValue
+    :: MicrocodeInstruction -> MicrocodeInstruction
+clearingBFlagInFetchedValue microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionClearingFetchedValueBits = Just 0x10
     }
 
 
