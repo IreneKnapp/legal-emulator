@@ -110,6 +110,16 @@ data InstructionCharacter
 data IncrementDecrement = Increment | Decrement
 
 
+data SetClear = Set | Clear
+
+
+data AccumulatorTransformation
+  = ArithmeticShiftLeft
+  | LogicalShiftRight
+  | RotateLeft
+  | RotateRight
+
+
 data MicrocodeInstruction =
   MicrocodeInstruction {
       microcodeInstructionRegister :: Maybe InternalRegister,
@@ -122,7 +132,14 @@ data MicrocodeInstruction =
       microcodeInstructionDecodeOperation :: Bool,
       microcodeInstructionFixStoredAddressHighByte :: Bool,
       microcodeInstructionIncrementProgramCounter :: Bool,
-      microcodeInstructionStackPointerOperation :: Maybe IncrementDecrement
+      microcodeInstructionStackPointerOperation :: Maybe IncrementDecrement,
+      microcodeInstructionXIndexRegisterOperation :: Maybe IncrementDecrement,
+      microcodeInstructionYIndexRegisterOperation :: Maybe IncrementDecrement,
+      microcodeInstructionStatusRegisterOperation :: Maybe (SetClear, Word8),
+      microcodeInstructionAccumulatorOperation
+        :: Maybe AccumulatorTransformation,
+      microcodeInstructionRegisterRegisterCopy
+        :: Maybe (InternalRegister, InternalRegister)
     }
 
 
@@ -228,6 +245,30 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                     Nothing -> stackPointer
                     Just Increment -> stackPointer + 1
                     Just Decrement -> stackPointer - 1
+                xIndexRegister =
+                  cpu6502StateXIndexRegister cpuState''
+                xIndexRegister' =
+                  case microcodeInstructionXIndexRegisterOperation
+                        microcodeInstruction of
+                    Nothing -> xIndexRegister
+                    Just Increment -> xIndexRegister + 1
+                    Just Decrement -> xIndexRegister - 1
+                yIndexRegister =
+                  cpu6502StateYIndexRegister cpuState''
+                yIndexRegister' =
+                  case microcodeInstructionYIndexRegisterOperation
+                        microcodeInstruction of
+                    Nothing -> yIndexRegister
+                    Just Increment -> yIndexRegister + 1
+                    Just Decrement -> yIndexRegister - 1
+                accumulator =
+                  cpu6502StateAccumulator cpuState''
+                accumulator' =
+                  case microcodeInstructionAccumulatorOperation
+                        microcodeInstruction of
+                    Nothing -> accumulator
+                    Just transformation ->
+                      transformWord8 accumulator transformation
                 microcodeInstructionQueue'' =
                   if microcodeInstructionDecodeOperation
                       microcodeInstruction
@@ -237,10 +278,23 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                 cpuState''' = cpuState'' {
                                   cpu6502StateProgramCounter = programCounter',
                                   cpu6502StateStackPointer = stackPointer',
+                                  cpu6502StateXIndexRegister = xIndexRegister',
+                                  cpu6502StateYIndexRegister = yIndexRegister',
+                                  cpu6502StateAccumulator = accumulator',
                                   cpu6502StateMicrocodeInstructionQueue =
                                     microcodeInstructionQueue''
                                 }
-            in (cpuState''', outerState')
+                cpuState'''' = case microcodeInstructionRegisterRegisterCopy
+                                     microcodeInstruction of
+                                 Nothing -> cpuState'''
+                                 Just (source, destination) ->
+                                   computeStoreInternalRegister
+                                    destination
+                                    cpuState'''
+                                    $ computeInternalRegister
+                                       source
+                                       cpuState'''
+            in (cpuState'''', outerState')
       outerState'' = putState outerState' cpuState'
   in outerState''
 
@@ -444,6 +498,15 @@ performArithmetic operation oldStatus byteA byteB =
                                   [(7, negative),
                                    (1, zero)]]
   in (newStatus, result)
+
+
+transformWord8 :: Word8 -> AccumulatorTransformation -> Word8
+transformWord8 byte transformation =
+  case transformation of
+    ArithmeticShiftLeft -> shiftL byte 1
+    LogicalShiftRight -> shiftR byte 1
+    RotateLeft -> shiftL byte 1 .|. shiftR byte 7
+    RotateRight -> shiftR byte 1 .|. shiftL byte 7
 
 
 statusTestCarry :: Word8 -> Bool
@@ -823,11 +886,45 @@ decodeOperation opcode =
                                                 ProgramCounterHighByte)
                 [alsoCopyLatchToRegister ProgramCounterLowByte],
                fetchOpcodeMicrocodeInstruction]
-        (_, _) | elem addressing [AccumulatorAddressing, ImpliedAddressing] ->
-              -- TODO
+        (ImpliedAddressing, _) ->
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                NoRegister)
+                $ case mnemonic of
+                    CLC -> [alsoClearStatusBits 0x01]
+                    CLI -> [alsoClearStatusBits 0x04]
+                    CLD -> [alsoClearStatusBits 0x08]
+                    CLV -> [alsoClearStatusBits 0x40]
+                    SEC -> [alsoSetStatusBits 0x01]
+                    SEI -> [alsoSetStatusBits 0x04]
+                    SED -> [alsoSetStatusBits 0x08]
+                    DEX -> [alsoDecrementXIndexRegister]
+                    DEY -> [alsoDecrementYIndexRegister]
+                    INX -> [alsoIncrementXIndexRegister]
+                    INY -> [alsoIncrementYIndexRegister]
+                    TAX -> [alsoCopyRegisterToRegister Accumulator
+                                                       XIndexRegister]
+                    TAY -> [alsoCopyRegisterToRegister Accumulator
+                                                       YIndexRegister]
+                    TXA -> [alsoCopyRegisterToRegister XIndexRegister
+                                                       Accumulator]
+                    TYA -> [alsoCopyRegisterToRegister YIndexRegister
+                                                       Accumulator]
+                    TXS -> [alsoCopyRegisterToRegister XIndexRegister
+                                                       StackPointer]
+                    TSX -> [alsoCopyRegisterToRegister StackPointer
+                                                       XIndexRegister]
+                    NOP -> [],
+               fetchOpcodeMicrocodeInstruction]
+        (AccumulatorAddressing, _) ->
+              [buildMicrocodeInstruction
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                NoRegister)
+                $ case mnemonic of
+                    ASL -> [alsoTransformAccumulator ArithmeticShiftLeft]
+                    LSR -> [alsoTransformAccumulator LogicalShiftRight]
+                    ROL -> [alsoTransformAccumulator RotateLeft]
+                    ROR -> [alsoTransformAccumulator RotateRight],
                fetchOpcodeMicrocodeInstruction]
         (ImmediateAddressing, _) ->
               -- TODO
@@ -1325,7 +1422,12 @@ fetchOpcodeMicrocodeInstruction =
       microcodeInstructionDecodeOperation = True,
       microcodeInstructionFixStoredAddressHighByte = False,
       microcodeInstructionIncrementProgramCounter = True,
-      microcodeInstructionStackPointerOperation = Nothing
+      microcodeInstructionStackPointerOperation = Nothing,
+      microcodeInstructionXIndexRegisterOperation = Nothing,
+      microcodeInstructionYIndexRegisterOperation = Nothing,
+      microcodeInstructionStatusRegisterOperation = Nothing,
+      microcodeInstructionAccumulatorOperation = Nothing,
+      microcodeInstructionRegisterRegisterCopy = Nothing
     }
 
 
@@ -1343,7 +1445,12 @@ fetchValueMicrocodeInstruction addressSource register =
       microcodeInstructionDecodeOperation = False,
       microcodeInstructionFixStoredAddressHighByte = False,
       microcodeInstructionIncrementProgramCounter = False,
-      microcodeInstructionStackPointerOperation = Nothing
+      microcodeInstructionStackPointerOperation = Nothing,
+      microcodeInstructionXIndexRegisterOperation = Nothing,
+      microcodeInstructionYIndexRegisterOperation = Nothing,
+      microcodeInstructionStatusRegisterOperation = Nothing,
+      microcodeInstructionAccumulatorOperation = Nothing,
+      microcodeInstructionRegisterRegisterCopy = Nothing
     }
 
 
@@ -1361,7 +1468,12 @@ storeValueMicrocodeInstruction addressSource register =
       microcodeInstructionDecodeOperation = False,
       microcodeInstructionFixStoredAddressHighByte = False,
       microcodeInstructionIncrementProgramCounter = False,
-      microcodeInstructionStackPointerOperation = Nothing
+      microcodeInstructionStackPointerOperation = Nothing,
+      microcodeInstructionXIndexRegisterOperation = Nothing,
+      microcodeInstructionYIndexRegisterOperation = Nothing,
+      microcodeInstructionStatusRegisterOperation = Nothing,
+      microcodeInstructionAccumulatorOperation = Nothing,
+      microcodeInstructionRegisterRegisterCopy = Nothing
     }
 
 
@@ -1378,7 +1490,12 @@ stubMicrocodeInstruction =
       microcodeInstructionDecodeOperation = False,
       microcodeInstructionFixStoredAddressHighByte = False,
       microcodeInstructionIncrementProgramCounter = False,
-      microcodeInstructionStackPointerOperation = Nothing
+      microcodeInstructionStackPointerOperation = Nothing,
+      microcodeInstructionXIndexRegisterOperation = Nothing,
+      microcodeInstructionYIndexRegisterOperation = Nothing,
+      microcodeInstructionStatusRegisterOperation = Nothing,
+      microcodeInstructionAccumulatorOperation = Nothing,
+      microcodeInstructionRegisterRegisterCopy = Nothing
     }
 
 
@@ -1403,6 +1520,34 @@ alsoDecrementStackPointer microcodeInstruction =
     }
 
 
+alsoIncrementXIndexRegister :: MicrocodeInstruction -> MicrocodeInstruction
+alsoIncrementXIndexRegister microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionXIndexRegisterOperation = Just Increment
+    }
+
+
+alsoDecrementXIndexRegister :: MicrocodeInstruction -> MicrocodeInstruction
+alsoDecrementXIndexRegister microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionXIndexRegisterOperation = Just Decrement
+    }
+
+
+alsoIncrementYIndexRegister :: MicrocodeInstruction -> MicrocodeInstruction
+alsoIncrementYIndexRegister microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionYIndexRegisterOperation = Just Increment
+    }
+
+
+alsoDecrementYIndexRegister :: MicrocodeInstruction -> MicrocodeInstruction
+alsoDecrementYIndexRegister microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionYIndexRegisterOperation = Just Decrement
+    }
+
+
 alsoCopyLatchToRegister
     :: InternalRegister -> MicrocodeInstruction -> MicrocodeInstruction
 alsoCopyLatchToRegister register microcodeInstruction =
@@ -1424,6 +1569,43 @@ usingAddressOffsetRegister
 usingAddressOffsetRegister register microcodeInstruction =
   microcodeInstruction {
       microcodeInstructionAddressOffset = Just register
+    }
+
+
+alsoSetStatusBits
+    :: Word8 -> MicrocodeInstruction -> MicrocodeInstruction
+alsoSetStatusBits bits microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionStatusRegisterOperation = Just (Set, bits)
+    }
+
+
+alsoClearStatusBits
+    :: Word8 -> MicrocodeInstruction -> MicrocodeInstruction
+alsoClearStatusBits bits microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionStatusRegisterOperation = Just (Clear, bits)
+    }
+
+
+alsoTransformAccumulator
+    :: AccumulatorTransformation
+    -> MicrocodeInstruction
+    -> MicrocodeInstruction
+alsoTransformAccumulator transformation microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionAccumulatorOperation = Just transformation
+    }
+
+
+alsoCopyRegisterToRegister
+    :: InternalRegister
+    -> InternalRegister
+    -> MicrocodeInstruction
+    -> MicrocodeInstruction
+alsoCopyRegisterToRegister source destination microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionRegisterRegisterCopy = Just (source, destination)
     }
 
 
