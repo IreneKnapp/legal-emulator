@@ -1586,24 +1586,41 @@ decodeOperation opcode =
                 [],
                fetchOpcodeMicrocodeInstruction]
         (IndirectYIndexedAddressing, ReadCharacter) ->
-              -- TODO SOON
-              -- LDA, EOR, AND, ORA, ADC, SBC, CMP
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [alsoIncrementProgramCounter],
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                StoredAddressLowByte)
+                [alsoIncrementProgramCounter,
+                 alsoZeroStoredAddressHighByte],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
                 [],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
-               buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
-               buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
-               fetchOpcodeMicrocodeInstruction]
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                StoredAddressHighByte)
+                [usingAddressPlusOne,
+                 alsoCopyLatchToRegister StoredAddressLowByte,
+                 alsoAddRegisterToStoredAddress YIndexRegister,
+                 usingConditional
+                  InternalOverflowSet
+                  [buildMicrocodeInstruction
+                    (fetchValueMicrocodeInstruction StoredAddressSource
+                                                    NoRegister)
+                    [alsoFixStoredAddressHighByte],
+                   buildMicrocodeInstruction
+                    (fetchValueMicrocodeInstruction
+                      StoredAddressSource
+                      $ mnemonicRegister mnemonic)
+                    [usingArithmeticOperation
+                      $ mnemonicArithmeticOperation mnemonic],
+                   fetchOpcodeMicrocodeInstruction]
+                  [buildMicrocodeInstruction
+                    (fetchValueMicrocodeInstruction
+                      StoredAddressSource
+                      $ mnemonicRegister mnemonic)
+                    [usingArithmeticOperation
+                      $ mnemonicArithmeticOperation mnemonic],
+                   fetchOpcodeMicrocodeInstruction]]]
         (IndirectYIndexedAddressing, ReadWriteCharacter) ->
               [buildMicrocodeInstruction
                 (fetchValueMicrocodeInstruction ProgramCounterAddressSource
