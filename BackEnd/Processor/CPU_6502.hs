@@ -29,7 +29,8 @@ data CPU_6502_State =
       cpu6502StateXIndexRegister :: Word8,
       cpu6502StateYIndexRegister :: Word8,
       cpu6502StateStatusRegister :: Word8,
-      cpu6502StateInternalAdditionOverflow :: Bool,
+      cpu6502StateInternalOverflow :: Bool,
+      cpu6502StateInternalNegative :: Bool,
       cpu6502StateInternalStoredAddress :: Word16,
       cpu6502StateInternalLatch :: Word8,
       cpu6502StateMicrocodeInstructionQueue :: [MicrocodeInstruction]
@@ -97,6 +98,17 @@ data ArithmeticOperation
   | ArithmeticCompare
 
 
+data Condition
+  = CarryClear
+  | CarrySet
+  | NotEqual
+  | Equal
+  | Plus
+  | Minus
+  | OverflowClear
+  | OverflowSet
+
+
 data InstructionCharacter
   = StackCharacter
   | ControlCharacter
@@ -122,15 +134,19 @@ data AccumulatorTransformation
 
 data MicrocodeInstruction =
   MicrocodeInstruction {
+      microcodeInstructionConditional
+        :: Maybe (Condition, [MicrocodeInstruction], [MicrocodeInstruction]),
+      microcodeInstructionInsteadFixProgramCounterHighByteIfNecessary
+        :: Bool,
       microcodeInstructionRegister :: Maybe InternalRegister,
       microcodeInstructionRegisterFromLatch :: Maybe InternalRegister,
+      microcodeInstructionAddLatchToProgramCounterLowByte :: Bool,
       microcodeInstructionAddressSource :: AddressSource,
       microcodeInstructionAddressOffset :: Maybe InternalRegister,
       microcodeInstructionAddressAddOne :: Bool,
       microcodeInstructionReadWrite :: ReadWrite,
       microcodeInstructionArithmeticOperation :: Maybe ArithmeticOperation,
       microcodeInstructionDecodeOperation :: Bool,
-      microcodeInstructionFixStoredAddressHighByte :: Bool,
       microcodeInstructionIncrementProgramCounter :: Bool,
       microcodeInstructionStackPointerOperation :: Maybe IncrementDecrement,
       microcodeInstructionXIndexRegisterOperation :: Maybe IncrementDecrement,
@@ -152,7 +168,8 @@ cpu6502PowerOnState =
       cpu6502StateXIndexRegister = 0x00,
       cpu6502StateYIndexRegister = 0x00,
       cpu6502StateStatusRegister = 0x04,
-      cpu6502StateInternalAdditionOverflow = False,
+      cpu6502StateInternalOverflow = False,
+      cpu6502StateInternalNegative = False,
       cpu6502StateInternalStoredAddress = 0x0000,
       cpu6502StateInternalLatch = 0x00,
       cpu6502StateMicrocodeInstructionQueue =
@@ -167,7 +184,11 @@ cpu6502Cycle :: ((outerState -> Word16 -> (Word8, outerState)),
              -> outerState
              -> outerState
 cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
-  let cpuState = getState outerState
+  let checkForInstead =
+        microcodeInstructionInsteadFixProgramCounterHighByteIfNecessary
+      checkForAddLatch =
+        microcodeInstructionAddLatchToProgramCounterLowByte
+      cpuState = getState outerState
       (maybeMicrocodeInstruction, microcodeInstructionQueue') =
         case cpu6502StateMicrocodeInstructionQueue cpuState of
           (first:rest) -> (Just first, rest)
@@ -232,11 +253,68 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                                                       cpuState'
                 programCounter =
                   cpu6502StateProgramCounter cpuState''
-                programCounter' =
-                  if microcodeInstructionIncrementProgramCounter
-                      microcodeInstruction
-                    then programCounter + 1
-                    else programCounter
+                keepProgramCounter =
+                  (programCounter, False, False, False)
+                incrementProgramCounter =
+                  (programCounter + 1, False, False, False)
+                incrementProgramCounterOnePage =
+                  (programCounter + 0x0100, True, False, False)
+                decrementProgramCounterOnePage =
+                  (programCounter - 0x0100, True, False, False)
+                (programCounter',
+                 programCounterHighByteWasWrong,
+                 internalOverflow',
+                 internalNegative') =
+                  if checkForInstead microcodeInstruction
+                    then let internalOverflow =
+                               cpu6502StateInternalOverflow cpuState
+                             internalNegative =
+                               cpu6502StateInternalNegative cpuState
+                         in if internalOverflow
+                              then if internalNegative
+                                     then decrementProgramCounterOnePage
+                                     else incrementProgramCounterOnePage
+                              else
+                                if microcodeInstructionIncrementProgramCounter
+                                    microcodeInstruction
+                                  then incrementProgramCounter
+                                  else keepProgramCounter
+                    else if microcodeInstructionIncrementProgramCounter
+                             microcodeInstruction
+                           then incrementProgramCounter
+                           else
+                             if checkForAddLatch microcodeInstruction
+                               then let latch =
+                                          cpu6502StateInternalLatch cpuState''
+                                        latchInt8 =
+                                          fromIntegral latch :: Int8
+                                        latchInt =
+                                          fromIntegral latch :: Int
+                                        programCounterHighByte =
+                                           programCounter .&. 0xFF00
+                                        programCounterLowByte =
+                                          fromIntegral
+                                           (programCounter .&. 0x00FF)
+                                          :: Int
+                                        programCounterLowByteInt' =
+                                          programCounterLowByte + latchInt
+                                        internalNegative =
+                                          (programCounterLowByteInt' < 0x00)
+                                        internalOverflow =
+                                          internalNegative
+                                          || (programCounterLowByteInt' > 0xFF)
+                                        programCounterLowByte' =
+                                          fromIntegral
+                                           programCounterLowByteInt'
+                                          :: Word8
+                                        programCounter' =
+                                          fromIntegral programCounterLowByte'
+                                          .|. programCounterHighByte
+                                    in (programCounter',
+                                        False,
+                                        internalOverflow,
+                                        internalNegative)
+                               else keepProgramCounter
                 stackPointer =
                   cpu6502StateStackPointer cpuState''
                 stackPointer' =
@@ -280,9 +358,17 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                 microcodeInstructionQueue'' =
                   if microcodeInstructionDecodeOperation
                       microcodeInstruction
-                    then microcodeInstructionQueue'
-                         ++ decodeOperation fetchedByte
-                    else microcodeInstructionQueue'
+                    then if checkForInstead microcodeInstruction
+                            && programCounterHighByteWasWrong
+                           then microcodeInstructionQueue'
+                           else decodeOperation fetchedByte
+                    else case microcodeInstructionConditional
+                               microcodeInstruction of
+                           Nothing -> microcodeInstructionQueue'
+                           Just (condition, ifTrue, ifFalse) ->
+                             if testCondition condition cpuState
+                               then ifTrue
+                               else ifFalse
                 cpuState''' = cpuState'' {
                                   cpu6502StateProgramCounter = programCounter',
                                   cpu6502StateStackPointer = stackPointer',
@@ -290,6 +376,10 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                                   cpu6502StateYIndexRegister = yIndexRegister',
                                   cpu6502StateAccumulator = accumulator',
                                   cpu6502StateStatusRegister = statusRegister',
+                                  cpu6502StateInternalOverflow =
+                                    internalOverflow',
+                                  cpu6502StateInternalNegative =
+                                    internalNegative',
                                   cpu6502StateMicrocodeInstructionQueue =
                                     microcodeInstructionQueue''
                                 }
@@ -518,8 +608,34 @@ transformWord8 byte transformation =
     RotateRight -> shiftR byte 1 .|. shiftL byte 7
 
 
+testCondition :: Condition -> CPU_6502_State -> Bool
+testCondition condition cpuState =
+  let status = cpu6502StateStatusRegister cpuState
+  in case condition of
+       CarryClear -> not $ statusTestCarry status
+       CarrySet -> statusTestCarry status
+       NotEqual -> not $ statusTestZero status
+       Equal -> statusTestZero status
+       Plus -> not $ statusTestNegative status
+       Minus -> statusTestNegative status
+       OverflowClear -> not $ statusTestOverflow status
+       OverflowSet -> statusTestOverflow status
+
+
 statusTestCarry :: Word8 -> Bool
 statusTestCarry status = testBit status 0
+
+
+statusTestZero :: Word8 -> Bool
+statusTestZero status = testBit status 1
+
+
+statusTestNegative :: Word8 -> Bool
+statusTestNegative status = testBit status 7
+
+
+statusTestOverflow :: Word8 -> Bool
+statusTestOverflow status = testBit status 6
 
 
 cpu6502DecodeInstructionMnemonicAndAddressingMode
@@ -1149,20 +1265,25 @@ decodeOperation opcode =
                 [],
                fetchOpcodeMicrocodeInstruction]
         (RelativeAddressing, ControlCharacter) ->
-              -- TODO
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [alsoIncrementProgramCounter],
-               buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
-               buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
-               buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
-               fetchOpcodeMicrocodeInstruction]
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                Latch)
+                [alsoIncrementProgramCounter,
+                 usingConditional
+                  (mnemonicCondition mnemonic)
+                  [buildMicrocodeInstruction
+                    (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                    NoRegister)
+                    [alsoAddLatchToProgramCounterLowByte],
+                   buildMicrocodeInstruction
+                    fetchOpcodeMicrocodeInstruction
+                    [insteadFixProgramCounterHighByteIfNecessary],
+                   fetchOpcodeMicrocodeInstruction]
+                  [buildMicrocodeInstruction
+                    (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                    NoRegister)
+                    [alsoIncrementProgramCounter],
+                   fetchOpcodeMicrocodeInstruction]]]
         (XIndexedIndirectAddressing, ReadCharacter) ->
               -- TODO
               -- LDA, ORA, EOR, AND, ADC, CMP, SBC
@@ -1412,6 +1533,20 @@ mnemonicArithmeticOperation mnemonic =
     CPY -> ArithmeticCompare
 
 
+mnemonicCondition
+    :: InstructionMnemonic -> Condition
+mnemonicCondition mnemonic =
+  case mnemonic of
+    BCC -> CarryClear
+    BCS -> CarrySet
+    BNE -> NotEqual
+    BEQ -> Equal
+    BPL -> Plus
+    BMI -> Minus
+    BVC -> OverflowClear
+    BVS -> OverflowSet
+
+
 buildMicrocodeInstruction :: MicrocodeInstruction
                           -> [MicrocodeInstruction -> MicrocodeInstruction]
                           -> MicrocodeInstruction
@@ -1421,15 +1556,17 @@ buildMicrocodeInstruction base steps = (foldr ($)) base (reverse steps)
 fetchOpcodeMicrocodeInstruction :: MicrocodeInstruction
 fetchOpcodeMicrocodeInstruction =
   MicrocodeInstruction {
+      microcodeInstructionConditional = Nothing,
+      microcodeInstructionInsteadFixProgramCounterHighByteIfNecessary = False,
       microcodeInstructionRegister = Nothing,
       microcodeInstructionRegisterFromLatch = Nothing,
+      microcodeInstructionAddLatchToProgramCounterLowByte = False,
       microcodeInstructionAddressSource = ProgramCounterAddressSource,
       microcodeInstructionAddressOffset = Nothing,
       microcodeInstructionAddressAddOne = False,
       microcodeInstructionReadWrite = Read,
       microcodeInstructionArithmeticOperation = Nothing,
       microcodeInstructionDecodeOperation = True,
-      microcodeInstructionFixStoredAddressHighByte = False,
       microcodeInstructionIncrementProgramCounter = True,
       microcodeInstructionStackPointerOperation = Nothing,
       microcodeInstructionXIndexRegisterOperation = Nothing,
@@ -1444,15 +1581,17 @@ fetchValueMicrocodeInstruction
     :: AddressSource -> InternalRegister -> MicrocodeInstruction
 fetchValueMicrocodeInstruction addressSource register =
   MicrocodeInstruction {
+      microcodeInstructionConditional = Nothing,
+      microcodeInstructionInsteadFixProgramCounterHighByteIfNecessary = False,
       microcodeInstructionRegister = Just register,
       microcodeInstructionRegisterFromLatch = Nothing,
+      microcodeInstructionAddLatchToProgramCounterLowByte = False,
       microcodeInstructionAddressSource = addressSource,
       microcodeInstructionAddressOffset = Nothing,
       microcodeInstructionAddressAddOne = False,
       microcodeInstructionReadWrite = Read,
       microcodeInstructionArithmeticOperation = Nothing,
       microcodeInstructionDecodeOperation = False,
-      microcodeInstructionFixStoredAddressHighByte = False,
       microcodeInstructionIncrementProgramCounter = False,
       microcodeInstructionStackPointerOperation = Nothing,
       microcodeInstructionXIndexRegisterOperation = Nothing,
@@ -1467,15 +1606,17 @@ storeValueMicrocodeInstruction
     :: AddressSource -> InternalRegister -> MicrocodeInstruction
 storeValueMicrocodeInstruction addressSource register =
   MicrocodeInstruction {
+      microcodeInstructionConditional = Nothing,
+      microcodeInstructionInsteadFixProgramCounterHighByteIfNecessary = False,
       microcodeInstructionRegister = Just register,
       microcodeInstructionRegisterFromLatch = Nothing,
+      microcodeInstructionAddLatchToProgramCounterLowByte = False,
       microcodeInstructionAddressSource = addressSource,
       microcodeInstructionAddressOffset = Nothing,
       microcodeInstructionAddressAddOne = False,
       microcodeInstructionReadWrite = Write,
       microcodeInstructionArithmeticOperation = Nothing,
       microcodeInstructionDecodeOperation = False,
-      microcodeInstructionFixStoredAddressHighByte = False,
       microcodeInstructionIncrementProgramCounter = False,
       microcodeInstructionStackPointerOperation = Nothing,
       microcodeInstructionXIndexRegisterOperation = Nothing,
@@ -1489,15 +1630,17 @@ storeValueMicrocodeInstruction addressSource register =
 stubMicrocodeInstruction :: MicrocodeInstruction
 stubMicrocodeInstruction =
   MicrocodeInstruction {
+      microcodeInstructionConditional = Nothing,
+      microcodeInstructionInsteadFixProgramCounterHighByteIfNecessary = False,
       microcodeInstructionRegister = Nothing,
       microcodeInstructionRegisterFromLatch = Nothing,
+      microcodeInstructionAddLatchToProgramCounterLowByte = False,
       microcodeInstructionAddressSource = FixedAddressSource 0x0000,
       microcodeInstructionAddressOffset = Nothing,
       microcodeInstructionAddressAddOne = False,
       microcodeInstructionReadWrite = Read,
       microcodeInstructionArithmeticOperation = Nothing,
       microcodeInstructionDecodeOperation = False,
-      microcodeInstructionFixStoredAddressHighByte = False,
       microcodeInstructionIncrementProgramCounter = False,
       microcodeInstructionStackPointerOperation = Nothing,
       microcodeInstructionXIndexRegisterOperation = Nothing,
@@ -1565,6 +1708,14 @@ alsoCopyLatchToRegister register microcodeInstruction =
     }
 
 
+alsoAddLatchToProgramCounterLowByte
+    :: MicrocodeInstruction -> MicrocodeInstruction
+alsoAddLatchToProgramCounterLowByte microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionAddLatchToProgramCounterLowByte = True
+    }
+
+
 usingArithmeticOperation
     :: ArithmeticOperation -> MicrocodeInstruction -> MicrocodeInstruction
 usingArithmeticOperation arithmeticOperation microcodeInstruction =
@@ -1578,6 +1729,15 @@ usingAddressOffsetRegister
 usingAddressOffsetRegister register microcodeInstruction =
   microcodeInstruction {
       microcodeInstructionAddressOffset = Just register
+    }
+
+
+usingConditional
+    :: Condition -> [MicrocodeInstruction] -> [MicrocodeInstruction]
+    -> MicrocodeInstruction -> MicrocodeInstruction
+usingConditional condition ifTrue ifFalse microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionConditional = Just (condition, ifTrue, ifFalse)
     }
 
 
@@ -1618,6 +1778,14 @@ alsoCopyRegisterToRegister source destination microcodeInstruction =
     }
 
 
+insteadFixProgramCounterHighByteIfNecessary
+    :: MicrocodeInstruction -> MicrocodeInstruction
+insteadFixProgramCounterHighByteIfNecessary microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionInsteadFixProgramCounterHighByteIfNecessary = True
+    }
+
+
 cpu6502NBytes :: AddressingMode -> Int
 cpu6502NBytes addressingMode =
   case addressingMode of
@@ -1638,4 +1806,13 @@ cpu6502NBytes addressingMode =
 
 cpu6502AtInstructionStart :: CPU_6502_State -> Bool
 cpu6502AtInstructionStart cpuState =
-  length (cpu6502StateMicrocodeInstructionQueue cpuState) == 1
+  case cpu6502StateMicrocodeInstructionQueue cpuState of
+    [] -> False
+    (microcodeInstruction : _) ->
+      if microcodeInstructionDecodeOperation microcodeInstruction
+        then if microcodeInstructionInsteadFixProgramCounterHighByteIfNecessary
+                 microcodeInstruction
+                && cpu6502StateInternalOverflow cpuState
+              then False
+              else True
+        else False
