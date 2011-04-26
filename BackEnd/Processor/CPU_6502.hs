@@ -1254,14 +1254,16 @@ decodeOperation opcode =
                 [],
                fetchOpcodeMicrocodeInstruction]
         (ZeroPageAddressing, ReadCharacter) ->
-              -- TODO
-              -- LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT, NOP
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [alsoIncrementProgramCounter],
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                StoredAddressLowByte)
+                [alsoIncrementProgramCounter,
+                 alsoZeroStoredAddressHighByte],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                $ mnemonicRegister mnemonic)
+                [usingArithmeticOperation
+                  $ mnemonicArithmeticOperation mnemonic],
                fetchOpcodeMicrocodeInstruction]
         (ZeroPageAddressing, ReadWriteCharacter) ->
               [buildMicrocodeInstruction
