@@ -148,6 +148,9 @@ data MicrocodeInstruction =
       microcodeInstructionArithmeticOperation :: Maybe ArithmeticOperation,
       microcodeInstructionDecodeOperation :: Bool,
       microcodeInstructionIncrementProgramCounter :: Bool,
+      microcodeInstructionZeroStoredAddressHighByte :: Bool,
+      microcodeInstructionAddRegisterToStoredAddress :: Maybe InternalRegister,
+      microcodeInstructionFixStoredAddressHighByte :: Bool,
       microcodeInstructionStackPointerOperation :: Maybe IncrementDecrement,
       microcodeInstructionXIndexRegisterOperation :: Maybe IncrementDecrement,
       microcodeInstructionYIndexRegisterOperation :: Maybe IncrementDecrement,
@@ -263,8 +266,8 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                   (programCounter - 0x0100, True, False, False)
                 (programCounter',
                  programCounterHighByteWasWrong,
-                 internalOverflow',
-                 internalNegative') =
+                 internalOverflowA',
+                 internalNegativeA') =
                   if checkForInstead microcodeInstruction
                     then let internalOverflow =
                                cpu6502StateInternalOverflow cpuState
@@ -315,6 +318,47 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                                         internalOverflow,
                                         internalNegative)
                                else keepProgramCounter
+                storedAddress =
+                  cpu6502StateInternalStoredAddress cpuState''
+                (storedAddress',
+                 internalOverflowB',
+                 internalNegativeB') =
+                  if microcodeInstructionZeroStoredAddressHighByte
+                      microcodeInstruction
+                    then (storedAddress .&. 0x00FF, False, False)
+                    else case microcodeInstructionAddRegisterToStoredAddress
+                               microcodeInstruction of
+                           Nothing -> (storedAddress, False, False)
+                           Just register ->
+                             let addend =
+                                   computeInternalRegister register cpuState''
+                                 addendInt8 =
+                                   fromIntegral addend :: Int8
+                                 addendInt =
+                                   fromIntegral addend :: Int
+                                 storedAddressHighByte =
+                                    storedAddress .&. 0xFF00
+                                 storedAddressLowByte =
+                                   fromIntegral
+                                    (storedAddress .&. 0x00FF)
+                                   :: Int
+                                 storedAddressLowByteInt' =
+                                   storedAddressLowByte + addendInt
+                                 internalNegative =
+                                   (storedAddressLowByteInt' < 0x00)
+                                 internalOverflow =
+                                   internalNegative
+                                   || (storedAddressLowByteInt' > 0xFF)
+                                 storedAddressLowByte' =
+                                   fromIntegral
+                                    storedAddressLowByteInt'
+                                   :: Word8
+                                 storedAddress' =
+                                   fromIntegral storedAddressLowByte'
+                                   .|. storedAddressHighByte
+                             in (storedAddress',
+                                 internalOverflow,
+                                 internalNegative)
                 stackPointer =
                   cpu6502StateStackPointer cpuState''
                 stackPointer' =
@@ -355,6 +399,10 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                     Nothing -> statusRegister
                     Just (Set, bits) -> statusRegister .|. bits
                     Just (Clear, bits) -> statusRegister .&. complement bits
+                internalOverflow' =
+                  internalOverflowA' || internalOverflowB'
+                internalNegative' =
+                  internalNegativeA' || internalNegativeB'
                 microcodeInstructionQueue'' =
                   if microcodeInstructionDecodeOperation
                       microcodeInstruction
@@ -371,6 +419,8 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                                else ifFalse
                 cpuState''' = cpuState'' {
                                   cpu6502StateProgramCounter = programCounter',
+                                  cpu6502StateInternalStoredAddress =
+                                    storedAddress',
                                   cpu6502StateStackPointer = stackPointer',
                                   cpu6502StateXIndexRegister = xIndexRegister',
                                   cpu6502StateYIndexRegister = yIndexRegister',
@@ -1052,7 +1102,6 @@ decodeOperation opcode =
                     ROR -> [alsoTransformAccumulator RotateRight],
                fetchOpcodeMicrocodeInstruction]
         (ImmediateAddressing, _) ->
-              -- TODO
               [buildMicrocodeInstruction
                 (fetchValueMicrocodeInstruction ProgramCounterAddressSource
                                                 $ mnemonicRegister mnemonic)
@@ -1105,7 +1154,7 @@ decodeOperation opcode =
                 [],
                fetchOpcodeMicrocodeInstruction]
         (AbsoluteAddressing, WriteCharacter) ->
-              -- TODO
+              -- TODO SOON
               -- STA, STX, STY
               [buildMicrocodeInstruction
                 (stubMicrocodeInstruction)
@@ -1144,13 +1193,14 @@ decodeOperation opcode =
                 [],
                fetchOpcodeMicrocodeInstruction]
         (ZeroPageAddressing, WriteCharacter) ->
-              -- TODO
-              -- STA, STX, STY
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [alsoIncrementProgramCounter],
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                StoredAddressLowByte)
+                [alsoIncrementProgramCounter,
+                 alsoZeroStoredAddressHighByte],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (storeValueMicrocodeInstruction StoredAddressSource
+                                                $ mnemonicRegister mnemonic)
                 [],
                fetchOpcodeMicrocodeInstruction]
         (_, ReadCharacter)
@@ -1192,7 +1242,7 @@ decodeOperation opcode =
         (_, WriteCharacter)
           | elem addressing [ZeroPageXIndexedAddressing,
                              ZeroPageYIndexedAddressing] ->
-              -- TODO
+              -- TODO SOON
               -- STA, STX, STY
               [buildMicrocodeInstruction
                 (stubMicrocodeInstruction)
@@ -1249,19 +1299,23 @@ decodeOperation opcode =
         (_, WriteCharacter)
           | elem addressing [AbsoluteXIndexedAddressing,
                              AbsoluteYIndexedAddressing] ->
-              -- TODO
-              -- STA, STX, STY
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                StoredAddressLowByte)
                 [alsoIncrementProgramCounter],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [alsoIncrementProgramCounter],
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                StoredAddressHighByte)
+                [alsoIncrementProgramCounter,
+                 alsoAddRegisterToStoredAddress
+                  $ mnemonicIndexRegister mnemonic],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                NoRegister)
+                [alsoFixStoredAddressHighByte],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (storeValueMicrocodeInstruction StoredAddressSource
+                                                $ mnemonicRegister mnemonic)
                 [],
                fetchOpcodeMicrocodeInstruction]
         (RelativeAddressing, ControlCharacter) ->
@@ -1325,7 +1379,7 @@ decodeOperation opcode =
                 [],
                fetchOpcodeMicrocodeInstruction]
         (XIndexedIndirectAddressing, WriteCharacter) ->
-              -- TODO
+              -- TODO SOON
               -- STA
               [buildMicrocodeInstruction
                 (stubMicrocodeInstruction)
@@ -1388,7 +1442,7 @@ decodeOperation opcode =
                 [],
                fetchOpcodeMicrocodeInstruction]
         (IndirectYIndexedAddressing, WriteCharacter) ->
-              -- TODO
+              -- TODO SOON
               -- STA
               [buildMicrocodeInstruction
                 (stubMicrocodeInstruction)
@@ -1512,6 +1566,31 @@ mnemonicRegister mnemonic =
     INC -> Latch
     DEC -> Latch
 
+
+mnemonicIndexRegister
+    :: InstructionMnemonic -> InternalRegister
+mnemonicIndexRegister mnemonic =
+  case mnemonic of
+    AND -> XIndexRegister
+    ORA -> XIndexRegister
+    EOR -> XIndexRegister
+    ADC -> XIndexRegister
+    SBC -> XIndexRegister
+    LDA -> XIndexRegister
+    LDX -> YIndexRegister
+    LDY -> XIndexRegister
+    STA -> XIndexRegister
+    STX -> YIndexRegister
+    STY -> XIndexRegister
+    CMP -> XIndexRegister
+    ASL -> XIndexRegister
+    LSR -> XIndexRegister
+    ROL -> XIndexRegister
+    ROR -> XIndexRegister
+    INC -> XIndexRegister
+    DEC -> XIndexRegister
+
+
 mnemonicArithmeticOperation
      :: InstructionMnemonic -> ArithmeticOperation
 mnemonicArithmeticOperation mnemonic =
@@ -1564,6 +1643,9 @@ fetchOpcodeMicrocodeInstruction =
       microcodeInstructionArithmeticOperation = Nothing,
       microcodeInstructionDecodeOperation = True,
       microcodeInstructionIncrementProgramCounter = True,
+      microcodeInstructionZeroStoredAddressHighByte = False,
+      microcodeInstructionAddRegisterToStoredAddress = Nothing,
+      microcodeInstructionFixStoredAddressHighByte = False,
       microcodeInstructionStackPointerOperation = Nothing,
       microcodeInstructionXIndexRegisterOperation = Nothing,
       microcodeInstructionYIndexRegisterOperation = Nothing,
@@ -1589,6 +1671,9 @@ fetchValueMicrocodeInstruction addressSource register =
       microcodeInstructionArithmeticOperation = Nothing,
       microcodeInstructionDecodeOperation = False,
       microcodeInstructionIncrementProgramCounter = False,
+      microcodeInstructionZeroStoredAddressHighByte = False,
+      microcodeInstructionAddRegisterToStoredAddress = Nothing,
+      microcodeInstructionFixStoredAddressHighByte = False,
       microcodeInstructionStackPointerOperation = Nothing,
       microcodeInstructionXIndexRegisterOperation = Nothing,
       microcodeInstructionYIndexRegisterOperation = Nothing,
@@ -1614,6 +1699,9 @@ storeValueMicrocodeInstruction addressSource register =
       microcodeInstructionArithmeticOperation = Nothing,
       microcodeInstructionDecodeOperation = False,
       microcodeInstructionIncrementProgramCounter = False,
+      microcodeInstructionZeroStoredAddressHighByte = False,
+      microcodeInstructionAddRegisterToStoredAddress = Nothing,
+      microcodeInstructionFixStoredAddressHighByte = False,
       microcodeInstructionStackPointerOperation = Nothing,
       microcodeInstructionXIndexRegisterOperation = Nothing,
       microcodeInstructionYIndexRegisterOperation = Nothing,
@@ -1638,6 +1726,9 @@ stubMicrocodeInstruction =
       microcodeInstructionArithmeticOperation = Nothing,
       microcodeInstructionDecodeOperation = False,
       microcodeInstructionIncrementProgramCounter = False,
+      microcodeInstructionZeroStoredAddressHighByte = False,
+      microcodeInstructionAddRegisterToStoredAddress = Nothing,
+      microcodeInstructionFixStoredAddressHighByte = False,
       microcodeInstructionStackPointerOperation = Nothing,
       microcodeInstructionXIndexRegisterOperation = Nothing,
       microcodeInstructionYIndexRegisterOperation = Nothing,
@@ -1651,6 +1742,29 @@ alsoIncrementProgramCounter :: MicrocodeInstruction -> MicrocodeInstruction
 alsoIncrementProgramCounter microcodeInstruction =
   microcodeInstruction {
       microcodeInstructionIncrementProgramCounter = True
+    }
+
+
+alsoZeroStoredAddressHighByte :: MicrocodeInstruction -> MicrocodeInstruction
+alsoZeroStoredAddressHighByte microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionZeroStoredAddressHighByte = True
+    }
+
+
+alsoAddRegisterToStoredAddress
+    :: InternalRegister -> MicrocodeInstruction -> MicrocodeInstruction
+alsoAddRegisterToStoredAddress register microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionAddRegisterToStoredAddress = Just register
+    }
+
+
+alsoFixStoredAddressHighByte
+    :: MicrocodeInstruction -> MicrocodeInstruction
+alsoFixStoredAddressHighByte microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionFixStoredAddressHighByte = True
     }
 
 
