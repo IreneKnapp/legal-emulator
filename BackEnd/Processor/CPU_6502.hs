@@ -131,6 +131,7 @@ data Transformation
   | LogicalShiftRight
   | RotateLeft
   | RotateRight
+  | IncrementDecrement IncrementDecrement
 
 
 data MicrocodeInstruction =
@@ -388,30 +389,44 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                     Nothing -> yIndexRegister
                     Just Increment -> yIndexRegister + 1
                     Just Decrement -> yIndexRegister - 1
-                accumulator =
-                  cpu6502StateAccumulator cpuState''
-                accumulator' =
-                  case microcodeInstructionAccumulatorOperation
-                        microcodeInstruction of
-                    Nothing -> accumulator
-                    Just transformation ->
-                      transformWord8 accumulator transformation
-                latch =
-                  cpu6502StateInternalLatch cpuState''
-                latch' =
-                  case microcodeInstructionLatchOperation
-                        microcodeInstruction of
-                    Nothing -> latch
-                    Just transformation ->
-                      transformWord8 latch transformation
                 statusRegister =
                   cpu6502StateStatusRegister cpuState''
-                statusRegister' =
+                accumulator =
+                  cpu6502StateAccumulator cpuState''
+                (accumulator', statusRegister') =
+                  case microcodeInstructionAccumulatorOperation
+                        microcodeInstruction of
+                    Nothing -> (accumulator, statusRegister)
+                    Just transformation ->
+                      let oldCarry = statusTestCarry statusRegister
+                          (accumulator', newCarry) =
+                            transformWord8 transformation
+                                           (accumulator, oldCarry)
+                          statusRegister' =
+                            updateStatusRegisterForValueAndCarry
+                             statusRegister accumulator' newCarry
+                      in (accumulator', statusRegister')
+                latch =
+                  cpu6502StateInternalLatch cpuState''
+                (latch', statusRegister'') =
+                  case microcodeInstructionLatchOperation
+                        microcodeInstruction of
+                    Nothing -> (latch, statusRegister')
+                    Just transformation ->
+                      let oldCarry = statusTestCarry statusRegister
+                          (latch', newCarry) =
+                            transformWord8 transformation
+                                           (latch, oldCarry)
+                          statusRegister' =
+                            updateStatusRegisterForValueAndCarry
+                             statusRegister latch' newCarry
+                      in (latch', statusRegister')
+                statusRegister''' =
                   case microcodeInstructionStatusRegisterOperation
                         microcodeInstruction of
-                    Nothing -> statusRegister
-                    Just (Set, bits) -> statusRegister .|. bits
-                    Just (Clear, bits) -> statusRegister .&. complement bits
+                    Nothing -> statusRegister''
+                    Just (Set, bits) -> statusRegister'' .|. bits
+                    Just (Clear, bits) -> statusRegister'' .&. complement bits
                 internalOverflow' =
                   internalOverflowA' || internalOverflowB'
                 internalNegative' =
@@ -439,7 +454,8 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                                   cpu6502StateYIndexRegister = yIndexRegister',
                                   cpu6502StateAccumulator = accumulator',
                                   cpu6502StateInternalLatch = latch',
-                                  cpu6502StateStatusRegister = statusRegister',
+                                  cpu6502StateStatusRegister =
+                                    statusRegister''',
                                   cpu6502StateInternalOverflow =
                                     internalOverflow',
                                   cpu6502StateInternalNegative =
@@ -683,13 +699,47 @@ performArithmetic operation oldStatus byteA byteB =
   in (newStatus, result)
 
 
-transformWord8 :: Word8 -> Transformation -> Word8
-transformWord8 byte transformation =
-  case transformation of
-    ArithmeticShiftLeft -> shiftL byte 1
-    LogicalShiftRight -> shiftR byte 1
-    RotateLeft -> shiftL byte 1 .|. shiftR byte 7
-    RotateRight -> shiftR byte 1 .|. shiftL byte 7
+transformWord8 :: Transformation -> (Word8, Bool) -> (Word8, Bool)
+transformWord8 transformation (byte, oldCarry) =
+  let oldCarryBit = if oldCarry
+                      then 1
+                      else 0
+      (result, newCarryBit) =
+        case transformation of
+          ArithmeticShiftLeft ->
+            (shiftL byte 1,
+             shiftR byte 7)
+          LogicalShiftRight ->
+            (shiftR byte 1,
+             byte .&. 0x01)
+          RotateLeft ->
+            (shiftL byte 1 .|. oldCarryBit,
+             shiftR byte 7)
+          RotateRight ->
+            (shiftR byte 1 .|. shiftL oldCarryBit 7,
+             byte .&. 0x01)
+          IncrementDecrement Increment ->
+            (byte + 1,
+             oldCarryBit)
+          IncrementDecrement Decrement -> 
+            (byte - 1,
+             oldCarryBit)
+      newCarry = newCarryBit == 1
+  in (result, newCarry)
+
+
+updateStatusRegisterForValueAndCarry :: Word8 -> Word8 -> Bool -> Word8
+updateStatusRegisterForValueAndCarry oldStatus value carry =
+  let negative = (value .&. 0x80) == 0x80
+      zero = value == 0x00
+  in foldl (\status (bitIndex, bitValue) ->
+              if bitValue
+                then setBit status bitIndex
+                else clearBit status bitIndex)
+          oldStatus
+          [(0, carry),
+           (7, negative),
+           (1, zero)]
 
 
 testCondition :: Condition -> CPU_6502_State -> Bool
