@@ -108,6 +108,7 @@ data Condition
   | Minus
   | OverflowClear
   | OverflowSet
+  | InternalOverflowSet
 
 
 data InstructionCharacter
@@ -761,6 +762,7 @@ testCondition condition cpuState =
        Minus -> statusTestNegative status
        OverflowClear -> not $ statusTestOverflow status
        OverflowSet -> statusTestOverflow status
+       InternalOverflowSet -> cpu6502StateInternalOverflow cpuState
 
 
 statusTestCarry :: Word8 -> Bool
@@ -1403,21 +1405,34 @@ decodeOperation opcode =
         (_, ReadCharacter)
           | elem addressing [AbsoluteXIndexedAddressing,
                              AbsoluteYIndexedAddressing] ->
-              -- TODO SOON
-              -- LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT, NOP
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                StoredAddressLowByte)
                 [alsoIncrementProgramCounter],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [alsoIncrementProgramCounter],
-               buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
-               buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
-               fetchOpcodeMicrocodeInstruction]
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                StoredAddressHighByte)
+                [alsoIncrementProgramCounter,
+                 alsoAddRegisterToStoredAddress
+                  $ mnemonicIndexRegister mnemonic,
+                 usingConditional
+                  InternalOverflowSet
+                  [buildMicrocodeInstruction
+                    (fetchValueMicrocodeInstruction StoredAddressSource
+                                                    NoRegister)
+                    [alsoFixStoredAddressHighByte],
+                   buildMicrocodeInstruction
+                    (fetchValueMicrocodeInstruction
+                      StoredAddressSource
+                      $ mnemonicRegister mnemonic)
+                    [],
+                   fetchOpcodeMicrocodeInstruction]
+                  [buildMicrocodeInstruction
+                    (fetchValueMicrocodeInstruction
+                      StoredAddressSource
+                      $ mnemonicRegister mnemonic)
+                    [],
+                   fetchOpcodeMicrocodeInstruction]]]
         (_, ReadWriteCharacter)
           | elem addressing [AbsoluteXIndexedAddressing,
                              AbsoluteYIndexedAddressing] ->
