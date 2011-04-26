@@ -146,6 +146,7 @@ data MicrocodeInstruction =
       microcodeInstructionAddressSource :: AddressSource,
       microcodeInstructionAddressOffset :: Maybe InternalRegister,
       microcodeInstructionAddressAddOne :: Bool,
+      microcodeInstructionSettingStoredValueBits :: Maybe Word8,
       microcodeInstructionReadWrite :: ReadWrite,
       microcodeInstructionArithmeticOperation :: Maybe ArithmeticOperation,
       microcodeInstructionDecodeOperation :: Bool,
@@ -191,7 +192,9 @@ cpu6502Cycle :: ((outerState -> Word16 -> (Word8, outerState)),
              -> outerState
              -> outerState
 cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
-  let checkForInstead =
+  let checkForSetting =
+        microcodeInstructionSettingStoredValueBits
+      checkForInstead =
         microcodeInstructionInsteadFixProgramCounterHighByteIfNecessary
       checkForAddLatch =
         microcodeInstructionAddLatchToProgramCounterLowByte
@@ -237,13 +240,17 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                                        cpu6502StateStatusRegister = status'
                                      }
                       in (fetchedByte, cpuState', outerState')
-                    Write -> let storedByte =
+                    Write -> let storedByte' =
                                    case microcodeInstructionRegister
                                          microcodeInstruction of
                                      Nothing -> 0x00
                                      Just internalRegister ->
                                        computeInternalRegister
                                         internalRegister cpuState
+                                 storedByte =
+                                   case checkForSetting microcodeInstruction of
+                                     Nothing -> storedByte'
+                                     Just bits -> storedByte' .|. bits
                                  outerState' =
                                    storeByte outerState
                                              effectiveAddress
@@ -1043,24 +1050,33 @@ decodeOperation opcode =
         (_, StackCharacter) ->
           case mnemonic of
             BRK ->
-              -- TODO
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                NoRegister)
                 [alsoIncrementProgramCounter],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (storeValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                                ProgramCounterHighByte)
+                [usingAddressOffsetRegister StackPointer,
+                 alsoDecrementStackPointer],
+               buildMicrocodeInstruction
+                (storeValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                                ProgramCounterLowByte)
+                [usingAddressOffsetRegister StackPointer,
+                 alsoDecrementStackPointer],
+               buildMicrocodeInstruction
+                (storeValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                                StatusRegister)
+                [usingAddressOffsetRegister StackPointer,
+                 settingSoftwareBFlagInStoredValue,
+                 alsoDecrementStackPointer],
+               buildMicrocodeInstruction
+                (fetchValueMicrocodeInstruction (FixedAddressSource 0xFFFE)
+                                                ProgramCounterLowByte)
                 [],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
-               buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
-               buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
-               buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction (FixedAddressSource 0xFFFF)
+                                                ProgramCounterHighByte)
                 [],
                fetchOpcodeMicrocodeInstruction]
             RTI ->
@@ -1121,6 +1137,9 @@ decodeOperation opcode =
                 (storeValueMicrocodeInstruction (FixedAddressSource 0x0100)
                                                 $ mnemonicRegister mnemonic)
                 [usingAddressOffsetRegister StackPointer,
+                 if mnemonic == PHP
+                   then settingSoftwareBFlagInStoredValue
+                   else id,
                  alsoDecrementStackPointer],
                fetchOpcodeMicrocodeInstruction]
             _ | elem mnemonic [PLA, PLP] ->
@@ -1798,21 +1817,22 @@ buildMicrocodeInstruction :: MicrocodeInstruction
 buildMicrocodeInstruction base steps = (foldr ($)) base (reverse steps)
 
 
-fetchOpcodeMicrocodeInstruction :: MicrocodeInstruction
-fetchOpcodeMicrocodeInstruction =
+templateMicrocodeInstruction :: MicrocodeInstruction
+templateMicrocodeInstruction =
   MicrocodeInstruction {
       microcodeInstructionConditional = Nothing,
       microcodeInstructionInsteadFixProgramCounterHighByteIfNecessary = False,
       microcodeInstructionRegister = Nothing,
       microcodeInstructionRegisterFromLatch = Nothing,
       microcodeInstructionAddLatchToProgramCounterLowByte = False,
-      microcodeInstructionAddressSource = ProgramCounterAddressSource,
+      microcodeInstructionAddressSource = undefined,
       microcodeInstructionAddressOffset = Nothing,
       microcodeInstructionAddressAddOne = False,
-      microcodeInstructionReadWrite = Read,
+      microcodeInstructionSettingStoredValueBits = Nothing,
+      microcodeInstructionReadWrite = undefined,
       microcodeInstructionArithmeticOperation = Nothing,
-      microcodeInstructionDecodeOperation = True,
-      microcodeInstructionIncrementProgramCounter = True,
+      microcodeInstructionDecodeOperation = False,
+      microcodeInstructionIncrementProgramCounter = False,
       microcodeInstructionZeroStoredAddressHighByte = False,
       microcodeInstructionAddRegisterToStoredAddress = Nothing,
       microcodeInstructionFixStoredAddressHighByte = False,
@@ -1823,92 +1843,45 @@ fetchOpcodeMicrocodeInstruction =
       microcodeInstructionAccumulatorOperation = Nothing,
       microcodeInstructionLatchOperation = Nothing,
       microcodeInstructionRegisterRegisterCopy = Nothing
+    }
+
+
+fetchOpcodeMicrocodeInstruction :: MicrocodeInstruction
+fetchOpcodeMicrocodeInstruction =
+  templateMicrocodeInstruction {
+      microcodeInstructionAddressSource = ProgramCounterAddressSource,
+      microcodeInstructionReadWrite = Read,
+      microcodeInstructionArithmeticOperation = Nothing,
+      microcodeInstructionDecodeOperation = True,
+      microcodeInstructionIncrementProgramCounter = True
     }
 
 
 fetchValueMicrocodeInstruction
     :: AddressSource -> InternalRegister -> MicrocodeInstruction
 fetchValueMicrocodeInstruction addressSource register =
-  MicrocodeInstruction {
-      microcodeInstructionConditional = Nothing,
-      microcodeInstructionInsteadFixProgramCounterHighByteIfNecessary = False,
+  templateMicrocodeInstruction {
       microcodeInstructionRegister = Just register,
-      microcodeInstructionRegisterFromLatch = Nothing,
-      microcodeInstructionAddLatchToProgramCounterLowByte = False,
       microcodeInstructionAddressSource = addressSource,
-      microcodeInstructionAddressOffset = Nothing,
-      microcodeInstructionAddressAddOne = False,
-      microcodeInstructionReadWrite = Read,
-      microcodeInstructionArithmeticOperation = Nothing,
-      microcodeInstructionDecodeOperation = False,
-      microcodeInstructionIncrementProgramCounter = False,
-      microcodeInstructionZeroStoredAddressHighByte = False,
-      microcodeInstructionAddRegisterToStoredAddress = Nothing,
-      microcodeInstructionFixStoredAddressHighByte = False,
-      microcodeInstructionStackPointerOperation = Nothing,
-      microcodeInstructionXIndexRegisterOperation = Nothing,
-      microcodeInstructionYIndexRegisterOperation = Nothing,
-      microcodeInstructionStatusRegisterOperation = Nothing,
-      microcodeInstructionAccumulatorOperation = Nothing,
-      microcodeInstructionLatchOperation = Nothing,
-      microcodeInstructionRegisterRegisterCopy = Nothing
+      microcodeInstructionReadWrite = Read
     }
 
 
 storeValueMicrocodeInstruction
     :: AddressSource -> InternalRegister -> MicrocodeInstruction
 storeValueMicrocodeInstruction addressSource register =
-  MicrocodeInstruction {
-      microcodeInstructionConditional = Nothing,
-      microcodeInstructionInsteadFixProgramCounterHighByteIfNecessary = False,
+  templateMicrocodeInstruction {
       microcodeInstructionRegister = Just register,
-      microcodeInstructionRegisterFromLatch = Nothing,
-      microcodeInstructionAddLatchToProgramCounterLowByte = False,
       microcodeInstructionAddressSource = addressSource,
-      microcodeInstructionAddressOffset = Nothing,
-      microcodeInstructionAddressAddOne = False,
-      microcodeInstructionReadWrite = Write,
-      microcodeInstructionArithmeticOperation = Nothing,
-      microcodeInstructionDecodeOperation = False,
-      microcodeInstructionIncrementProgramCounter = False,
-      microcodeInstructionZeroStoredAddressHighByte = False,
-      microcodeInstructionAddRegisterToStoredAddress = Nothing,
-      microcodeInstructionFixStoredAddressHighByte = False,
-      microcodeInstructionStackPointerOperation = Nothing,
-      microcodeInstructionXIndexRegisterOperation = Nothing,
-      microcodeInstructionYIndexRegisterOperation = Nothing,
-      microcodeInstructionStatusRegisterOperation = Nothing,
-      microcodeInstructionAccumulatorOperation = Nothing,
-      microcodeInstructionLatchOperation = Nothing,
-      microcodeInstructionRegisterRegisterCopy = Nothing
+      microcodeInstructionReadWrite = Write
     }
 
 
 stubMicrocodeInstruction :: MicrocodeInstruction
 stubMicrocodeInstruction =
-  MicrocodeInstruction {
-      microcodeInstructionConditional = Nothing,
-      microcodeInstructionInsteadFixProgramCounterHighByteIfNecessary = False,
-      microcodeInstructionRegister = Nothing,
-      microcodeInstructionRegisterFromLatch = Nothing,
-      microcodeInstructionAddLatchToProgramCounterLowByte = False,
+  templateMicrocodeInstruction {
       microcodeInstructionAddressSource = FixedAddressSource 0x0000,
-      microcodeInstructionAddressOffset = Nothing,
-      microcodeInstructionAddressAddOne = False,
-      microcodeInstructionReadWrite = Read,
-      microcodeInstructionArithmeticOperation = Nothing,
-      microcodeInstructionDecodeOperation = False,
-      microcodeInstructionIncrementProgramCounter = False,
-      microcodeInstructionZeroStoredAddressHighByte = False,
-      microcodeInstructionAddRegisterToStoredAddress = Nothing,
-      microcodeInstructionFixStoredAddressHighByte = False,
-      microcodeInstructionStackPointerOperation = Nothing,
-      microcodeInstructionXIndexRegisterOperation = Nothing,
-      microcodeInstructionYIndexRegisterOperation = Nothing,
-      microcodeInstructionStatusRegisterOperation = Nothing,
-      microcodeInstructionAccumulatorOperation = Nothing,
-      microcodeInstructionLatchOperation = Nothing,
-      microcodeInstructionRegisterRegisterCopy = Nothing
+      microcodeInstructionReadWrite = Read
     }
 
 
@@ -2021,6 +1994,22 @@ usingAddressPlusOne
 usingAddressPlusOne microcodeInstruction =
   microcodeInstruction {
       microcodeInstructionAddressAddOne = True
+    }
+
+
+settingSoftwareBFlagInStoredValue
+    :: MicrocodeInstruction -> MicrocodeInstruction
+settingSoftwareBFlagInStoredValue microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionSettingStoredValueBits = Just 0x30
+    }
+
+
+settingHardwareBFlagInStoredValue
+    :: MicrocodeInstruction -> MicrocodeInstruction
+settingHardwareBFlagInStoredValue microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionSettingStoredValueBits = Just 0x20
     }
 
 
