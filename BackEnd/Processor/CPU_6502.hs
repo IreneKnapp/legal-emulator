@@ -107,6 +107,9 @@ data InstructionCharacter
   deriving (Eq)
 
 
+data IncrementDecrement = Increment | Decrement
+
+
 data MicrocodeInstruction =
   MicrocodeInstruction {
       microcodeInstructionRegister :: Maybe InternalRegister,
@@ -118,7 +121,8 @@ data MicrocodeInstruction =
       microcodeInstructionArithmeticOperation :: Maybe ArithmeticOperation,
       microcodeInstructionDecodeOperation :: Bool,
       microcodeInstructionFixStoredAddressHighByte :: Bool,
-      microcodeInstructionIncrementProgramCounter :: Bool
+      microcodeInstructionIncrementProgramCounter :: Bool,
+      microcodeInstructionStackPointerOperation :: Maybe IncrementDecrement
     }
 
 
@@ -216,6 +220,14 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                       microcodeInstruction
                     then programCounter + 1
                     else programCounter
+                stackPointer =
+                  cpu6502StateStackPointer cpuState''
+                stackPointer' =
+                  case microcodeInstructionStackPointerOperation
+                        microcodeInstruction of
+                    Nothing -> stackPointer
+                    Just Increment -> stackPointer + 1
+                    Just Decrement -> stackPointer - 1
                 microcodeInstructionQueue'' =
                   if microcodeInstructionDecodeOperation
                       microcodeInstruction
@@ -224,6 +236,7 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                     else microcodeInstructionQueue'
                 cpuState''' = cpuState'' {
                                   cpu6502StateProgramCounter = programCounter',
+                                  cpu6502StateStackPointer = stackPointer',
                                   cpu6502StateMicrocodeInstructionQueue =
                                     microcodeInstructionQueue''
                                 }
@@ -353,6 +366,8 @@ computeStoreInternalRegister internalRegister cpuState byte =
       cpuState {
           cpu6502StateInternalLatch = byte
         }
+    NoRegister ->
+      cpuState
 
 
 performArithmetic :: ArithmeticOperation
@@ -786,20 +801,27 @@ decodeOperation opcode =
             JSR ->
               -- TODO
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                Latch)
                 [alsoIncrementProgramCounter],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (fetchValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                                NoRegister)
+                [usingAddressOffsetRegister StackPointer],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (storeValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                                ProgramCounterHighByte)
+                [usingAddressOffsetRegister StackPointer,
+                 alsoDecrementStackPointer],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (storeValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                                ProgramCounterLowByte)
+                [usingAddressOffsetRegister StackPointer,
+                 alsoDecrementStackPointer],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                ProgramCounterHighByte)
+                [alsoCopyLatchToRegister ProgramCounterLowByte],
                fetchOpcodeMicrocodeInstruction]
         (_, _) | elem addressing [AccumulatorAddressing, ImpliedAddressing] ->
               -- TODO
@@ -1302,7 +1324,8 @@ fetchOpcodeMicrocodeInstruction =
       microcodeInstructionArithmeticOperation = Nothing,
       microcodeInstructionDecodeOperation = True,
       microcodeInstructionFixStoredAddressHighByte = False,
-      microcodeInstructionIncrementProgramCounter = True
+      microcodeInstructionIncrementProgramCounter = True,
+      microcodeInstructionStackPointerOperation = Nothing
     }
 
 
@@ -1319,7 +1342,26 @@ fetchValueMicrocodeInstruction addressSource register =
       microcodeInstructionArithmeticOperation = Nothing,
       microcodeInstructionDecodeOperation = False,
       microcodeInstructionFixStoredAddressHighByte = False,
-      microcodeInstructionIncrementProgramCounter = False
+      microcodeInstructionIncrementProgramCounter = False,
+      microcodeInstructionStackPointerOperation = Nothing
+    }
+
+
+storeValueMicrocodeInstruction
+    :: AddressSource -> InternalRegister -> MicrocodeInstruction
+storeValueMicrocodeInstruction addressSource register =
+  MicrocodeInstruction {
+      microcodeInstructionRegister = Just register,
+      microcodeInstructionRegisterFromLatch = Nothing,
+      microcodeInstructionAddressSource = addressSource,
+      microcodeInstructionAddressOffset = Nothing,
+      microcodeInstructionAddressAddOne = False,
+      microcodeInstructionReadWrite = Write,
+      microcodeInstructionArithmeticOperation = Nothing,
+      microcodeInstructionDecodeOperation = False,
+      microcodeInstructionFixStoredAddressHighByte = False,
+      microcodeInstructionIncrementProgramCounter = False,
+      microcodeInstructionStackPointerOperation = Nothing
     }
 
 
@@ -1335,7 +1377,8 @@ stubMicrocodeInstruction =
       microcodeInstructionArithmeticOperation = Nothing,
       microcodeInstructionDecodeOperation = False,
       microcodeInstructionFixStoredAddressHighByte = False,
-      microcodeInstructionIncrementProgramCounter = False
+      microcodeInstructionIncrementProgramCounter = False,
+      microcodeInstructionStackPointerOperation = Nothing
     }
 
 
@@ -1343,6 +1386,20 @@ alsoIncrementProgramCounter :: MicrocodeInstruction -> MicrocodeInstruction
 alsoIncrementProgramCounter microcodeInstruction =
   microcodeInstruction {
       microcodeInstructionIncrementProgramCounter = True
+    }
+
+
+alsoIncrementStackPointer :: MicrocodeInstruction -> MicrocodeInstruction
+alsoIncrementStackPointer microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionStackPointerOperation = Just Increment
+    }
+
+
+alsoDecrementStackPointer :: MicrocodeInstruction -> MicrocodeInstruction
+alsoDecrementStackPointer microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionStackPointerOperation = Just Decrement
     }
 
 
@@ -1359,6 +1416,14 @@ usingArithmeticOperation
 usingArithmeticOperation arithmeticOperation microcodeInstruction =
   microcodeInstruction {
       microcodeInstructionArithmeticOperation = Just arithmeticOperation
+    }
+
+
+usingAddressOffsetRegister
+    :: InternalRegister -> MicrocodeInstruction -> MicrocodeInstruction
+usingAddressOffsetRegister register microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionAddressOffset = Just register
     }
 
 
