@@ -585,7 +585,7 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
@@ -636,7 +636,7 @@ decodeOperation opcode =
           [],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          fetchOpcodeMicrocodeInstruction]
       | elem mnemonic [PHA, PHP] ->
         -- TODO
@@ -663,7 +663,7 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
@@ -688,7 +688,7 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          fetchOpcodeMicrocodeInstruction]
     Just (mnemonic, AbsoluteAddressing)
       | mnemonic == JMP ->
@@ -706,10 +706,10 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
@@ -718,10 +718,10 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
@@ -736,10 +736,10 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
@@ -750,7 +750,7 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
@@ -759,7 +759,7 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
@@ -774,7 +774,7 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
@@ -787,7 +787,7 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
@@ -801,7 +801,7 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
@@ -821,7 +821,7 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
@@ -837,10 +837,10 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
@@ -854,10 +854,10 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
@@ -877,10 +877,10 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
@@ -893,7 +893,7 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
@@ -909,7 +909,7 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
@@ -927,7 +927,7 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
@@ -951,7 +951,7 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
@@ -970,7 +970,7 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
@@ -988,7 +988,7 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
@@ -1012,7 +1012,7 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
@@ -1030,10 +1030,10 @@ decodeOperation opcode =
         -- TODO
         [buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
-          [],
+          [alsoIncrementProgramCounter],
          buildMicrocodeInstruction
           (stubMicrocodeInstruction)
           [],
