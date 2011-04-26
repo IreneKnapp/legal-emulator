@@ -1279,11 +1279,7 @@ decodeOperation opcode =
                     fetchOpcodeMicrocodeInstruction
                     [insteadFixProgramCounterHighByteIfNecessary],
                    fetchOpcodeMicrocodeInstruction]
-                  [buildMicrocodeInstruction
-                    (fetchValueMicrocodeInstruction ProgramCounterAddressSource
-                                                    NoRegister)
-                    [alsoIncrementProgramCounter],
-                   fetchOpcodeMicrocodeInstruction]]]
+                  [fetchOpcodeMicrocodeInstruction]]]
         (XIndexedIndirectAddressing, ReadCharacter) ->
               -- TODO
               -- LDA, ORA, EOR, AND, ADC, CMP, SBC
