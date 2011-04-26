@@ -12,6 +12,7 @@ module Processor.CPU_6502
   where
 
 import Data.Bits
+import Data.Int
 import Data.Word
 
 
@@ -81,7 +82,14 @@ data InternalRegister
   deriving (Eq)
 
 
-data ArithmeticOperation = ArithmeticOperation
+data ArithmeticOperation
+  = ArithmeticIdentity
+  | ArithmeticAnd
+  | ArithmeticInclusiveOr
+  | ArithmeticExclusiveOr
+  | ArithmeticAdd
+  | ArithmeticSubtract
+  | ArithmeticCompare
 
 
 data MicrocodeInstruction =
@@ -136,17 +144,35 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                   computeEffectiveAddress cpuState microcodeInstruction
                 (fetchedByte, cpuState', outerState') =
                   case microcodeInstructionReadWrite microcodeInstruction of
-                    Read -> let (fetchedByte, outerState') =
-                                  fetchByte outerState
-                                            effectiveAddress
-                                cpuState' =
-                                  case microcodeInstructionRegister
-                                        microcodeInstruction of
-                                    Nothing -> cpuState
-                                    Just internalRegister ->
-                                      computeStoreInternalRegister
-                                       internalRegister cpuState fetchedByte
-                            in (fetchedByte, cpuState', outerState')
+                    Read ->
+                      let (fetchedByte, outerState') =
+                            fetchByte outerState effectiveAddress
+                          cpuState' =
+                            case microcodeInstructionRegister
+                                  microcodeInstruction of
+                              Nothing -> cpuState
+                              Just internalRegister ->
+                                let maybeArithmetic =
+                                      microcodeInstructionArithmeticOperation
+                                       microcodeInstruction
+                                    registerByte =
+                                      computeInternalRegister
+                                       internalRegister cpuState
+                                    status =
+                                      cpu6502StateStatusRegister cpuState
+                                    (status', newByte) =
+                                      case maybeArithmetic of
+                                        Nothing -> (status, fetchedByte)
+                                        Just arithmetic ->
+                                          performArithmetic arithmetic
+                                                            status
+                                                            registerByte
+                                                            fetchedByte
+                                in (computeStoreInternalRegister
+                                     internalRegister cpuState newByte) {
+                                       cpu6502StateStatusRegister = status'
+                                     }
+                      in (fetchedByte, cpuState', outerState')
                     Write -> let storedByte =
                                    case microcodeInstructionRegister
                                          microcodeInstruction of
@@ -312,6 +338,86 @@ computeStoreInternalRegister internalRegister cpuState byte =
       cpuState {
           cpu6502StateInternalLatch = byte
         }
+
+
+performArithmetic :: ArithmeticOperation
+                  -> Word8
+                  -> Word8
+                  -> Word8
+                  -> (Word8, Word8)
+performArithmetic operation oldStatus byteA byteB =
+  let (result, maybeCarry, maybeOverflow, maybeZeroOverride) =
+        case operation of
+          ArithmeticIdentity ->
+            (byteB, Nothing, Nothing, Nothing)
+          ArithmeticAnd ->
+            (byteA .&. byteB, Nothing, Nothing, Nothing)
+          ArithmeticInclusiveOr ->
+            (byteA .|. byteB, Nothing, Nothing, Nothing)
+          ArithmeticExclusiveOr ->
+            (xor byteA byteB, Nothing, Nothing, Nothing)
+          ArithmeticAdd ->
+            let inputCarryBit = if statusTestCarry oldStatus
+                                  then 1
+                                  else 0
+                word16A = fromIntegral byteA :: Word16
+                word16B = fromIntegral byteB :: Word16
+                word16Result = word16A + word16B + inputCarryBit
+                byteResult = fromIntegral word16Result
+                outputCarry = word16Result > 255
+                outputOverflow = word16Result > 127
+            in (byteResult,
+                Just outputCarry,
+                Just outputOverflow,
+                Nothing)
+          ArithmeticSubtract ->
+            let inputBorrowBit = if statusTestCarry oldStatus
+                                   then 0
+                                   else 1
+                int8A = fromIntegral byteA :: Int8
+                int8B = fromIntegral byteB :: Int8
+                int16A = fromIntegral int8A :: Int16
+                int16B = fromIntegral int8B :: Int16
+                int16Result = int16A - int16B - inputBorrowBit
+                int8Result = fromIntegral int16Result :: Int8
+                byteResult = fromIntegral int8Result :: Word8
+                outputBorrow = int16Result < -127
+                outputOverflow = (int16Result > 127)
+                                 || (int16Result < -127)
+            in (byteResult,
+                Just $ not outputBorrow,
+                Just outputOverflow,
+                Nothing)
+          ArithmeticCompare ->
+            let ordering = compare byteA byteB
+                zero = ordering == EQ
+                carry = not $ ordering == GT
+            in (byteA,
+                Just carry,
+                Nothing,
+                Just zero)
+      negative = (result .&. 0x80) == 0x80
+      zero = case maybeZeroOverride of
+               Nothing -> result == 0x00
+               Just zeroOverride -> zeroOverride
+      newStatus = foldl (\status (bitIndex, bitValue) ->
+                            if bitValue
+                              then setBit status bitIndex
+                              else clearBit status bitIndex)
+                        oldStatus
+                        $ concat [case maybeCarry of
+                                    Nothing -> []
+                                    Just carry -> [(0, carry)],
+                                  case maybeOverflow of
+                                    Nothing -> []
+                                    Just overflow -> [(6, overflow)],
+                                  [(7, negative),
+                                   (1, zero)]]
+  in (newStatus, result)
+
+
+statusTestCarry :: Word8 -> Bool
+statusTestCarry status = testBit status 0
 
 
 cpu6502DecodeInstructionMnemonicAndAddressingMode
@@ -687,8 +793,10 @@ decodeOperation opcode =
     Just (mnemonic, ImmediateAddressing) ->
         -- TODO
         [buildMicrocodeInstruction
-          (stubMicrocodeInstruction)
-          [alsoIncrementProgramCounter],
+          (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                          $ mnemonicRegister mnemonic)
+          [alsoIncrementProgramCounter,
+           usingArithmeticOperation $ mnemonicArithmeticOperation mnemonic],
          fetchOpcodeMicrocodeInstruction]
     Just (mnemonic, AbsoluteAddressing)
       | mnemonic == JMP ->
@@ -1043,6 +1151,40 @@ decodeOperation opcode =
          fetchOpcodeMicrocodeInstruction]
 
 
+mnemonicRegister
+    :: InstructionMnemonic -> InternalRegister
+mnemonicRegister mnemonic =
+  case mnemonic of
+    AND -> Accumulator
+    ORA -> Accumulator
+    EOR -> Accumulator
+    ADC -> Accumulator
+    SBC -> Accumulator
+    LDA -> Accumulator
+    LDX -> XIndexRegister
+    LDY -> YIndexRegister
+    CMP -> Accumulator
+    CPX -> XIndexRegister
+    CPY -> YIndexRegister
+
+
+mnemonicArithmeticOperation
+     :: InstructionMnemonic -> ArithmeticOperation
+mnemonicArithmeticOperation mnemonic =
+  case mnemonic of
+    AND -> ArithmeticAnd
+    ORA -> ArithmeticInclusiveOr
+    EOR -> ArithmeticExclusiveOr
+    ADC -> ArithmeticAdd
+    SBC -> ArithmeticSubtract
+    LDA -> ArithmeticIdentity
+    LDX -> ArithmeticIdentity
+    LDY -> ArithmeticIdentity
+    CMP -> ArithmeticCompare
+    CPX -> ArithmeticCompare
+    CPY -> ArithmeticCompare
+
+
 buildMicrocodeInstruction :: MicrocodeInstruction
                           -> [MicrocodeInstruction -> MicrocodeInstruction]
                           -> MicrocodeInstruction
@@ -1110,6 +1252,14 @@ alsoCopyLatchToRegister
 alsoCopyLatchToRegister register microcodeInstruction =
   microcodeInstruction {
       microcodeInstructionRegisterFromLatch = Just register
+    }
+
+
+usingArithmeticOperation
+    :: ArithmeticOperation -> MicrocodeInstruction -> MicrocodeInstruction
+usingArithmeticOperation arithmeticOperation microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionArithmeticOperation = Just arithmeticOperation
     }
 
 
