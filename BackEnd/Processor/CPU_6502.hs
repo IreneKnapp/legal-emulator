@@ -3,9 +3,14 @@ module Processor.CPU_6502
    CPU_6502_State(..),
    InstructionMnemonic(..),
    AddressingMode(..),
+   InternalRegister(..),
+   InstructionCharacter(..),
    cpu6502PowerOnState,
    cpu6502Cycle,
+   computeInternalRegister,
    cpu6502DecodeInstructionMnemonicAndAddressingMode,
+   characterizeMnemonic,
+   mnemonicRegister,
    cpu6502NBytes,
    cpu6502AtInstructionStart
   )
@@ -78,6 +83,7 @@ data InternalRegister
   | StoredAddressHighByte
   | StoredAddressLowByte
   | Latch
+  | NoRegister
   deriving (Eq)
 
 
@@ -98,6 +104,7 @@ data InstructionCharacter
   | ReadCharacter
   | ReadWriteCharacter
   | WriteCharacter
+  deriving (Eq)
 
 
 data MicrocodeInstruction =
@@ -1245,10 +1252,20 @@ mnemonicRegister mnemonic =
     LDA -> Accumulator
     LDX -> XIndexRegister
     LDY -> YIndexRegister
+    STA -> Accumulator
+    STX -> XIndexRegister
+    STY -> YIndexRegister
     CMP -> Accumulator
     CPX -> XIndexRegister
     CPY -> YIndexRegister
-
+    BIT -> Accumulator
+    NOP -> NoRegister
+    ASL -> Latch
+    LSR -> Latch
+    ROL -> Latch
+    ROR -> Latch
+    INC -> Latch
+    DEC -> Latch
 
 mnemonicArithmeticOperation
      :: InstructionMnemonic -> ArithmeticOperation

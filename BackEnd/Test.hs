@@ -64,6 +64,8 @@ main = do
                                       2 -> [opcode, byte2]
                                       3 -> [opcode, byte2, byte3]
                             ppuState = softwareStatePPUState softwareState
+                            instructionCharacter =
+                              characterizeMnemonic instructionMnemonic
                             addressReport = showHexWord16 programCounter
                             byteReport =
                               rightPad (intercalate " "
@@ -101,10 +103,21 @@ main = do
                                   show addressingMode
                                 AbsoluteIndirectAddressing ->
                                   show addressingMode
+                            showRValueSubreport =
+                              (instructionCharacter == WriteCharacter)
+                              && (mnemonicRegister instructionMnemonic
+                                  /= NoRegister)
+                            rvalue = computeInternalRegister
+                                      (mnemonicRegister instructionMnemonic)
+                                      cpuState
+                            rvalueSubreport = " = " ++ showHexWord8 rvalue
                             disassemblyReport =
                               rightPad (show instructionMnemonic
                                         ++ " "
-                                        ++ lvalueSubreport)
+                                        ++ lvalueSubreport
+                                        ++ if showRValueSubreport
+                                             then rvalueSubreport
+                                             else "")
                                        30
                             stateReport =
                               intercalate
