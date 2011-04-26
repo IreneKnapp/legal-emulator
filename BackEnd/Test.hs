@@ -122,7 +122,8 @@ main = do
                                    Nothing)
                             showRValueSubreport =
                               ((instructionCharacter == WriteCharacter)
-                               || (instructionCharacter == ReadWriteCharacter))
+                               || (instructionCharacter == ReadWriteCharacter)
+                               || (instructionMnemonic == BIT))
                               && (mnemonicRegister instructionMnemonic
                                   /= NoRegister)
                             rvalue = case maybeRValueAddress of
