@@ -1106,25 +1106,30 @@ decodeOperation opcode =
                 [alsoIncrementProgramCounter],
                fetchOpcodeMicrocodeInstruction]
             _ | elem mnemonic [PHA, PHP] ->
-              -- TODO
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                NoRegister)
                 [],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (storeValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                                $ mnemonicRegister mnemonic)
+                [usingAddressOffsetRegister StackPointer,
+                 alsoDecrementStackPointer],
                fetchOpcodeMicrocodeInstruction]
             _ | elem mnemonic [PLA, PLP] ->
-              -- TODO
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                NoRegister)
                 [],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (fetchValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                                NoRegister)
+                [usingAddressOffsetRegister StackPointer,
+                 alsoIncrementStackPointer],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (fetchValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                                $ mnemonicRegister mnemonic)
+                [usingAddressOffsetRegister StackPointer],
                fetchOpcodeMicrocodeInstruction]
             JSR ->
               [buildMicrocodeInstruction
@@ -1685,6 +1690,10 @@ mnemonicRegister
     :: InstructionMnemonic -> InternalRegister
 mnemonicRegister mnemonic =
   case mnemonic of
+    PHA -> Accumulator
+    PHP -> StatusRegister
+    PLA -> Accumulator
+    PLP -> StatusRegister
     AND -> Accumulator
     ORA -> Accumulator
     EOR -> Accumulator
