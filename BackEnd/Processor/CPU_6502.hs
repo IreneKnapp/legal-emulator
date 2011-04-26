@@ -1082,21 +1082,27 @@ decodeOperation opcode =
                 [],
                fetchOpcodeMicrocodeInstruction]
             RTS ->
-              -- TODO
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                NoRegister)
                 [],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (fetchValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                                NoRegister)
+                [usingAddressOffsetRegister StackPointer,
+                 alsoIncrementStackPointer],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (fetchValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                                ProgramCounterLowByte)
+                [usingAddressOffsetRegister StackPointer,
+                 alsoIncrementStackPointer],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (fetchValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                                ProgramCounterHighByte)
+                [usingAddressOffsetRegister StackPointer],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                NoRegister)
                 [alsoIncrementProgramCounter],
                fetchOpcodeMicrocodeInstruction]
             _ | elem mnemonic [PHA, PHP] ->
@@ -1205,7 +1211,7 @@ decodeOperation opcode =
                 [alsoCopyLatchToRegister ProgramCounterLowByte],
                fetchOpcodeMicrocodeInstruction]
         (AbsoluteAddressing, ReadCharacter) ->
-              -- TODO
+              -- TODO SOON
               -- LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT, NOP
               [buildMicrocodeInstruction
                 (stubMicrocodeInstruction)
@@ -1298,7 +1304,7 @@ decodeOperation opcode =
         (_, ReadCharacter)
           | elem addressing [ZeroPageXIndexedAddressing,
                              ZeroPageYIndexedAddressing] ->
-              -- TODO
+              -- TODO SOON
               -- LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT, NOP
               [buildMicrocodeInstruction
                 (stubMicrocodeInstruction)
@@ -1359,7 +1365,7 @@ decodeOperation opcode =
         (_, ReadCharacter)
           | elem addressing [AbsoluteXIndexedAddressing,
                              AbsoluteYIndexedAddressing] ->
-              -- TODO
+              -- TODO SOON
               -- LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT, NOP
               [buildMicrocodeInstruction
                 (stubMicrocodeInstruction)
@@ -1443,7 +1449,7 @@ decodeOperation opcode =
                    fetchOpcodeMicrocodeInstruction]
                   [fetchOpcodeMicrocodeInstruction]]]
         (XIndexedIndirectAddressing, ReadCharacter) ->
-              -- TODO
+              -- TODO SOON
               -- LDA, ORA, EOR, AND, ADC, CMP, SBC
               [buildMicrocodeInstruction
                 (stubMicrocodeInstruction)
@@ -1520,7 +1526,7 @@ decodeOperation opcode =
                 [],
                fetchOpcodeMicrocodeInstruction]
         (IndirectYIndexedAddressing, ReadCharacter) ->
-              -- TODO
+              -- TODO SOON
               -- LDA, EOR, AND, ORA, ADC, SBC, CMP
               [buildMicrocodeInstruction
                 (stubMicrocodeInstruction)
