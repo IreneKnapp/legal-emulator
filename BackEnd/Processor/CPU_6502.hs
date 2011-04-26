@@ -582,22 +582,114 @@ decodeOperation opcode =
     Nothing -> []
     Just (mnemonic, ImpliedAddressing)
       | mnemonic == BRK ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
       | mnemonic == RTI ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
       | mnemonic == RTS ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
       | elem mnemonic [PHA, PHP] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
       | elem mnemonic [PLA, PLP] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
     Just (JSR, AbsoluteAddressing) ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
     Just (mnemonic, addressing)
       | elem addressing [AccumulatorAddressing, ImpliedAddressing] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
     Just (mnemonic, ImmediateAddressing) ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
     Just (mnemonic, AbsoluteAddressing)
       | mnemonic == JMP ->
         [buildMicrocodeInstruction
@@ -611,66 +703,344 @@ decodeOperation opcode =
          fetchOpcodeMicrocodeInstruction]
       | elem mnemonic [LDA, LDX, LDY, EOR, AND, ORA,
                        ADC, SBC, CMP, BIT, NOP] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
       | elem mnemonic [ASL, LSR, ROL, ROR, INC, DEC] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
       | elem mnemonic [STA, STX, STY] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
     Just (mnemonic, ZeroPageAddressing)
       | elem mnemonic [LDA, LDX, LDY, EOR, AND, ORA,
                        ADC, SBC, CMP, BIT, NOP] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
       | elem mnemonic [ASL, LSR, ROL, ROR, INC, DEC] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
       | elem mnemonic [STA, STX, STY] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
     Just (mnemonic, addressing)
       | elem addressing [ZeroPageXIndexedAddressing,
                          ZeroPageYIndexedAddressing]
         && elem mnemonic [LDA, LDX, LDY, EOR, AND, ORA,
                           ADC, SBC, CMP, BIT, NOP] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
       | elem addressing [ZeroPageXIndexedAddressing,
                          ZeroPageYIndexedAddressing]
         && elem mnemonic [ASL, LSR, ROL, ROR, INC, DEC] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
       | elem addressing [ZeroPageXIndexedAddressing,
                          ZeroPageYIndexedAddressing]
         && elem mnemonic [STA, STX, STY] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
     Just (mnemonic, addressing)
       | elem addressing [AbsoluteXIndexedAddressing,
                          AbsoluteYIndexedAddressing]
         && elem mnemonic [LDA, LDX, LDY, EOR, AND, ORA,
                           ADC, SBC, CMP, BIT, NOP] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
       | elem addressing [AbsoluteXIndexedAddressing,
                          AbsoluteYIndexedAddressing]
         && elem mnemonic [ASL, LSR, ROL, ROR, INC, DEC] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
       | elem addressing [AbsoluteXIndexedAddressing,
                          AbsoluteYIndexedAddressing]
         && elem mnemonic [STA, STX, STY] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
     Just (mnemonic, addressing)
       | elem addressing [RelativeAddressing] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
     Just (mnemonic, XIndexedIndirectAddressing)
       | elem mnemonic [LDA, ORA, EOR, AND, ADC, CMP, SBC] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
       | elem mnemonic [] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
       | elem mnemonic [STA] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
     Just (mnemonic, IndirectYIndexedAddressing)
       | elem mnemonic [LDA, EOR, AND, ORA, ADC, SBC, CMP] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
       | elem mnemonic [] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
       | elem mnemonic [STA] ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
     Just (JMP, AbsoluteIndirectAddressing) ->
-        [] -- TODO
+        -- TODO
+        [buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         buildMicrocodeInstruction
+          (stubMicrocodeInstruction)
+          [],
+         fetchOpcodeMicrocodeInstruction]
 
 
 buildMicrocodeInstruction :: MicrocodeInstruction
@@ -702,6 +1072,22 @@ fetchValueMicrocodeInstruction addressSource register =
       microcodeInstructionRegister = Just register,
       microcodeInstructionRegisterFromLatch = Nothing,
       microcodeInstructionAddressSource = addressSource,
+      microcodeInstructionAddressOffset = Nothing,
+      microcodeInstructionAddressAddOne = False,
+      microcodeInstructionReadWrite = Read,
+      microcodeInstructionArithmeticOperation = Nothing,
+      microcodeInstructionDecodeOperation = False,
+      microcodeInstructionFixStoredAddressHighByte = False,
+      microcodeInstructionIncrementProgramCounter = False
+    }
+
+
+stubMicrocodeInstruction :: MicrocodeInstruction
+stubMicrocodeInstruction =
+  MicrocodeInstruction {
+      microcodeInstructionRegister = Nothing,
+      microcodeInstructionRegisterFromLatch = Nothing,
+      microcodeInstructionAddressSource = FixedAddressSource 0x0000,
       microcodeInstructionAddressOffset = Nothing,
       microcodeInstructionAddressAddOne = False,
       microcodeInstructionReadWrite = Read,
