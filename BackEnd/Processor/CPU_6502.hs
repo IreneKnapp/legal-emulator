@@ -269,6 +269,14 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                     Nothing -> accumulator
                     Just transformation ->
                       transformWord8 accumulator transformation
+                statusRegister =
+                  cpu6502StateStatusRegister cpuState''
+                statusRegister' =
+                  case microcodeInstructionStatusRegisterOperation
+                        microcodeInstruction of
+                    Nothing -> statusRegister
+                    Just (Set, bits) -> statusRegister .|. bits
+                    Just (Clear, bits) -> statusRegister .&. complement bits
                 microcodeInstructionQueue'' =
                   if microcodeInstructionDecodeOperation
                       microcodeInstruction
@@ -281,6 +289,7 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                                   cpu6502StateXIndexRegister = xIndexRegister',
                                   cpu6502StateYIndexRegister = yIndexRegister',
                                   cpu6502StateAccumulator = accumulator',
+                                  cpu6502StateStatusRegister = statusRegister',
                                   cpu6502StateMicrocodeInstructionQueue =
                                     microcodeInstructionQueue''
                                 }
