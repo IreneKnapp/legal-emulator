@@ -71,49 +71,64 @@ main = do
                               rightPad (intercalate " "
                                                     $ map showHexWord8 bytes)
                                        8
-                            lvalueSubreport =
+                            (lvalueSubreport, maybeRValueAddress) =
                               case addressingMode of
                                 AccumulatorAddressing ->
-                                  show addressingMode
+                                  (show addressingMode, Nothing)
                                 ImmediateAddressing ->
-                                  "#$"
-                                  ++ showHexWord8 byte2
+                                  ("#$"
+                                   ++ showHexWord8 byte2,
+                                   Nothing)
                                 AbsoluteAddressing ->
-                                  "$"
-                                  ++ showHexWord8 byte3
-                                  ++ showHexWord8 byte2
+                                  ("$"
+                                   ++ showHexWord8 byte3
+                                   ++ showHexWord8 byte2,
+                                   Just $ shiftL (fromIntegral byte3) 8
+                                          .|. fromIntegral byte2)
                                 ZeroPageAddressing ->
-                                  "$"
-                                  ++ showHexWord8 byte2
+                                  ("$"
+                                   ++ showHexWord8 byte2,
+                                   Just $ fromIntegral byte2)
                                 ZeroPageXIndexedAddressing ->
-                                  show addressingMode
+                                  (show addressingMode,
+                                   Nothing)
                                 ZeroPageYIndexedAddressing ->
-                                  show addressingMode
+                                  (show addressingMode,
+                                   Nothing)
                                 AbsoluteXIndexedAddressing ->
-                                  show addressingMode
+                                  (show addressingMode,
+                                   Nothing)
                                 AbsoluteYIndexedAddressing ->
-                                  show addressingMode
+                                  (show addressingMode,
+                                   Nothing)
                                 ImpliedAddressing ->
-                                  ""
+                                  ("",
+                                   Nothing)
                                 RelativeAddressing ->
                                   let effectiveAddress
                                        = programCounter
                                          + (fromIntegral byte2)
                                          + (fromIntegral nBytes)
-                                  in "$" ++ showHexWord16 effectiveAddress
+                                  in ("$" ++ showHexWord16 effectiveAddress,
+                                      Nothing)
                                 XIndexedIndirectAddressing ->
-                                  show addressingMode
+                                  (show addressingMode,
+                                   Nothing)
                                 IndirectYIndexedAddressing ->
-                                  show addressingMode
+                                  (show addressingMode,
+                                   Nothing)
                                 AbsoluteIndirectAddressing ->
-                                  show addressingMode
+                                  (show addressingMode,
+                                   Nothing)
                             showRValueSubreport =
-                              (instructionCharacter == WriteCharacter)
+                              ((instructionCharacter == WriteCharacter)
+                               || (instructionCharacter == ReadWriteCharacter))
                               && (mnemonicRegister instructionMnemonic
                                   /= NoRegister)
-                            rvalue = computeInternalRegister
-                                      (mnemonicRegister instructionMnemonic)
-                                      cpuState
+                            rvalue = case maybeRValueAddress of
+                                       Nothing -> 0x00
+                                       Just rvalueAddress ->
+                                         debugFetch rvalueAddress
                             rvalueSubreport = " = " ++ showHexWord8 rvalue
                             disassemblyReport =
                               rightPad (show instructionMnemonic
@@ -160,7 +175,7 @@ main = do
                 softwareState
                   <- return $ motherboardCycle hardwareState softwareState
                 loop (i - 1) softwareState
-      loop 1000 motherboardPowerOnSoftwareState
+      loop 10000 motherboardPowerOnSoftwareState
 
 
 showHexWord16 :: Word16 -> String
