@@ -1173,6 +1173,9 @@ decodeOperation opcode =
                 [usingAddressOffsetRegister StackPointer,
                  if mnemonic == PLP
                    then clearingBFlagInFetchedValue
+                   else id,
+                 if mnemonic == PLA
+                   then usingArithmeticOperation ArithmeticIdentity
                    else id],
                fetchOpcodeMicrocodeInstruction]
             JSR ->
