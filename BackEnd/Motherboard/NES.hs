@@ -5,18 +5,21 @@ module Motherboard.NES
    HardwareState(..),
    SoftwareState(..),
    AddressMapping(..),
-   nesPowerOnSoftwareState,
+   motherboardPowerOnSoftwareState,
    cpuDecodeAddress,
+   cpuDebugFetch,
    cpuFetch,
    cpuStore,
-   cpuCycle
+   motherboardCycle,
+   motherboardAtCPUCycle
   )
   where
 
 import Data.Array.Unboxed
 import Data.Word
 
-import Processor.CPU6502
+import Processor.CPU_6502
+import PPU.PPU_NES
 
 
 data Mirroring = HorizontalMirroring
@@ -45,7 +48,9 @@ data HardwareState =
 
 data SoftwareState =
   SoftwareState {
-      softwareStateCPUState :: CPU6502State,
+      softwareStateMotherboardClockCount :: Int,
+      softwareStateCPUState :: CPU_6502_State,
+      softwareStatePPUState :: PPU_NES_State,
       softwareStateMotherboardMemory :: UArray Int Word8
     }
 
@@ -56,10 +61,12 @@ data AddressMapping = MotherboardMemory
                     | NoMemory
 
 
-nesPowerOnSoftwareState :: SoftwareState
-nesPowerOnSoftwareState =
+motherboardPowerOnSoftwareState :: SoftwareState
+motherboardPowerOnSoftwareState =
   SoftwareState {
+      softwareStateMotherboardClockCount = 0,
       softwareStateCPUState = cpu6502PowerOnState,
+      softwareStatePPUState = ppuNESPowerOnState,
       softwareStateMotherboardMemory = array (0x0000, 0x07FF)
                                              $ zip [0x0000 .. 0x07FF]
                                                    $ repeat 0
@@ -78,6 +85,20 @@ cpuDecodeAddress hardwareState softwareState address =
        | otherwise -> (ProgramReadOnlyMemoryBank 0, address - 0xC000)
 
 
+cpuDebugFetch :: HardwareState
+              -> SoftwareState
+              -> Word16
+              -> Word8
+cpuDebugFetch hardwareState softwareState address =
+  case cpuDecodeAddress hardwareState softwareState address of
+    (MotherboardMemory, offset) ->
+      softwareStateMotherboardMemory softwareState ! fromIntegral offset
+    (ProgramReadOnlyMemoryBank bank, offset) ->
+      hardwareStateProgramReadOnlyMemory hardwareState
+       ! ((bank * 16384) + fromIntegral offset)
+    (NoMemory, _) -> 0x00
+
+
 cpuFetch :: HardwareState
          -> SoftwareState
          -> Word16
@@ -91,7 +112,7 @@ cpuFetch hardwareState softwareState address =
       (softwareState,
        hardwareStateProgramReadOnlyMemory hardwareState
         ! ((bank * 16384) + fromIntegral offset))
-    (NoMemory, _) -> (softwareState, 0)
+    (NoMemory, _) -> (softwareState, 0x00)
 
 
 cpuStore :: HardwareState
@@ -139,3 +160,47 @@ cpuCycle hardwareState softwareState =
                              })))
                      (hardwareState, softwareState)
   in softwareState'
+
+
+ppuCycle :: HardwareState
+         -> SoftwareState
+         -> SoftwareState
+ppuCycle hardwareState softwareState =
+  let (_, softwareState') =
+        ppuNESCycle ((\(_, softwareState) ->
+                         softwareStatePPUState softwareState),
+                     (\(hardwareState, softwareState) ppuState ->
+                         (hardwareState,
+                          softwareState {
+                              softwareStatePPUState = ppuState
+                            })))
+                    (hardwareState, softwareState)
+  in softwareState'
+
+
+motherboardCycle :: HardwareState
+                 -> SoftwareState
+                 -> SoftwareState
+motherboardCycle hardwareState softwareState =
+  let clockCount = softwareStateMotherboardClockCount softwareState
+      chipsToCycle = concat $ map (\(divisor, chip) ->
+                                      if mod clockCount divisor == 0
+                                        then [chip]
+                                        else [])
+                                  [(4, ppuCycle),
+                                   (12, cpuCycle)]
+      softwareState' = foldl (\softwareState' chip ->
+                                 chip hardwareState softwareState')
+                             softwareState
+                             chipsToCycle
+      clockCount' = mod (clockCount + 1) 12
+      softwareState'' = softwareState' {
+                            softwareStateMotherboardClockCount = clockCount'
+                          }
+  in softwareState''
+
+
+motherboardAtCPUCycle :: HardwareState -> SoftwareState -> Bool
+motherboardAtCPUCycle _ softwareState =
+  let clockCount = softwareStateMotherboardClockCount softwareState
+  in mod clockCount 12 == 0

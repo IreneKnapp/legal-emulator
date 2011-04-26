@@ -1,8 +1,13 @@
-module Processor.CPU6502
+module Processor.CPU_6502
   (
-   CPU6502State(..),
+   CPU_6502_State(..),
+   InstructionMnemonic(..),
+   AddressingMode(..),
    cpu6502PowerOnState,
-   cpu6502Cycle
+   cpu6502Cycle,
+   cpu6502DecodeInstructionMnemonicAndAddressingMode,
+   cpu6502NBytes,
+   cpu6502AtInstructionStart
   )
   where
 
@@ -10,8 +15,8 @@ import Data.Bits
 import Data.Word
 
 
-data CPU6502State =
-  CPU6502State {
+data CPU_6502_State =
+  CPU_6502_State {
       cpu6502StateProgramCounter :: Word16,
       cpu6502StateStackPointer :: Word8,
       cpu6502StateAccumulator :: Word8,
@@ -42,7 +47,7 @@ data InstructionMnemonic
   | NOP | ORA | PHA | PHP | PHX | PHY | PLA | PLP | PLX | PLY | RMB | ROL
   | ROR | RTI | RTS | SBC | SEC | SED | SEI | SMB | STA | STX | STY | STZ
   | TAX | TAY | TRB | TSB | TSX | TXA | TXS | TYA
-  deriving (Eq)
+  deriving (Eq, Show)
 
 
 data AddressingMode
@@ -54,15 +59,12 @@ data AddressingMode
   | ZeroPageYIndexedAddressing
   | AbsoluteXIndexedAddressing
   | AbsoluteYIndexedAddressing
-  | XIndexedAbsoluteIndirectAddressing
   | ImpliedAddressing
   | RelativeAddressing
-  | ZeroPageRelativeAddressing
   | XIndexedIndirectAddressing
   | IndirectYIndexedAddressing
   | AbsoluteIndirectAddressing
-  | IndirectAddressing
-  deriving (Eq)
+  deriving (Eq, Show)
 
 
 data InternalRegister
@@ -97,15 +99,15 @@ data MicrocodeInstruction =
     }
 
 
-cpu6502PowerOnState :: CPU6502State
+cpu6502PowerOnState :: CPU_6502_State
 cpu6502PowerOnState =
-  CPU6502State {
+  CPU_6502_State {
       cpu6502StateProgramCounter = 0xC000,
-      cpu6502StateStackPointer = 0x00,
+      cpu6502StateStackPointer = 0xFD,
       cpu6502StateAccumulator = 0x00,
       cpu6502StateXIndexRegister = 0x00,
       cpu6502StateYIndexRegister = 0x00,
-      cpu6502StateStatusRegister = 0x00,
+      cpu6502StateStatusRegister = 0x04,
       cpu6502StateInternalAdditionOverflow = False,
       cpu6502StateInternalStoredAddress = 0x0000,
       cpu6502StateInternalLatch = 0x00,
@@ -116,8 +118,8 @@ cpu6502PowerOnState =
 
 cpu6502Cycle :: ((outerState -> Word16 -> (Word8, outerState)),
                  (outerState -> Word16 -> Word8 -> outerState),
-                 (outerState -> CPU6502State),
-                 (outerState -> CPU6502State -> outerState))
+                 (outerState -> CPU_6502_State),
+                 (outerState -> CPU_6502_State -> outerState))
              -> outerState
              -> outerState
 cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
@@ -189,7 +191,7 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
   in outerState''
 
 
-computeEffectiveAddress :: CPU6502State -> MicrocodeInstruction -> Word16
+computeEffectiveAddress :: CPU_6502_State -> MicrocodeInstruction -> Word16
 computeEffectiveAddress cpuState microcodeInstruction =
   let baseAddress =
         case microcodeInstructionAddressSource
@@ -213,7 +215,7 @@ computeEffectiveAddress cpuState microcodeInstruction =
   in baseAddress + addressOffset + possibleIncrement
 
 
-computeInternalRegister :: InternalRegister -> CPU6502State -> Word8
+computeInternalRegister :: InternalRegister -> CPU_6502_State -> Word8
 computeInternalRegister internalRegister cpuState =
   case internalRegister of
     ProgramCounterHighByte ->
@@ -243,7 +245,7 @@ computeInternalRegister internalRegister cpuState =
 
 
 computeStoreInternalRegister
-    :: InternalRegister -> CPU6502State -> Word8 -> CPU6502State
+    :: InternalRegister -> CPU_6502_State -> Word8 -> CPU_6502_State
 computeStoreInternalRegister internalRegister cpuState byte =
   case internalRegister of
     ProgramCounterHighByte ->
@@ -312,9 +314,9 @@ computeStoreInternalRegister internalRegister cpuState byte =
         }
 
 
-decodeInstructionMnemonicAndAddressingMode
+cpu6502DecodeInstructionMnemonicAndAddressingMode
     :: Word8 -> Maybe (InstructionMnemonic, AddressingMode)
-decodeInstructionMnemonicAndAddressingMode opcode =
+cpu6502DecodeInstructionMnemonicAndAddressingMode opcode =
   case opcode of
     0x00 -> Just (BRK, ImpliedAddressing)
     0x01 -> Just (ORA, XIndexedIndirectAddressing)
@@ -576,7 +578,7 @@ decodeInstructionMnemonicAndAddressingMode opcode =
 
 decodeOperation :: Word8 -> [MicrocodeInstruction]
 decodeOperation opcode =
-  case decodeInstructionMnemonicAndAddressingMode opcode of
+  case cpu6502DecodeInstructionMnemonicAndAddressingMode opcode of
     Nothing -> []
     Just (mnemonic, ImpliedAddressing)
       | mnemonic == BRK ->
@@ -723,3 +725,26 @@ alsoCopyLatchToRegister register microcodeInstruction =
   microcodeInstruction {
       microcodeInstructionRegisterFromLatch = Just register
     }
+
+
+cpu6502NBytes :: AddressingMode -> Int
+cpu6502NBytes addressingMode =
+  case addressingMode of
+     AccumulatorAddressing -> 1
+     ImmediateAddressing -> 2
+     AbsoluteAddressing -> 3
+     ZeroPageAddressing -> 2
+     ZeroPageXIndexedAddressing -> 2
+     ZeroPageYIndexedAddressing -> 2
+     AbsoluteXIndexedAddressing -> 3
+     AbsoluteYIndexedAddressing -> 3
+     ImpliedAddressing -> 1
+     RelativeAddressing -> 2
+     XIndexedIndirectAddressing -> 2
+     IndirectYIndexedAddressing -> 2
+     AbsoluteIndirectAddressing -> 3
+
+
+cpu6502AtInstructionStart :: CPU_6502_State -> Bool
+cpu6502AtInstructionStart cpuState =
+  length (cpu6502StateMicrocodeInstructionQueue cpuState) == 1
