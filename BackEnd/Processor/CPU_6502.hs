@@ -1502,23 +1502,30 @@ decodeOperation opcode =
                    fetchOpcodeMicrocodeInstruction]
                   [fetchOpcodeMicrocodeInstruction]]]
         (XIndexedIndirectAddressing, ReadCharacter) ->
-              -- TODO SOON
-              -- LDA, ORA, EOR, AND, ADC, CMP, SBC
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [alsoIncrementProgramCounter],
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                StoredAddressLowByte)
+                [alsoIncrementProgramCounter,
+                 alsoZeroStoredAddressHighByte],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                NoRegister)
+                [alsoAddRegisterToStoredAddress XIndexRegister,
+                 alsoZeroStoredAddressHighByte],
+               buildMicrocodeInstruction
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
                 [],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                StoredAddressHighByte)
+                [usingAddressPlusOne,
+                 alsoCopyLatchToRegister StoredAddressLowByte],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
-               buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                $ mnemonicRegister mnemonic)
+                [usingArithmeticOperation
+                  $ mnemonicArithmeticOperation mnemonic],
                fetchOpcodeMicrocodeInstruction]
         (XIndexedIndirectAddressing, ReadWriteCharacter) ->
               [buildMicrocodeInstruction
