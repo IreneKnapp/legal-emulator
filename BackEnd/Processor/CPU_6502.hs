@@ -700,12 +700,13 @@ performArithmetic operation oldStatus byteA byteB =
                 Just zero)
           ArithmeticBitCompare ->
             let result = byteA .&. byteB
-                overflow = testBit result 6
+                overflow = testBit byteB 6
+                negative = testBit byteB 7
                 zero = result == 0
             in (byteA,
                 Nothing,
                 Just overflow,
-                Nothing,
+                Just negative,
                 Just zero)
       negative = case maybeNegativeOverride of
                    Nothing -> (result .&. 0x80) == 0x80
