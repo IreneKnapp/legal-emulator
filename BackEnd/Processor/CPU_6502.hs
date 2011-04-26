@@ -96,6 +96,7 @@ data ArithmeticOperation
   | ArithmeticAdd
   | ArithmeticSubtract
   | ArithmeticCompare
+  | ArithmeticBitCompare
 
 
 data Condition
@@ -125,7 +126,7 @@ data IncrementDecrement = Increment | Decrement
 data SetClear = Set | Clear
 
 
-data AccumulatorTransformation
+data Transformation
   = ArithmeticShiftLeft
   | LogicalShiftRight
   | RotateLeft
@@ -156,7 +157,7 @@ data MicrocodeInstruction =
       microcodeInstructionYIndexRegisterOperation :: Maybe IncrementDecrement,
       microcodeInstructionStatusRegisterOperation :: Maybe (SetClear, Word8),
       microcodeInstructionAccumulatorOperation
-        :: Maybe AccumulatorTransformation,
+        :: Maybe Transformation,
       microcodeInstructionRegisterRegisterCopy
         :: Maybe (InternalRegister, InternalRegister)
     }
@@ -643,6 +644,14 @@ performArithmetic operation oldStatus byteA byteB =
                 Just carry,
                 Nothing,
                 Just zero)
+          ArithmeticBitCompare ->
+            let result = byteA .&. byteB
+                overflow = testBit result 6
+                zero = result == 0
+            in (byteA,
+                Nothing,
+                Just overflow,
+                Just zero)
       negative = (result .&. 0x80) == 0x80
       zero = case maybeZeroOverride of
                Nothing -> result == 0x00
@@ -663,7 +672,7 @@ performArithmetic operation oldStatus byteA byteB =
   in (newStatus, result)
 
 
-transformWord8 :: Word8 -> AccumulatorTransformation -> Word8
+transformWord8 :: Word8 -> Transformation -> Word8
 transformWord8 byte transformation =
   case transformation of
     ArithmeticShiftLeft -> shiftL byte 1
@@ -1135,7 +1144,7 @@ decodeOperation opcode =
                 [alsoCopyLatchToRegister ProgramCounterLowByte],
                fetchOpcodeMicrocodeInstruction]
         (AbsoluteAddressing, ReadCharacter) ->
-              -- TODO
+              -- TODO SOON
               -- LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT, NOP
               [buildMicrocodeInstruction
                 (stubMicrocodeInstruction)
@@ -1181,7 +1190,7 @@ decodeOperation opcode =
                 [],
                fetchOpcodeMicrocodeInstruction]
         (ZeroPageAddressing, ReadCharacter) ->
-              -- TODO
+              -- TODO SOON
               -- LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT, NOP
               [buildMicrocodeInstruction
                 (stubMicrocodeInstruction)
@@ -1220,7 +1229,7 @@ decodeOperation opcode =
         (_, ReadCharacter)
           | elem addressing [ZeroPageXIndexedAddressing,
                              ZeroPageYIndexedAddressing] ->
-              -- TODO
+              -- TODO SOON
               -- LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT, NOP
               [buildMicrocodeInstruction
                 (stubMicrocodeInstruction)
@@ -1275,7 +1284,7 @@ decodeOperation opcode =
         (_, ReadCharacter)
           | elem addressing [AbsoluteXIndexedAddressing,
                              AbsoluteYIndexedAddressing] ->
-              -- TODO
+              -- TODO SOON
               -- LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT, NOP
               [buildMicrocodeInstruction
                 (stubMicrocodeInstruction)
@@ -1353,7 +1362,7 @@ decodeOperation opcode =
                    fetchOpcodeMicrocodeInstruction]
                   [fetchOpcodeMicrocodeInstruction]]]
         (XIndexedIndirectAddressing, ReadCharacter) ->
-              -- TODO
+              -- TODO SOON
               -- LDA, ORA, EOR, AND, ADC, CMP, SBC
               [buildMicrocodeInstruction
                 (stubMicrocodeInstruction)
@@ -1422,7 +1431,7 @@ decodeOperation opcode =
                 [],
                fetchOpcodeMicrocodeInstruction]
         (IndirectYIndexedAddressing, ReadCharacter) ->
-              -- TODO
+              -- TODO SOON
               -- LDA, EOR, AND, ORA, ADC, SBC, CMP
               [buildMicrocodeInstruction
                 (stubMicrocodeInstruction)
@@ -1635,6 +1644,7 @@ mnemonicArithmeticOperation mnemonic =
     CMP -> ArithmeticCompare
     CPX -> ArithmeticCompare
     CPY -> ArithmeticCompare
+    BIT -> ArithmeticBitCompare
 
 
 mnemonicCondition
@@ -1905,7 +1915,7 @@ alsoClearStatusBits bits microcodeInstruction =
 
 
 alsoTransformAccumulator
-    :: AccumulatorTransformation
+    :: Transformation
     -> MicrocodeInstruction
     -> MicrocodeInstruction
 alsoTransformAccumulator transformation microcodeInstruction =
