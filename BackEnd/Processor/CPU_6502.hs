@@ -642,16 +642,17 @@ performArithmetic :: ArithmeticOperation
                   -> Word8
                   -> (Word8, Word8)
 performArithmetic operation oldStatus byteA byteB =
-  let (result, maybeCarry, maybeOverflow, maybeZeroOverride) =
+  let (result, maybeCarry, maybeOverflow,
+       maybeNegativeOverride, maybeZeroOverride) =
         case operation of
           ArithmeticIdentity ->
-            (byteB, Nothing, Nothing, Nothing)
+            (byteB, Nothing, Nothing, Nothing, Nothing)
           ArithmeticAnd ->
-            (byteA .&. byteB, Nothing, Nothing, Nothing)
+            (byteA .&. byteB, Nothing, Nothing, Nothing, Nothing)
           ArithmeticInclusiveOr ->
-            (byteA .|. byteB, Nothing, Nothing, Nothing)
+            (byteA .|. byteB, Nothing, Nothing, Nothing, Nothing)
           ArithmeticExclusiveOr ->
-            (xor byteA byteB, Nothing, Nothing, Nothing)
+            (xor byteA byteB, Nothing, Nothing, Nothing, Nothing)
           ArithmeticAdd ->
             let inputCarryBit = if statusTestCarry oldStatus
                                   then 1
@@ -665,6 +666,7 @@ performArithmetic operation oldStatus byteA byteB =
             in (byteResult,
                 Just outputCarry,
                 Just outputOverflow,
+                Nothing,
                 Nothing)
           ArithmeticSubtract ->
             let inputBorrowBit = if statusTestCarry oldStatus
@@ -683,14 +685,18 @@ performArithmetic operation oldStatus byteA byteB =
             in (byteResult,
                 Just $ not outputBorrow,
                 Just outputOverflow,
+                Nothing,
                 Nothing)
           ArithmeticCompare ->
             let ordering = compare byteA byteB
+                negative = (ordering == LT)
+                           || ((ordering == GT) && (byteA - byteB >= 0x80))
                 zero = ordering == EQ
                 carry = not $ ordering == GT
             in (byteA,
                 Just carry,
                 Nothing,
+                Just negative,
                 Just zero)
           ArithmeticBitCompare ->
             let result = byteA .&. byteB
@@ -699,8 +705,11 @@ performArithmetic operation oldStatus byteA byteB =
             in (byteA,
                 Nothing,
                 Just overflow,
+                Nothing,
                 Just zero)
-      negative = (result .&. 0x80) == 0x80
+      negative = case maybeNegativeOverride of
+                   Nothing -> (result .&. 0x80) == 0x80
+                   Just negativeOverride -> negativeOverride
       zero = case maybeZeroOverride of
                Nothing -> result == 0x00
                Just zeroOverride -> zeroOverride
