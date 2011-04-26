@@ -1634,20 +1634,23 @@ decodeOperation opcode =
                 [],
                fetchOpcodeMicrocodeInstruction]
         (AbsoluteIndirectAddressing, ControlCharacter) ->
-              -- TODO
-              -- JMP
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                StoredAddressLowByte)
                 [alsoIncrementProgramCounter],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                StoredAddressHighByte)
                 [alsoIncrementProgramCounter],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
                 [],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                ProgramCounterHighByte)
+                [usingAddressPlusOne,
+                 alsoCopyLatchToRegister ProgramCounterLowByte],
                fetchOpcodeMicrocodeInstruction]
 
 
