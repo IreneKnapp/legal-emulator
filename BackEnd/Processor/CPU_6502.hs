@@ -1205,7 +1205,7 @@ decodeOperation opcode =
                 [alsoCopyLatchToRegister ProgramCounterLowByte],
                fetchOpcodeMicrocodeInstruction]
         (AbsoluteAddressing, ReadCharacter) ->
-              -- TODO SOON
+              -- TODO
               -- LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT, NOP
               [buildMicrocodeInstruction
                 (stubMicrocodeInstruction)
@@ -1218,22 +1218,25 @@ decodeOperation opcode =
                 [],
                fetchOpcodeMicrocodeInstruction]
         (AbsoluteAddressing, ReadWriteCharacter) ->
-              -- TODO
-              -- ASL, LSR, ROL, ROR, INC, DEC
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                StoredAddressLowByte)
                 [alsoIncrementProgramCounter],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                StoredAddressHighByte)
                 [alsoIncrementProgramCounter],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
                 [],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (storeValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
+                [alsoTransformLatch $ mnemonicTransformation mnemonic],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (storeValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
                 [],
                fetchOpcodeMicrocodeInstruction]
         (AbsoluteAddressing, WriteCharacter) ->
@@ -1251,7 +1254,7 @@ decodeOperation opcode =
                 [],
                fetchOpcodeMicrocodeInstruction]
         (ZeroPageAddressing, ReadCharacter) ->
-              -- TODO SOON
+              -- TODO
               -- LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT, NOP
               [buildMicrocodeInstruction
                 (stubMicrocodeInstruction)
@@ -1261,19 +1264,22 @@ decodeOperation opcode =
                 [],
                fetchOpcodeMicrocodeInstruction]
         (ZeroPageAddressing, ReadWriteCharacter) ->
-              -- TODO
-              -- ASL, LSR, ROL, ROR, INC, DEC
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [alsoIncrementProgramCounter],
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                StoredAddressLowByte)
+                [alsoIncrementProgramCounter,
+                 alsoZeroStoredAddressHighByte],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
                 [],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (storeValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
+                [alsoTransformLatch $ mnemonicTransformation mnemonic],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (storeValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
                 [],
                fetchOpcodeMicrocodeInstruction]
         (ZeroPageAddressing, WriteCharacter) ->
@@ -1290,7 +1296,7 @@ decodeOperation opcode =
         (_, ReadCharacter)
           | elem addressing [ZeroPageXIndexedAddressing,
                              ZeroPageYIndexedAddressing] ->
-              -- TODO SOON
+              -- TODO
               -- LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT, NOP
               [buildMicrocodeInstruction
                 (stubMicrocodeInstruction)
@@ -1305,22 +1311,28 @@ decodeOperation opcode =
         (_, ReadWriteCharacter)
           | elem addressing [ZeroPageXIndexedAddressing,
                              ZeroPageYIndexedAddressing] ->
-              -- TODO
-              -- ASL, LSR, ROL, ROR, INC, DEC
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [alsoIncrementProgramCounter],
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                StoredAddressLowByte)
+                [alsoIncrementProgramCounter,
+                 alsoZeroStoredAddressHighByte],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                NoRegister)
+                [alsoAddRegisterToStoredAddress
+                  $ mnemonicIndexRegister mnemonic,
+                 alsoZeroStoredAddressHighByte],
+               buildMicrocodeInstruction
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
                 [],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (storeValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
+                [alsoTransformLatch $ mnemonicTransformation mnemonic],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
-               buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (storeValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
                 [],
                fetchOpcodeMicrocodeInstruction]
         (_, WriteCharacter)
@@ -1345,7 +1357,7 @@ decodeOperation opcode =
         (_, ReadCharacter)
           | elem addressing [AbsoluteXIndexedAddressing,
                              AbsoluteYIndexedAddressing] ->
-              -- TODO SOON
+              -- TODO
               -- LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT, NOP
               [buildMicrocodeInstruction
                 (stubMicrocodeInstruction)
@@ -1363,25 +1375,31 @@ decodeOperation opcode =
         (_, ReadWriteCharacter)
           | elem addressing [AbsoluteXIndexedAddressing,
                              AbsoluteYIndexedAddressing] ->
-              -- TODO
-              -- ASL, LSR, ROL, ROR, INC, DEC
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                StoredAddressLowByte)
                 [alsoIncrementProgramCounter],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [alsoIncrementProgramCounter],
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                StoredAddressHighByte)
+                [alsoIncrementProgramCounter,
+                 alsoAddRegisterToStoredAddress
+                  $ mnemonicIndexRegister mnemonic],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                NoRegister)
+                [alsoFixStoredAddressHighByte],
+               buildMicrocodeInstruction
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
                 [],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (storeValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
+                [alsoTransformLatch $ mnemonicTransformation mnemonic],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
-               buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (storeValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
                 [],
                fetchOpcodeMicrocodeInstruction]
         (_, WriteCharacter)
@@ -1423,7 +1441,7 @@ decodeOperation opcode =
                    fetchOpcodeMicrocodeInstruction]
                   [fetchOpcodeMicrocodeInstruction]]]
         (XIndexedIndirectAddressing, ReadCharacter) ->
-              -- TODO SOON
+              -- TODO
               -- LDA, ORA, EOR, AND, ADC, CMP, SBC
               [buildMicrocodeInstruction
                 (stubMicrocodeInstruction)
@@ -1442,28 +1460,36 @@ decodeOperation opcode =
                 [],
                fetchOpcodeMicrocodeInstruction]
         (XIndexedIndirectAddressing, ReadWriteCharacter) ->
-              -- TODO
-              -- None (except extended).
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [alsoIncrementProgramCounter],
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                StoredAddressLowByte)
+                [alsoIncrementProgramCounter,
+                 alsoZeroStoredAddressHighByte],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                NoRegister)
+                [alsoAddRegisterToStoredAddress XIndexRegister,
+                 alsoZeroStoredAddressHighByte],
+               buildMicrocodeInstruction
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
                 [],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                StoredAddressHighByte)
+                [usingAddressPlusOne,
+                 alsoCopyLatchToRegister StoredAddressLowByte],
+               buildMicrocodeInstruction
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
                 [],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (storeValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
+                [alsoTransformLatch $ mnemonicTransformation mnemonic],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
-               buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
-               buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (storeValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
                 [],
                fetchOpcodeMicrocodeInstruction]
         (XIndexedIndirectAddressing, WriteCharacter) ->
@@ -1492,7 +1518,7 @@ decodeOperation opcode =
                 [],
                fetchOpcodeMicrocodeInstruction]
         (IndirectYIndexedAddressing, ReadCharacter) ->
-              -- TODO SOON
+              -- TODO
               -- LDA, EOR, AND, ORA, ADC, SBC, CMP
               [buildMicrocodeInstruction
                 (stubMicrocodeInstruction)
@@ -1511,28 +1537,36 @@ decodeOperation opcode =
                 [],
                fetchOpcodeMicrocodeInstruction]
         (IndirectYIndexedAddressing, ReadWriteCharacter) ->
-              -- TODO
-              -- None (except extended).
               [buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [alsoIncrementProgramCounter],
+                (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                                StoredAddressLowByte)
+                [alsoIncrementProgramCounter,
+                 alsoZeroStoredAddressHighByte],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
                 [],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                StoredAddressHighByte)
+                [usingAddressPlusOne,
+                 alsoCopyLatchToRegister StoredAddressLowByte,
+                 alsoAddRegisterToStoredAddress YIndexRegister],
+               buildMicrocodeInstruction
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                NoRegister)
+                [alsoFixStoredAddressHighByte],
+               buildMicrocodeInstruction
+                (fetchValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
                 [],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
+                (storeValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
+                [alsoTransformLatch $ mnemonicTransformation mnemonic],
                buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
-               buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
-                [],
-               buildMicrocodeInstruction
-                (stubMicrocodeInstruction)
+                (storeValueMicrocodeInstruction StoredAddressSource
+                                                Latch)
                 [],
                fetchOpcodeMicrocodeInstruction]
         (IndirectYIndexedAddressing, WriteCharacter) ->
@@ -1548,7 +1582,8 @@ decodeOperation opcode =
                buildMicrocodeInstruction
                 (fetchValueMicrocodeInstruction StoredAddressSource
                                                 StoredAddressHighByte)
-                [alsoCopyLatchToRegister StoredAddressLowByte,
+                [usingAddressPlusOne,
+                 alsoCopyLatchToRegister StoredAddressLowByte,
                  alsoAddRegisterToStoredAddress YIndexRegister],
                buildMicrocodeInstruction
                 (fetchValueMicrocodeInstruction StoredAddressSource
@@ -1706,6 +1741,17 @@ mnemonicArithmeticOperation mnemonic =
     CPX -> ArithmeticCompare
     CPY -> ArithmeticCompare
     BIT -> ArithmeticBitCompare
+
+
+mnemonicTransformation :: InstructionMnemonic -> Transformation
+mnemonicTransformation mnemonic =
+  case mnemonic of
+    ASL -> ArithmeticShiftLeft
+    LSR -> LogicalShiftRight
+    ROL -> RotateLeft
+    ROR -> RotateRight
+    INC -> IncrementDecrement Increment
+    DEC -> IncrementDecrement Decrement
 
 
 mnemonicCondition
