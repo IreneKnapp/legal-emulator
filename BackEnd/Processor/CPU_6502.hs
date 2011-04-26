@@ -158,6 +158,8 @@ data MicrocodeInstruction =
       microcodeInstructionStatusRegisterOperation :: Maybe (SetClear, Word8),
       microcodeInstructionAccumulatorOperation
         :: Maybe Transformation,
+      microcodeInstructionLatchOperation
+        :: Maybe Transformation,
       microcodeInstructionRegisterRegisterCopy
         :: Maybe (InternalRegister, InternalRegister)
     }
@@ -394,6 +396,14 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                     Nothing -> accumulator
                     Just transformation ->
                       transformWord8 accumulator transformation
+                latch =
+                  cpu6502StateInternalLatch cpuState''
+                latch' =
+                  case microcodeInstructionLatchOperation
+                        microcodeInstruction of
+                    Nothing -> latch
+                    Just transformation ->
+                      transformWord8 latch transformation
                 statusRegister =
                   cpu6502StateStatusRegister cpuState''
                 statusRegister' =
@@ -428,6 +438,7 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                                   cpu6502StateXIndexRegister = xIndexRegister',
                                   cpu6502StateYIndexRegister = yIndexRegister',
                                   cpu6502StateAccumulator = accumulator',
+                                  cpu6502StateInternalLatch = latch',
                                   cpu6502StateStatusRegister = statusRegister',
                                   cpu6502StateInternalOverflow =
                                     internalOverflow',
@@ -1690,6 +1701,7 @@ fetchOpcodeMicrocodeInstruction =
       microcodeInstructionYIndexRegisterOperation = Nothing,
       microcodeInstructionStatusRegisterOperation = Nothing,
       microcodeInstructionAccumulatorOperation = Nothing,
+      microcodeInstructionLatchOperation = Nothing,
       microcodeInstructionRegisterRegisterCopy = Nothing
     }
 
@@ -1718,6 +1730,7 @@ fetchValueMicrocodeInstruction addressSource register =
       microcodeInstructionYIndexRegisterOperation = Nothing,
       microcodeInstructionStatusRegisterOperation = Nothing,
       microcodeInstructionAccumulatorOperation = Nothing,
+      microcodeInstructionLatchOperation = Nothing,
       microcodeInstructionRegisterRegisterCopy = Nothing
     }
 
@@ -1746,6 +1759,7 @@ storeValueMicrocodeInstruction addressSource register =
       microcodeInstructionYIndexRegisterOperation = Nothing,
       microcodeInstructionStatusRegisterOperation = Nothing,
       microcodeInstructionAccumulatorOperation = Nothing,
+      microcodeInstructionLatchOperation = Nothing,
       microcodeInstructionRegisterRegisterCopy = Nothing
     }
 
@@ -1773,6 +1787,7 @@ stubMicrocodeInstruction =
       microcodeInstructionYIndexRegisterOperation = Nothing,
       microcodeInstructionStatusRegisterOperation = Nothing,
       microcodeInstructionAccumulatorOperation = Nothing,
+      microcodeInstructionLatchOperation = Nothing,
       microcodeInstructionRegisterRegisterCopy = Nothing
     }
 
@@ -1921,6 +1936,16 @@ alsoTransformAccumulator
 alsoTransformAccumulator transformation microcodeInstruction =
   microcodeInstruction {
       microcodeInstructionAccumulatorOperation = Just transformation
+    }
+
+
+alsoTransformLatch
+    :: Transformation
+    -> MicrocodeInstruction
+    -> MicrocodeInstruction
+alsoTransformLatch transformation microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionLatchOperation = Just transformation
     }
 
 
