@@ -1281,8 +1281,7 @@ decodeOperation opcode =
                                                        Accumulator,
                             alsoUpdateStatusForRegister Accumulator]
                     TXS -> [alsoCopyRegisterToRegister XIndexRegister
-                                                       StackPointer,
-                            alsoUpdateStatusForRegister StackPointer]
+                                                       StackPointer]
                     TSX -> [alsoCopyRegisterToRegister StackPointer
                                                        XIndexRegister,
                             alsoUpdateStatusForRegister StackPointer]
