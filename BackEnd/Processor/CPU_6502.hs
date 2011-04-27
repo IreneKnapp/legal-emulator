@@ -165,7 +165,8 @@ data MicrocodeInstruction =
       microcodeInstructionLatchOperation
         :: Maybe Transformation,
       microcodeInstructionRegisterRegisterCopy
-        :: Maybe (InternalRegister, InternalRegister)
+        :: Maybe (InternalRegister, InternalRegister),
+      microcodeInstructionUpdateStatusForRegister :: Maybe InternalRegister
     }
 
 
@@ -443,11 +444,19 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                              statusRegister' latch' newCarry
                       in (latch', statusRegister'')
                 statusRegister''' =
-                  case microcodeInstructionStatusRegisterOperation
+                  case microcodeInstructionUpdateStatusForRegister
                         microcodeInstruction of
                     Nothing -> statusRegister''
-                    Just (Set, bits) -> statusRegister'' .|. bits
-                    Just (Clear, bits) -> statusRegister'' .&. complement bits
+                    Just register ->
+                      updateStatusRegisterForValue
+                       statusRegister''
+                       $ computeInternalRegister register cpuState''
+                statusRegister'''' =
+                  case microcodeInstructionStatusRegisterOperation
+                        microcodeInstruction of
+                    Nothing -> statusRegister'''
+                    Just (Set, bits) -> statusRegister''' .|. bits
+                    Just (Clear, bits) -> statusRegister''' .&. complement bits
                 internalOverflow' =
                   internalOverflowA' || internalOverflowB'
                 internalNegative' =
@@ -767,6 +776,19 @@ transformWord8 transformation (byte, oldCarry) =
              oldCarryBit)
       newCarry = newCarryBit == 1
   in (result, newCarry)
+
+
+updateStatusRegisterForValue :: Word8 -> Word8 -> Word8
+updateStatusRegisterForValue oldStatus value =
+  let negative = (value .&. 0x80) == 0x80
+      zero = value == 0x00
+  in foldl (\status (bitIndex, bitValue) ->
+              if bitValue
+                then setBit status bitIndex
+                else clearBit status bitIndex)
+          oldStatus
+          [(7, negative),
+           (1, zero)]
 
 
 updateStatusRegisterForValueAndCarry :: Word8 -> Word8 -> Bool -> Word8
@@ -1234,10 +1256,14 @@ decodeOperation opcode =
                     SEC -> [alsoSetStatusBits 0x01]
                     SEI -> [alsoSetStatusBits 0x04]
                     SED -> [alsoSetStatusBits 0x08]
-                    DEX -> [alsoDecrementXIndexRegister]
-                    DEY -> [alsoDecrementYIndexRegister]
-                    INX -> [alsoIncrementXIndexRegister]
-                    INY -> [alsoIncrementYIndexRegister]
+                    DEX -> [alsoDecrementXIndexRegister,
+                            alsoUpdateStatusForRegister XIndexRegister]
+                    DEY -> [alsoDecrementYIndexRegister,
+                            alsoUpdateStatusForRegister YIndexRegister]
+                    INX -> [alsoIncrementXIndexRegister,
+                            alsoUpdateStatusForRegister XIndexRegister]
+                    INY -> [alsoIncrementYIndexRegister,
+                            alsoUpdateStatusForRegister YIndexRegister]
                     TAX -> [alsoCopyRegisterToRegister Accumulator
                                                        XIndexRegister]
                     TAY -> [alsoCopyRegisterToRegister Accumulator
@@ -1931,7 +1957,8 @@ templateMicrocodeInstruction =
       microcodeInstructionStatusRegisterOperation = Nothing,
       microcodeInstructionAccumulatorOperation = Nothing,
       microcodeInstructionLatchOperation = Nothing,
-      microcodeInstructionRegisterRegisterCopy = Nothing
+      microcodeInstructionRegisterRegisterCopy = Nothing,
+      microcodeInstructionUpdateStatusForRegister = Nothing
     }
 
 
@@ -2171,6 +2198,14 @@ insteadFixProgramCounterHighByteIfNecessary
 insteadFixProgramCounterHighByteIfNecessary microcodeInstruction =
   microcodeInstruction {
       microcodeInstructionInsteadFixProgramCounterHighByteIfNecessary = True
+    }
+
+
+alsoUpdateStatusForRegister
+    :: InternalRegister -> MicrocodeInstruction -> MicrocodeInstruction
+alsoUpdateStatusForRegister register microcodeInstruction =
+  microcodeInstruction {
+      microcodeInstructionUpdateStatusForRegister = Just register
     }
 
 
