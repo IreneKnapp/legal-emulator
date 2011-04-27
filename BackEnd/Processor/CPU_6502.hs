@@ -1157,6 +1157,7 @@ decodeOperation opcode =
                 (fetchValueMicrocodeInstruction (FixedAddressSource 0x0100)
                                                 StatusRegister)
                 [usingAddressOffsetRegister StackPointer,
+                 clearingBFlagInFetchedValue,
                  alsoIncrementStackPointer],
                buildMicrocodeInstruction
                 (fetchValueMicrocodeInstruction (FixedAddressSource 0x0100)
