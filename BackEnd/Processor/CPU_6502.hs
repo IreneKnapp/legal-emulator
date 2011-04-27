@@ -444,21 +444,11 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                              statusRegister' latch' newCarry
                       in (latch', statusRegister'')
                 statusRegister''' =
-                  case microcodeInstructionUpdateStatusForRegister
-                        microcodeInstruction of
-                    Nothing -> statusRegister''
-                    Just register ->
-                      updateStatusRegisterForValue
-                       statusRegister''
-                       $ case register of
-                           XIndexRegister -> xIndexRegister'
-                           YIndexRegister -> yIndexRegister'
-                statusRegister'''' =
                   case microcodeInstructionStatusRegisterOperation
                         microcodeInstruction of
-                    Nothing -> statusRegister'''
-                    Just (Set, bits) -> statusRegister''' .|. bits
-                    Just (Clear, bits) -> statusRegister''' .&. complement bits
+                    Nothing -> statusRegister''
+                    Just (Set, bits) -> statusRegister'' .|. bits
+                    Just (Clear, bits) -> statusRegister'' .&. complement bits
                 internalOverflow' =
                   internalOverflowA' || internalOverflowB'
                 internalNegative' =
@@ -505,7 +495,19 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                                     $ computeInternalRegister
                                        source
                                        cpuState'''
-            in (cpuState'''', outerState')
+                statusRegister'''' =
+                  case microcodeInstructionUpdateStatusForRegister
+                        microcodeInstruction of
+                    Nothing -> cpu6502StateStatusRegister cpuState''''
+                    Just register ->
+                      updateStatusRegisterForValue
+                       (cpu6502StateStatusRegister cpuState'''')
+                       $ computeInternalRegister register cpuState''''
+                cpuState''''' = cpuState'''' {
+                                    cpu6502StateStatusRegister =
+                                      statusRegister''''
+                                  }
+            in (cpuState''''', outerState')
       outerState'' = putState outerState' cpuState'
   in outerState''
 
@@ -1267,17 +1269,23 @@ decodeOperation opcode =
                     INY -> [alsoIncrementYIndexRegister,
                             alsoUpdateStatusForRegister YIndexRegister]
                     TAX -> [alsoCopyRegisterToRegister Accumulator
-                                                       XIndexRegister]
+                                                       XIndexRegister,
+                            alsoUpdateStatusForRegister XIndexRegister]
                     TAY -> [alsoCopyRegisterToRegister Accumulator
-                                                       YIndexRegister]
+                                                       YIndexRegister,
+                            alsoUpdateStatusForRegister YIndexRegister]
                     TXA -> [alsoCopyRegisterToRegister XIndexRegister
-                                                       Accumulator]
+                                                       Accumulator,
+                            alsoUpdateStatusForRegister Accumulator]
                     TYA -> [alsoCopyRegisterToRegister YIndexRegister
-                                                       Accumulator]
+                                                       Accumulator,
+                            alsoUpdateStatusForRegister Accumulator]
                     TXS -> [alsoCopyRegisterToRegister XIndexRegister
-                                                       StackPointer]
+                                                       StackPointer,
+                            alsoUpdateStatusForRegister StackPointer]
                     TSX -> [alsoCopyRegisterToRegister StackPointer
-                                                       XIndexRegister]
+                                                       XIndexRegister,
+                            alsoUpdateStatusForRegister StackPointer]
                     NOP -> [],
                fetchOpcodeMicrocodeInstruction]
         (AccumulatorAddressing, _) ->
