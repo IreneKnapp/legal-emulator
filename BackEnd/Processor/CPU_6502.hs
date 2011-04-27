@@ -662,7 +662,10 @@ performArithmetic operation oldStatus byteA byteB =
                 word16Result = word16A + word16B + inputCarryBit
                 byteResult = fromIntegral word16Result
                 outputCarry = word16Result > 255
-                outputOverflow = word16Result > 127
+                outputOverflow = ((xor byteA byteResult)
+                                  .&. (xor byteB byteResult)
+                                  .&. 0x80)
+                                 == 0x80
             in (byteResult,
                 Just outputCarry,
                 Just outputOverflow,
