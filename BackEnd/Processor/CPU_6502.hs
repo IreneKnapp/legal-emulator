@@ -477,7 +477,7 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                                   cpu6502StateAccumulator = accumulator',
                                   cpu6502StateInternalLatch = latch',
                                   cpu6502StateStatusRegister =
-                                    statusRegister'''',
+                                    statusRegister''',
                                   cpu6502StateInternalOverflow =
                                     internalOverflow',
                                   cpu6502StateInternalNegative =
