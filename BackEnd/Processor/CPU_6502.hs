@@ -41,10 +41,11 @@ data AddressSource
   = ProgramCounterAddressSource
   | FixedAddressSource Word16
   | StoredAddressSource
+  deriving (Eq, Show)
 
 
 data ReadWrite = Read | Write
-               deriving (Eq)
+               deriving (Eq, Show)
 
 
 data InstructionMnemonic
@@ -85,7 +86,7 @@ data InternalRegister
   | StoredAddressLowByte
   | Latch
   | NoRegister
-  deriving (Eq)
+  deriving (Eq, Show)
 
 
 data ArithmeticOperation
@@ -97,6 +98,7 @@ data ArithmeticOperation
   | ArithmeticSubtract
   | ArithmeticCompare
   | ArithmeticBitCompare
+  deriving (Eq, Show)
 
 
 data Condition
@@ -109,6 +111,7 @@ data Condition
   | OverflowClear
   | OverflowSet
   | InternalOverflowSet
+  deriving (Eq, Show)
 
 
 data InstructionCharacter
@@ -118,13 +121,15 @@ data InstructionCharacter
   | ReadCharacter
   | ReadWriteCharacter
   | WriteCharacter
-  deriving (Eq)
+  deriving (Eq, Show)
 
 
 data IncrementDecrement = Increment | Decrement
+                        deriving (Eq, Show)
 
 
 data SetClear = Set | Clear
+              deriving (Eq, Show)
 
 
 data Transformation
@@ -133,6 +138,7 @@ data Transformation
   | RotateLeft
   | RotateRight
   | IncrementDecrement IncrementDecrement
+  deriving (Eq, Show)
 
 
 data MicrocodeInstruction =
@@ -168,6 +174,7 @@ data MicrocodeInstruction =
         :: Maybe (InternalRegister, InternalRegister),
       microcodeInstructionUpdateStatusForRegister :: Maybe InternalRegister
     }
+    deriving (Show)
 
 
 cpu6502PowerOnState :: CPU_6502_State
