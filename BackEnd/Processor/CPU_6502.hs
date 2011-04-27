@@ -477,7 +477,7 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                 cpuState''' = cpuState'' {
                                   cpu6502StateProgramCounter = programCounter',
                                   cpu6502StateInternalStoredAddress =
-                                    storedAddress',
+                                    storedAddress'',
                                   cpu6502StateStackPointer = stackPointer',
                                   cpu6502StateXIndexRegister = xIndexRegister',
                                   cpu6502StateYIndexRegister = yIndexRegister',
