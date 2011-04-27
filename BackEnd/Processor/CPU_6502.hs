@@ -450,7 +450,9 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                     Just register ->
                       updateStatusRegisterForValue
                        statusRegister''
-                       $ computeInternalRegister register cpuState''
+                       $ case register of
+                           XIndexRegister -> xIndexRegister'
+                           YIndexRegister -> yIndexRegister'
                 statusRegister'''' =
                   case microcodeInstructionStatusRegisterOperation
                         microcodeInstruction of
