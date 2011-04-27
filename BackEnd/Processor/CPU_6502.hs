@@ -717,10 +717,6 @@ performArithmetic operation oldStatus byteA byteB =
                 int8B = fromIntegral byteB :: Int8
                 byteResult = fromIntegral (int8A - int8B) :: Word8
                 outputBorrow = fromIntegral byteB > fromIntegral byteA
-                outputOverflow = ((xor byteA byteB)
-                                  .&. (xor byteA byteResult)
-                                  .&. 0x80)
-                                 == 0x80
                 negative = (byteResult .&. 0x80) == 0x80
                 zero = byteResult == 0x00
             in (byteA,
