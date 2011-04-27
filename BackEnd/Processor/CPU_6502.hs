@@ -675,29 +675,36 @@ performArithmetic operation oldStatus byteA byteB =
             let inputBorrowBit = if statusTestCarry oldStatus
                                    then 0
                                    else 1
+                                 :: Int
                 int8A = fromIntegral byteA :: Int8
                 int8B = fromIntegral byteB :: Int8
-                int16A = fromIntegral int8A :: Int16
-                int16B = fromIntegral int8B :: Int16
-                int16Result = int16A - int16B - inputBorrowBit
-                int8Result = fromIntegral int16Result :: Int8
-                byteResult = fromIntegral int8Result :: Word8
-                outputBorrow = int16Result < -127
-                outputOverflow = (int16Result > 127)
-                                 || (int16Result < -127)
+                byteResult =
+                  fromIntegral (int8A - int8B - fromIntegral inputBorrowBit)
+                  :: Word8
+                outputBorrow = (fromIntegral byteB + inputBorrowBit)
+                               > fromIntegral byteA
+                outputOverflow = ((xor byteA byteB)
+                                  .&. (xor byteA byteResult)
+                                  .&. 0x80)
+                                 == 0x80
             in (byteResult,
                 Just $ not outputBorrow,
                 Just outputOverflow,
                 Nothing,
                 Nothing)
           ArithmeticCompare ->
-            let ordering = compare byteA byteB
-                negative = (ordering == LT)
-                           || ((ordering == GT) && (byteA - byteB >= 0x80))
-                zero = ordering == EQ
-                carry = not $ ordering == GT
+            let int8A = fromIntegral byteA :: Int8
+                int8B = fromIntegral byteB :: Int8
+                byteResult = fromIntegral (int8A - int8B) :: Word8
+                outputBorrow = fromIntegral byteB > fromIntegral byteA
+                outputOverflow = ((xor byteA byteB)
+                                  .&. (xor byteA byteResult)
+                                  .&. 0x80)
+                                 == 0x80
+                negative = (byteResult .&. 0x80) == 0x80
+                zero = byteResult == 0x00
             in (byteA,
-                Just carry,
+                Just $ not outputBorrow,
                 Nothing,
                 Just negative,
                 Just zero)
