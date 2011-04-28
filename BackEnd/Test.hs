@@ -75,7 +75,7 @@ main = do
                             (lvalueSubreport, maybeRValueAddress) =
                               case addressingMode of
                                 AccumulatorAddressing ->
-                                  (show addressingMode, Nothing)
+                                  ("A", Nothing)
                                 ImmediateAddressing ->
                                   ("#$"
                                    ++ showHexWord8 byte2,
