@@ -97,11 +97,27 @@ main = do
                                   (show addressingMode,
                                    Nothing)
                                 AbsoluteXIndexedAddressing ->
-                                  (show addressingMode,
-                                   Nothing)
+                                  let x = cpu6502StateXIndexRegister cpuState
+                                      indexed =
+                                        fromIntegral byte2
+                                        + shiftL (fromIntegral byte3) 8
+                                      effective = indexed + fromIntegral x
+                                  in ("$"
+                                      ++ showHexWord16 indexed
+                                      ++ ",X @ "
+                                      ++ showHexWord16 effective,
+                                      Just effective)
                                 AbsoluteYIndexedAddressing ->
-                                  (show addressingMode,
-                                   Nothing)
+                                  let y = cpu6502StateYIndexRegister cpuState
+                                      indexed =
+                                        fromIntegral byte2
+                                        + shiftL (fromIntegral byte3) 8
+                                      effective = indexed + fromIntegral y
+                                  in ("$"
+                                      ++ showHexWord16 indexed
+                                      ++ ",Y @ "
+                                      ++ showHexWord16 effective,
+                                      Just effective)
                                 ImpliedAddressing ->
                                   ("",
                                    Nothing)
