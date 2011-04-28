@@ -263,7 +263,7 @@ main = do
                 softwareState
                   <- return $ motherboardCycle hardwareState softwareState
                 loop (i - 1) softwareState
-      loop 1000000 motherboardPowerOnSoftwareState
+      loop 2000000 motherboardPowerOnSoftwareState
 
 
 showHexWord16 :: Word16 -> String

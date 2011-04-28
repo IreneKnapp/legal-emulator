@@ -327,10 +327,10 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                              if checkForAddLatch microcodeInstruction
                                then let latch =
                                           cpu6502StateInternalLatch cpuState''
-                                        latchInt8 =
-                                          fromIntegral latch :: Int8
                                         latchInt =
-                                          fromIntegral latch :: Int
+                                          fromIntegral
+                                           (fromIntegral latch :: Int8)
+                                          :: Int
                                         programCounterHigh =
                                            programCounter .&. 0xFF00
                                         programCounterLowByte =
@@ -353,9 +353,12 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                                         internalNegative =
                                           (latchInt < 0x00)
                                         internalOverflow =
-                                          internalNegative
-                                          && (programCounterLowByte
-                                              < programCounterLowByte')
+                                          (internalNegative
+                                           && (programCounterLowByte
+                                               < programCounterLowByte'))
+                                          || (not internalNegative
+                                              && (programCounterLowByte'
+                                                  < programCounterLowByte))
                                     in (programCounter',
                                         False,
                                         internalOverflow,
@@ -1975,6 +1978,7 @@ mnemonicArithmeticOperation mnemonic =
     NOP -> ArithmeticNoOperation
     -- Extended mnemonics
     LXA -> ArithmeticAnd
+    LAX -> ArithmeticIdentity
     _ -> error $ "No arithmetic operation for mnemonic " ++ show mnemonic
 
 
@@ -1992,6 +1996,7 @@ mnemonicTransformation mnemonic =
     SLO -> ArithmeticShiftLeft
     SRE -> LogicalShiftRight
     RLA -> RotateLeft
+    RRA -> RotateRight
     ISB -> IncrementDecrement Increment
     DCP -> IncrementDecrement Decrement
     _ -> error $ "No transformation for mnemonic " ++ show mnemonic
