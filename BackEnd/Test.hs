@@ -91,11 +91,19 @@ main = do
                                    ++ showHexWord8 byte2,
                                    Just $ fromIntegral byte2)
                                 ZeroPageXIndexedAddressing ->
-                                  (show addressingMode,
-                                   Nothing)
+                                  let x = cpu6502StateXIndexRegister cpuState
+                                  in ("$"
+                                      ++ showHexWord8 byte2
+                                      ++ ",X @ "
+                                      ++ showHexWord8 (byte2 + x),
+                                      Just $ fromIntegral $ byte2 + x)
                                 ZeroPageYIndexedAddressing ->
-                                  (show addressingMode,
-                                   Nothing)
+                                  let y = cpu6502StateYIndexRegister cpuState
+                                  in ("$"
+                                      ++ showHexWord8 byte2
+                                      ++ ",Y @ "
+                                      ++ showHexWord8 (byte2 + y),
+                                      Just $ fromIntegral $ byte2 + y)
                                 AbsoluteXIndexedAddressing ->
                                   let x = cpu6502StateXIndexRegister cpuState
                                       indexed =
