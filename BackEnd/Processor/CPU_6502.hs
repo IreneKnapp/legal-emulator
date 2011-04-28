@@ -852,264 +852,264 @@ statusTestOverflow status = testBit status 6
 
 
 cpu6502DecodeInstructionMnemonicAndAddressingMode
-    :: Word8 -> Maybe (InstructionMnemonic, AddressingMode)
+    :: Word8 -> Maybe (InstructionMnemonic, AddressingMode, Bool)
 cpu6502DecodeInstructionMnemonicAndAddressingMode opcode =
   case opcode of
-    0x00 -> Just (BRK, ImpliedAddressing)
-    0x01 -> Just (ORA, XIndexedIndirectAddressing)
+    0x00 -> Just (BRK, ImpliedAddressing, False)
+    0x01 -> Just (ORA, XIndexedIndirectAddressing, False)
     0x02 -> Nothing
     0x03 -> Nothing
     0x04 -> Nothing
-    0x05 -> Just (ORA, ZeroPageAddressing)
-    0x06 -> Just (ASL, ZeroPageAddressing)
+    0x05 -> Just (ORA, ZeroPageAddressing, False)
+    0x06 -> Just (ASL, ZeroPageAddressing, False)
     0x07 -> Nothing
-    0x08 -> Just (PHP, ImpliedAddressing)
-    0x09 -> Just (ORA, ImmediateAddressing)
-    0x0A -> Just (ASL, AccumulatorAddressing)
+    0x08 -> Just (PHP, ImpliedAddressing, False)
+    0x09 -> Just (ORA, ImmediateAddressing, False)
+    0x0A -> Just (ASL, AccumulatorAddressing, False)
     0x0B -> Nothing
     0x0C -> Nothing
-    0x0D -> Just (ORA, AbsoluteAddressing)
-    0x0E -> Just (ASL, AbsoluteAddressing)
+    0x0D -> Just (ORA, AbsoluteAddressing, False)
+    0x0E -> Just (ASL, AbsoluteAddressing, False)
     0x0F -> Nothing
-    0x10 -> Just (BPL, RelativeAddressing)
-    0x11 -> Just (ORA, IndirectYIndexedAddressing)
+    0x10 -> Just (BPL, RelativeAddressing, False)
+    0x11 -> Just (ORA, IndirectYIndexedAddressing, False)
     0x12 -> Nothing
     0x13 -> Nothing
     0x14 -> Nothing
-    0x15 -> Just (ORA, ZeroPageXIndexedAddressing)
-    0x16 -> Just (ASL, ZeroPageXIndexedAddressing)
+    0x15 -> Just (ORA, ZeroPageXIndexedAddressing, False)
+    0x16 -> Just (ASL, ZeroPageXIndexedAddressing, False)
     0x17 -> Nothing
-    0x18 -> Just (CLC, ImpliedAddressing)
-    0x19 -> Just (ORA, AbsoluteYIndexedAddressing)
+    0x18 -> Just (CLC, ImpliedAddressing, False)
+    0x19 -> Just (ORA, AbsoluteYIndexedAddressing, False)
     0x1A -> Nothing
     0x1B -> Nothing
     0x1C -> Nothing
-    0x1D -> Just (ORA, AbsoluteXIndexedAddressing)
-    0x1E -> Just (ASL, AbsoluteXIndexedAddressing)
+    0x1D -> Just (ORA, AbsoluteXIndexedAddressing, False)
+    0x1E -> Just (ASL, AbsoluteXIndexedAddressing, False)
     0x1F -> Nothing
-    0x20 -> Just (JSR, AbsoluteAddressing)
-    0x21 -> Just (AND, XIndexedIndirectAddressing)
+    0x20 -> Just (JSR, AbsoluteAddressing, False)
+    0x21 -> Just (AND, XIndexedIndirectAddressing, False)
     0x22 -> Nothing
     0x23 -> Nothing
-    0x24 -> Just (BIT, ZeroPageAddressing)
-    0x25 -> Just (AND, ZeroPageAddressing)
-    0x26 -> Just (ROL, ZeroPageAddressing)
+    0x24 -> Just (BIT, ZeroPageAddressing, False)
+    0x25 -> Just (AND, ZeroPageAddressing, False)
+    0x26 -> Just (ROL, ZeroPageAddressing, False)
     0x27 -> Nothing
-    0x28 -> Just (PLP, ImpliedAddressing)
-    0x29 -> Just (AND, ImmediateAddressing)
-    0x2A -> Just (ROL, AccumulatorAddressing)
+    0x28 -> Just (PLP, ImpliedAddressing, False)
+    0x29 -> Just (AND, ImmediateAddressing, False)
+    0x2A -> Just (ROL, AccumulatorAddressing, False)
     0x2B -> Nothing
-    0x2C -> Just (BIT, AbsoluteAddressing)
-    0x2D -> Just (AND, AbsoluteAddressing)
-    0x2E -> Just (ROL, AbsoluteAddressing)
+    0x2C -> Just (BIT, AbsoluteAddressing, False)
+    0x2D -> Just (AND, AbsoluteAddressing, False)
+    0x2E -> Just (ROL, AbsoluteAddressing, False)
     0x2F -> Nothing
-    0x30 -> Just (BMI, RelativeAddressing)
-    0x31 -> Just (AND, IndirectYIndexedAddressing)
+    0x30 -> Just (BMI, RelativeAddressing, False)
+    0x31 -> Just (AND, IndirectYIndexedAddressing, False)
     0x32 -> Nothing
     0x33 -> Nothing
     0x34 -> Nothing
-    0x35 -> Just (AND, ZeroPageXIndexedAddressing)
-    0x36 -> Just (ROL, ZeroPageXIndexedAddressing)
+    0x35 -> Just (AND, ZeroPageXIndexedAddressing, False)
+    0x36 -> Just (ROL, ZeroPageXIndexedAddressing, False)
     0x37 -> Nothing
-    0x38 -> Just (SEC, ImpliedAddressing)
-    0x39 -> Just (AND, AbsoluteYIndexedAddressing)
+    0x38 -> Just (SEC, ImpliedAddressing, False)
+    0x39 -> Just (AND, AbsoluteYIndexedAddressing, False)
     0x3A -> Nothing
     0x3B -> Nothing
     0x3C -> Nothing
-    0x3D -> Just (AND, AbsoluteXIndexedAddressing)
-    0x3E -> Just (ROL, AbsoluteXIndexedAddressing)
+    0x3D -> Just (AND, AbsoluteXIndexedAddressing, False)
+    0x3E -> Just (ROL, AbsoluteXIndexedAddressing, False)
     0x3F -> Nothing
-    0x40 -> Just (RTI, ImpliedAddressing)
-    0x41 -> Just (EOR, XIndexedIndirectAddressing)
+    0x40 -> Just (RTI, ImpliedAddressing, False)
+    0x41 -> Just (EOR, XIndexedIndirectAddressing, False)
     0x42 -> Nothing
     0x43 -> Nothing
     0x44 -> Nothing
-    0x45 -> Just (EOR, ZeroPageAddressing)
-    0x46 -> Just (LSR, ZeroPageAddressing)
+    0x45 -> Just (EOR, ZeroPageAddressing, False)
+    0x46 -> Just (LSR, ZeroPageAddressing, False)
     0x47 -> Nothing
-    0x48 -> Just (PHA, ImpliedAddressing)
-    0x49 -> Just (EOR, ImmediateAddressing)
-    0x4A -> Just (LSR, AccumulatorAddressing)
+    0x48 -> Just (PHA, ImpliedAddressing, False)
+    0x49 -> Just (EOR, ImmediateAddressing, False)
+    0x4A -> Just (LSR, AccumulatorAddressing, False)
     0x4B -> Nothing
-    0x4C -> Just (JMP, AbsoluteAddressing)
-    0x4D -> Just (EOR, AbsoluteAddressing)
-    0x4E -> Just (LSR, AbsoluteAddressing)
+    0x4C -> Just (JMP, AbsoluteAddressing, False)
+    0x4D -> Just (EOR, AbsoluteAddressing, False)
+    0x4E -> Just (LSR, AbsoluteAddressing, False)
     0x4F -> Nothing
-    0x50 -> Just (BVC, RelativeAddressing)
-    0x51 -> Just (EOR, IndirectYIndexedAddressing)
+    0x50 -> Just (BVC, RelativeAddressing, False)
+    0x51 -> Just (EOR, IndirectYIndexedAddressing, False)
     0x52 -> Nothing
     0x53 -> Nothing
     0x54 -> Nothing
-    0x55 -> Just (EOR, ZeroPageXIndexedAddressing)
-    0x56 -> Just (LSR, ZeroPageXIndexedAddressing)
+    0x55 -> Just (EOR, ZeroPageXIndexedAddressing, False)
+    0x56 -> Just (LSR, ZeroPageXIndexedAddressing, False)
     0x57 -> Nothing
-    0x58 -> Just (CLI, ImpliedAddressing)
-    0x59 -> Just (EOR, AbsoluteYIndexedAddressing)
+    0x58 -> Just (CLI, ImpliedAddressing, False)
+    0x59 -> Just (EOR, AbsoluteYIndexedAddressing, False)
     0x5A -> Nothing
     0x5B -> Nothing
     0x5C -> Nothing
-    0x5D -> Just (EOR, AbsoluteXIndexedAddressing)
-    0x5E -> Just (LSR, AbsoluteXIndexedAddressing)
+    0x5D -> Just (EOR, AbsoluteXIndexedAddressing, False)
+    0x5E -> Just (LSR, AbsoluteXIndexedAddressing, False)
     0x5F -> Nothing
-    0x60 -> Just (RTS, ImpliedAddressing)
-    0x61 -> Just (ADC, XIndexedIndirectAddressing)
+    0x60 -> Just (RTS, ImpliedAddressing, False)
+    0x61 -> Just (ADC, XIndexedIndirectAddressing, False)
     0x62 -> Nothing
     0x63 -> Nothing
     0x64 -> Nothing
-    0x65 -> Just (ADC, ZeroPageAddressing)
-    0x66 -> Just (ROR, ZeroPageAddressing)
+    0x65 -> Just (ADC, ZeroPageAddressing, False)
+    0x66 -> Just (ROR, ZeroPageAddressing, False)
     0x67 -> Nothing
-    0x68 -> Just (PLA, ImpliedAddressing)
-    0x69 -> Just (ADC, ImmediateAddressing)
-    0x6A -> Just (ROR, AccumulatorAddressing)
+    0x68 -> Just (PLA, ImpliedAddressing, False)
+    0x69 -> Just (ADC, ImmediateAddressing, False)
+    0x6A -> Just (ROR, AccumulatorAddressing, False)
     0x6B -> Nothing
-    0x6C -> Just (JMP, AbsoluteIndirectAddressing)
-    0x6D -> Just (ADC, AbsoluteAddressing)
-    0x6E -> Just (ROR, AbsoluteAddressing)
+    0x6C -> Just (JMP, AbsoluteIndirectAddressing, False)
+    0x6D -> Just (ADC, AbsoluteAddressing, False)
+    0x6E -> Just (ROR, AbsoluteAddressing, False)
     0x6F -> Nothing
-    0x70 -> Just (BVS, RelativeAddressing)
-    0x71 -> Just (ADC, IndirectYIndexedAddressing)
+    0x70 -> Just (BVS, RelativeAddressing, False)
+    0x71 -> Just (ADC, IndirectYIndexedAddressing, False)
     0x72 -> Nothing
     0x73 -> Nothing
     0x74 -> Nothing
-    0x75 -> Just (ADC, ZeroPageXIndexedAddressing)
-    0x76 -> Just (ROR, ZeroPageXIndexedAddressing)
+    0x75 -> Just (ADC, ZeroPageXIndexedAddressing, False)
+    0x76 -> Just (ROR, ZeroPageXIndexedAddressing, False)
     0x77 -> Nothing
-    0x78 -> Just (SEI, ImpliedAddressing)
-    0x79 -> Just (ADC, AbsoluteYIndexedAddressing)
+    0x78 -> Just (SEI, ImpliedAddressing, False)
+    0x79 -> Just (ADC, AbsoluteYIndexedAddressing, False)
     0x7A -> Nothing
     0x7B -> Nothing
     0x7C -> Nothing
-    0x7D -> Just (ADC, AbsoluteXIndexedAddressing)
-    0x7E -> Just (ROR, AbsoluteXIndexedAddressing)
+    0x7D -> Just (ADC, AbsoluteXIndexedAddressing, False)
+    0x7E -> Just (ROR, AbsoluteXIndexedAddressing, False)
     0x7F -> Nothing
     0x80 -> Nothing
-    0x81 -> Just (STA, XIndexedIndirectAddressing)
+    0x81 -> Just (STA, XIndexedIndirectAddressing, False)
     0x82 -> Nothing
     0x83 -> Nothing
-    0x84 -> Just (STY, ZeroPageAddressing)
-    0x85 -> Just (STA, ZeroPageAddressing)
-    0x86 -> Just (STX, ZeroPageAddressing)
+    0x84 -> Just (STY, ZeroPageAddressing, False)
+    0x85 -> Just (STA, ZeroPageAddressing, False)
+    0x86 -> Just (STX, ZeroPageAddressing, False)
     0x87 -> Nothing
-    0x88 -> Just (DEY, ImpliedAddressing)
+    0x88 -> Just (DEY, ImpliedAddressing, False)
     0x89 -> Nothing
-    0x8A -> Just (TXA, ImpliedAddressing)
+    0x8A -> Just (TXA, ImpliedAddressing, False)
     0x8B -> Nothing
-    0x8C -> Just (STY, AbsoluteAddressing)
-    0x8D -> Just (STA, AbsoluteAddressing)
-    0x8E -> Just (STX, AbsoluteAddressing)
+    0x8C -> Just (STY, AbsoluteAddressing, False)
+    0x8D -> Just (STA, AbsoluteAddressing, False)
+    0x8E -> Just (STX, AbsoluteAddressing, False)
     0x8F -> Nothing
-    0x90 -> Just (BCC, RelativeAddressing)
-    0x91 -> Just (STA, IndirectYIndexedAddressing)
+    0x90 -> Just (BCC, RelativeAddressing, False)
+    0x91 -> Just (STA, IndirectYIndexedAddressing, False)
     0x92 -> Nothing
     0x93 -> Nothing
-    0x94 -> Just (STY, ZeroPageXIndexedAddressing)
-    0x95 -> Just (STA, ZeroPageXIndexedAddressing)
-    0x96 -> Just (STX, ZeroPageYIndexedAddressing)
+    0x94 -> Just (STY, ZeroPageXIndexedAddressing, False)
+    0x95 -> Just (STA, ZeroPageXIndexedAddressing, False)
+    0x96 -> Just (STX, ZeroPageYIndexedAddressing, False)
     0x97 -> Nothing
-    0x98 -> Just (TYA, ImpliedAddressing)
-    0x99 -> Just (STA, AbsoluteYIndexedAddressing)
-    0x9A -> Just (TXS, ImpliedAddressing)
+    0x98 -> Just (TYA, ImpliedAddressing, False)
+    0x99 -> Just (STA, AbsoluteYIndexedAddressing, False)
+    0x9A -> Just (TXS, ImpliedAddressing, False)
     0x9B -> Nothing
     0x9C -> Nothing
-    0x9D -> Just (STA, AbsoluteXIndexedAddressing)
+    0x9D -> Just (STA, AbsoluteXIndexedAddressing, False)
     0x9E -> Nothing
     0x9F -> Nothing
-    0xA0 -> Just (LDY, ImmediateAddressing)
-    0xA1 -> Just (LDA, XIndexedIndirectAddressing)
-    0xA2 -> Just (LDX, ImmediateAddressing)
+    0xA0 -> Just (LDY, ImmediateAddressing, False)
+    0xA1 -> Just (LDA, XIndexedIndirectAddressing, False)
+    0xA2 -> Just (LDX, ImmediateAddressing, False)
     0xA3 -> Nothing
-    0xA4 -> Just (LDY, ZeroPageAddressing)
-    0xA5 -> Just (LDA, ZeroPageAddressing)
-    0xA6 -> Just (LDX, ZeroPageAddressing)
+    0xA4 -> Just (LDY, ZeroPageAddressing, False)
+    0xA5 -> Just (LDA, ZeroPageAddressing, False)
+    0xA6 -> Just (LDX, ZeroPageAddressing, False)
     0xA7 -> Nothing
-    0xA8 -> Just (TAY, ImpliedAddressing)
-    0xA9 -> Just (LDA, ImmediateAddressing)
-    0xAA -> Just (TAX, ImpliedAddressing)
+    0xA8 -> Just (TAY, ImpliedAddressing, False)
+    0xA9 -> Just (LDA, ImmediateAddressing, False)
+    0xAA -> Just (TAX, ImpliedAddressing, False)
     0xAB -> Nothing
-    0xAC -> Just (LDY, AbsoluteAddressing)
-    0xAD -> Just (LDA, AbsoluteAddressing)
-    0xAE -> Just (LDX, AbsoluteAddressing)
+    0xAC -> Just (LDY, AbsoluteAddressing, False)
+    0xAD -> Just (LDA, AbsoluteAddressing, False)
+    0xAE -> Just (LDX, AbsoluteAddressing, False)
     0xAF -> Nothing
-    0xB0 -> Just (BCS, RelativeAddressing)
-    0xB1 -> Just (LDA, IndirectYIndexedAddressing)
+    0xB0 -> Just (BCS, RelativeAddressing, False)
+    0xB1 -> Just (LDA, IndirectYIndexedAddressing, False)
     0xB2 -> Nothing
     0xB3 -> Nothing
-    0xB4 -> Just (LDY, ZeroPageXIndexedAddressing)
-    0xB5 -> Just (LDA, ZeroPageXIndexedAddressing)
-    0xB6 -> Just (LDX, ZeroPageYIndexedAddressing)
+    0xB4 -> Just (LDY, ZeroPageXIndexedAddressing, False)
+    0xB5 -> Just (LDA, ZeroPageXIndexedAddressing, False)
+    0xB6 -> Just (LDX, ZeroPageYIndexedAddressing, False)
     0xB7 -> Nothing
-    0xB8 -> Just (CLV, ImpliedAddressing)
-    0xB9 -> Just (LDA, AbsoluteYIndexedAddressing)
-    0xBA -> Just (TSX, ImpliedAddressing)
+    0xB8 -> Just (CLV, ImpliedAddressing, False)
+    0xB9 -> Just (LDA, AbsoluteYIndexedAddressing, False)
+    0xBA -> Just (TSX, ImpliedAddressing, False)
     0xBB -> Nothing
-    0xBC -> Just (LDY, AbsoluteXIndexedAddressing)
-    0xBD -> Just (LDA, AbsoluteXIndexedAddressing)
-    0xBE -> Just (LDX, AbsoluteYIndexedAddressing)
+    0xBC -> Just (LDY, AbsoluteXIndexedAddressing, False)
+    0xBD -> Just (LDA, AbsoluteXIndexedAddressing, False)
+    0xBE -> Just (LDX, AbsoluteYIndexedAddressing, False)
     0xBF -> Nothing
-    0xC0 -> Just (CPY, ImmediateAddressing)
-    0xC1 -> Just (CMP, XIndexedIndirectAddressing)
+    0xC0 -> Just (CPY, ImmediateAddressing, False)
+    0xC1 -> Just (CMP, XIndexedIndirectAddressing, False)
     0xC2 -> Nothing
     0xC3 -> Nothing
-    0xC4 -> Just (CPY, ZeroPageAddressing)
-    0xC5 -> Just (CMP, ZeroPageAddressing)
-    0xC6 -> Just (DEC, ZeroPageAddressing)
+    0xC4 -> Just (CPY, ZeroPageAddressing, False)
+    0xC5 -> Just (CMP, ZeroPageAddressing, False)
+    0xC6 -> Just (DEC, ZeroPageAddressing, False)
     0xC7 -> Nothing
-    0xC8 -> Just (INY, ImpliedAddressing)
-    0xC9 -> Just (CMP, ImmediateAddressing)
-    0xCA -> Just (DEX, ImpliedAddressing)
+    0xC8 -> Just (INY, ImpliedAddressing, False)
+    0xC9 -> Just (CMP, ImmediateAddressing, False)
+    0xCA -> Just (DEX, ImpliedAddressing, False)
     0xCB -> Nothing
-    0xCC -> Just (CPY, AbsoluteAddressing)
-    0xCD -> Just (CMP, AbsoluteAddressing)
-    0xCE -> Just (DEC, AbsoluteAddressing)
+    0xCC -> Just (CPY, AbsoluteAddressing, False)
+    0xCD -> Just (CMP, AbsoluteAddressing, False)
+    0xCE -> Just (DEC, AbsoluteAddressing, False)
     0xCF -> Nothing
-    0xD0 -> Just (BNE, RelativeAddressing)
-    0xD1 -> Just (CMP, IndirectYIndexedAddressing)
+    0xD0 -> Just (BNE, RelativeAddressing, False)
+    0xD1 -> Just (CMP, IndirectYIndexedAddressing, False)
     0xD2 -> Nothing
     0xD3 -> Nothing
     0xD4 -> Nothing
-    0xD5 -> Just (CMP, ZeroPageXIndexedAddressing)
-    0xD6 -> Just (DEC, ZeroPageXIndexedAddressing)
+    0xD5 -> Just (CMP, ZeroPageXIndexedAddressing, False)
+    0xD6 -> Just (DEC, ZeroPageXIndexedAddressing, False)
     0xD7 -> Nothing
-    0xD8 -> Just (CLD, ImpliedAddressing)
-    0xD9 -> Just (CMP, AbsoluteYIndexedAddressing)
+    0xD8 -> Just (CLD, ImpliedAddressing, False)
+    0xD9 -> Just (CMP, AbsoluteYIndexedAddressing, False)
     0xDA -> Nothing
     0xDB -> Nothing
     0xDC -> Nothing
-    0xDD -> Just (CMP, AbsoluteXIndexedAddressing)
-    0xDE -> Just (DEC, AbsoluteXIndexedAddressing)
+    0xDD -> Just (CMP, AbsoluteXIndexedAddressing, False)
+    0xDE -> Just (DEC, AbsoluteXIndexedAddressing, False)
     0xDF -> Nothing
-    0xE0 -> Just (CPX, ImmediateAddressing)
-    0xE1 -> Just (SBC, XIndexedIndirectAddressing)
+    0xE0 -> Just (CPX, ImmediateAddressing, False)
+    0xE1 -> Just (SBC, XIndexedIndirectAddressing, False)
     0xE2 -> Nothing
     0xE3 -> Nothing
-    0xE4 -> Just (CPX, ZeroPageAddressing)
-    0xE5 -> Just (SBC, ZeroPageAddressing)
-    0xE6 -> Just (INC, ZeroPageAddressing)
+    0xE4 -> Just (CPX, ZeroPageAddressing, False)
+    0xE5 -> Just (SBC, ZeroPageAddressing, False)
+    0xE6 -> Just (INC, ZeroPageAddressing, False)
     0xE7 -> Nothing
-    0xE8 -> Just (INX, ImpliedAddressing)
-    0xE9 -> Just (SBC, ImmediateAddressing)
-    0xEA -> Just (NOP, ImpliedAddressing)
+    0xE8 -> Just (INX, ImpliedAddressing, False)
+    0xE9 -> Just (SBC, ImmediateAddressing, False)
+    0xEA -> Just (NOP, ImpliedAddressing, False)
     0xEB -> Nothing
-    0xEC -> Just (CPX, AbsoluteAddressing)
-    0xED -> Just (SBC, AbsoluteAddressing)
-    0xEE -> Just (INC, AbsoluteAddressing)
+    0xEC -> Just (CPX, AbsoluteAddressing, False)
+    0xED -> Just (SBC, AbsoluteAddressing, False)
+    0xEE -> Just (INC, AbsoluteAddressing, False)
     0xEF -> Nothing
-    0xF0 -> Just (BEQ, RelativeAddressing)
-    0xF1 -> Just (SBC, IndirectYIndexedAddressing)
+    0xF0 -> Just (BEQ, RelativeAddressing, False)
+    0xF1 -> Just (SBC, IndirectYIndexedAddressing, False)
     0xF2 -> Nothing
     0xF3 -> Nothing
     0xF4 -> Nothing
-    0xF5 -> Just (SBC, ZeroPageXIndexedAddressing)
-    0xF6 -> Just (INC, ZeroPageXIndexedAddressing)
+    0xF5 -> Just (SBC, ZeroPageXIndexedAddressing, False)
+    0xF6 -> Just (INC, ZeroPageXIndexedAddressing, False)
     0xF7 -> Nothing
-    0xF8 -> Just (SED, ImpliedAddressing)
-    0xF9 -> Just (SBC, AbsoluteYIndexedAddressing)
+    0xF8 -> Just (SED, ImpliedAddressing, False)
+    0xF9 -> Just (SBC, AbsoluteYIndexedAddressing, False)
     0xFA -> Nothing
     0xFB -> Nothing
     0xFC -> Nothing
-    0xFD -> Just (SBC, AbsoluteXIndexedAddressing)
-    0xFE -> Just (INC, AbsoluteXIndexedAddressing)
+    0xFD -> Just (SBC, AbsoluteXIndexedAddressing, False)
+    0xFE -> Just (INC, AbsoluteXIndexedAddressing, False)
     0xFF -> Nothing
 
 
@@ -1117,7 +1117,7 @@ decodeOperation :: Word8 -> [MicrocodeInstruction]
 decodeOperation opcode =
   case cpu6502DecodeInstructionMnemonicAndAddressingMode opcode of
     Nothing -> []
-    Just (mnemonic, addressing) ->
+    Just (mnemonic, addressing, _) ->
       case (addressing, characterizeMnemonic mnemonic) of
         (_, StackCharacter) ->
           case mnemonic of

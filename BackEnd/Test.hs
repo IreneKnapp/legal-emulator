@@ -52,7 +52,8 @@ main = do
                       Nothing -> do
                         putStrLn $ (showHexWord16 programCounter)
                                    ++ "  Invalid instruction."
-                      Just (instructionMnemonic, addressingMode) -> do
+                      Just (instructionMnemonic, addressingMode, extended)
+                       -> do
                         let nBytes = cpu6502NBytes addressingMode
                             byte2 = if nBytes >= 2
                                       then debugFetch $ programCounter + 1
@@ -238,11 +239,16 @@ main = do
                                       ("SL",
                                        show
                                         $ ppuNESStateVerticalClock ppuState)]
-                        putStrLn $ intercalate "  "
-                                               [addressReport,
-                                                byteReport,
-                                                disassemblyReport,
-                                                stateReport]
+                            report = addressReport
+                                     ++ "  "
+                                     ++ byteReport
+                                     ++ (if extended
+                                           then " *"
+                                           else "  ")
+                                     ++ disassemblyReport
+                                     ++ "  "
+                                     ++ stateReport
+                        putStrLn report
                   else return ()
                 softwareState
                   <- return $ motherboardCycle hardwareState softwareState
