@@ -150,8 +150,21 @@ main = do
                                       ++ showHexWord16 effective,
                                       Just effective)
                                 AbsoluteIndirectAddressing ->
-                                  (show addressingMode,
-                                   Nothing)
+                                  let indirect =
+                                        fromIntegral byte2
+                                        + shiftL (fromIntegral byte3) 8
+                                      effective =
+                                        (fromIntegral
+                                          $ debugFetch indirect)
+                                        + shiftL
+                                           (fromIntegral
+                                             $ debugFetch $ indirect + 1)
+                                           8
+                                  in ("($"
+                                      ++ showHexWord16 indirect
+                                      ++ ") = "
+                                      ++ showHexWord16 effective,
+                                      Just effective)
                             showRValueSubreport =
                               (elem instructionCharacter
                                     [ReadCharacter,
