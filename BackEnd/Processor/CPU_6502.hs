@@ -356,39 +356,45 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                 (storedAddress',
                  internalOverflowB',
                  internalNegativeB') =
-                  case microcodeInstructionAddRegisterToStoredAddress
-                        microcodeInstruction of
-                    Nothing -> (storedAddress, False, False)
-                    Just register ->
-                      let addend =
-                            computeInternalRegister register cpuState''
-                          addendInt8 =
-                            fromIntegral addend :: Int8
-                          addendInt =
-                            fromIntegral addend :: Int
-                          storedAddressHighByte =
-                             storedAddress .&. 0xFF00
-                          storedAddressLowByte =
-                            fromIntegral
-                             (storedAddress .&. 0x00FF)
-                            :: Int
-                          storedAddressLowByteInt' =
-                            storedAddressLowByte + addendInt
-                          internalNegative =
-                            (storedAddressLowByteInt' < 0x00)
-                          internalOverflow =
-                            internalNegative
-                            || (storedAddressLowByteInt' > 0xFF)
-                          storedAddressLowByte' =
-                            fromIntegral
-                             storedAddressLowByteInt'
-                            :: Word8
-                          storedAddress' =
-                            fromIntegral storedAddressLowByte'
-                            .|. storedAddressHighByte
-                      in (storedAddress',
-                          internalOverflow,
-                          internalNegative)
+                  if microcodeInstructionFixStoredAddressHighByte
+                      microcodeInstruction
+                    then if cpu6502StateInternalOverflow cpuState''
+                           then (storedAddress + 0x0100, False, False)
+                           else (storedAddress, False, False)
+                    else
+                      case microcodeInstructionAddRegisterToStoredAddress
+                            microcodeInstruction of
+                        Nothing -> (storedAddress, False, False)
+                        Just register ->
+                          let addend =
+                                computeInternalRegister register cpuState''
+                              addendInt8 =
+                                fromIntegral addend :: Int8
+                              addendInt =
+                                fromIntegral addend :: Int
+                              storedAddressHighByte =
+                                 storedAddress .&. 0xFF00
+                              storedAddressLowByte =
+                                fromIntegral
+                                 (storedAddress .&. 0x00FF)
+                                :: Int
+                              storedAddressLowByteInt' =
+                                storedAddressLowByte + addendInt
+                              internalNegative =
+                                (storedAddressLowByteInt' < 0x00)
+                              internalOverflow =
+                                internalNegative
+                                || (storedAddressLowByteInt' > 0xFF)
+                              storedAddressLowByte' =
+                                fromIntegral
+                                 storedAddressLowByteInt'
+                                :: Word8
+                              storedAddress' =
+                                fromIntegral storedAddressLowByte'
+                                .|. storedAddressHighByte
+                          in (storedAddress',
+                              internalOverflow,
+                              internalNegative)
                 storedAddress'' =
                   if microcodeInstructionZeroStoredAddressHighByte
                       microcodeInstruction
