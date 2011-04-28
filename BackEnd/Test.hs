@@ -91,8 +91,24 @@ main = do
                                    ++ showHexWord8 byte2,
                                    Just $ fromIntegral byte2)
                                 ZeroPageXIndexedAddressing ->
-                                  (show addressingMode,
-                                   Nothing)
+                                  let x = cpu6502StateXIndexRegister cpuState
+                                      effective =
+                                        shiftL (fromIntegral
+                                                 $ debugFetch
+                                                    $ fromIntegral
+                                                       $ byte2 + x)
+                                               16
+                                        + (fromIntegral
+                                            $ debugFetch
+                                               $ fromIntegral
+                                                  $ byte2 + x + 1)
+                                  in ("($"
+                                      ++ showHexWord8 byte2
+                                      ++ ",X) @ "
+                                      ++ showHexWord8 (byte2 + x)
+                                      ++ " = "
+                                      ++ showHexWord16 effective,
+                                      Nothing)
                                 ZeroPageYIndexedAddressing ->
                                   (show addressingMode,
                                    Nothing)
