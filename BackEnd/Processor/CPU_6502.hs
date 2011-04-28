@@ -2003,6 +2003,7 @@ mnemonicArithmeticOperation mnemonic =
     NOP -> ArithmeticNoOperation
     -- Extended mnemonics
     LXA -> ArithmeticAnd
+    SLO -> ArithmeticInclusiveOr
     ISB -> ArithmeticSubtract
     LAX -> ArithmeticIdentity
     DCP -> ArithmeticCompare
@@ -2012,8 +2013,9 @@ mnemonicArithmeticOperation mnemonic =
 mnemonicPerformsArithmeticOnWrite :: InstructionMnemonic -> Bool
 mnemonicPerformsArithmeticOnWrite mnemonic =
   case mnemonic of
-    DCP -> True
+    SLO -> True
     ISB -> True
+    DCP -> True
     _ -> False
 
 
