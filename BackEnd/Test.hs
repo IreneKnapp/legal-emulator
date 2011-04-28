@@ -2,6 +2,7 @@ module Main (main) where
 
 import Data.Array.IArray
 import Data.Bits
+import Data.Int
 import Data.List
 import Data.Maybe
 import Data.Word
@@ -131,10 +132,17 @@ main = do
                                   ("",
                                    Nothing)
                                 RelativeAddressing ->
-                                  let effectiveAddress
-                                       = programCounter
-                                         + (fromIntegral byte2)
-                                         + (fromIntegral nBytes)
+                                  let programCounterInt =
+                                        fromIntegral programCounter
+                                        + nBytes
+                                        :: Int
+                                      offsetInt =
+                                        fromIntegral
+                                         $ (fromIntegral byte2 :: Int8)
+                                        :: Int
+                                      effectiveAddress
+                                       = fromIntegral
+                                         $ programCounterInt + offsetInt
                                   in ("$" ++ showHexWord16 effectiveAddress,
                                       Nothing)
                                 XIndexedIndirectAddressing ->
@@ -191,13 +199,15 @@ main = do
                                       ++ showHexWord16 effective,
                                       Just effective)
                             showRValueSubreport =
-                              (elem instructionCharacter
-                                    [ReadCharacter,
-                                     ReadWriteCharacter,
-                                     WriteCharacter])
-                              && isJust maybeRValueAddress
-                              && (mnemonicRegister instructionMnemonic
-                                  /= NoRegister)
+                              isJust maybeRValueAddress
+                              && (((elem instructionCharacter
+                                        [ReadCharacter,
+                                         ReadWriteCharacter,
+                                         WriteCharacter])
+                                   && (mnemonicRegister instructionMnemonic
+                                       /= NoRegister))
+                                  || (extended
+                                      && (instructionMnemonic == NOP)))
                             rvalue = case maybeRValueAddress of
                                        Nothing -> 0x00
                                        Just rvalueAddress ->
