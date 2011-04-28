@@ -132,8 +132,23 @@ main = do
                                       ++ showHexWord16 effective,
                                       Just effective)
                                 IndirectYIndexedAddressing ->
-                                  (show addressingMode,
-                                   Nothing)
+                                  let y = cpu6502StateYIndexRegister cpuState
+                                      indirectLow =
+                                        debugFetch $ fromIntegral $ byte2
+                                      indirectHigh =
+                                        debugFetch $ fromIntegral $ byte2 + 1
+                                      indirect =
+                                        fromIntegral indirectLow
+                                        + shiftL (fromIntegral indirectHigh) 8
+                                      effective =
+                                        indirect + fromIntegral y
+                                  in ("($"
+                                      ++ showHexWord8 byte2
+                                      ++ "),Y = "
+                                      ++ showHexWord16 indirect
+                                      ++ " @ "
+                                      ++ showHexWord16 effective,
+                                      Just effective)
                                 AbsoluteIndirectAddressing ->
                                   (show addressingMode,
                                    Nothing)
