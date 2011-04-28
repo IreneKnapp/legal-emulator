@@ -1434,7 +1434,7 @@ decodeOperation opcode =
                 (fetchValueMicrocodeInstruction StoredAddressSource
                                                 NoRegister)
                 [alsoAddRegisterToStoredAddress
-                  $ mnemonicIndexRegister mnemonic,
+                  $ addressingModeIndexRegister addressing,
                  alsoZeroStoredAddressHighByte],
                buildMicrocodeInstruction
                 (fetchValueMicrocodeInstruction StoredAddressSource
@@ -1454,7 +1454,7 @@ decodeOperation opcode =
                 (fetchValueMicrocodeInstruction StoredAddressSource
                                                 NoRegister)
                 [alsoAddRegisterToStoredAddress
-                  $ mnemonicIndexRegister mnemonic,
+                  $ addressingModeIndexRegister addressing,
                  alsoZeroStoredAddressHighByte],
                buildMicrocodeInstruction
                 (fetchValueMicrocodeInstruction StoredAddressSource
@@ -1481,7 +1481,7 @@ decodeOperation opcode =
                 (fetchValueMicrocodeInstruction StoredAddressSource
                                                 NoRegister)
                 [alsoAddRegisterToStoredAddress
-                  $ mnemonicIndexRegister mnemonic,
+                  $ addressingModeIndexRegister addressing,
                  alsoZeroStoredAddressHighByte],
                buildMicrocodeInstruction
                 (storeValueMicrocodeInstruction StoredAddressSource
@@ -1500,7 +1500,7 @@ decodeOperation opcode =
                                                 StoredAddressHighByte)
                 [alsoIncrementProgramCounter,
                  alsoAddRegisterToStoredAddress
-                  $ mnemonicIndexRegister mnemonic,
+                  $ addressingModeIndexRegister addressing,
                  usingConditional
                   InternalOverflowSet
                   [buildMicrocodeInstruction
@@ -1531,7 +1531,7 @@ decodeOperation opcode =
                                                 StoredAddressHighByte)
                 [alsoIncrementProgramCounter,
                  alsoAddRegisterToStoredAddress
-                  $ mnemonicIndexRegister mnemonic],
+                  $ addressingModeIndexRegister addressing],
                buildMicrocodeInstruction
                 (fetchValueMicrocodeInstruction StoredAddressSource
                                                 NoRegister)
@@ -1561,7 +1561,7 @@ decodeOperation opcode =
                                                 StoredAddressHighByte)
                 [alsoIncrementProgramCounter,
                  alsoAddRegisterToStoredAddress
-                  $ mnemonicIndexRegister mnemonic],
+                  $ addressingModeIndexRegister addressing],
                buildMicrocodeInstruction
                 (fetchValueMicrocodeInstruction StoredAddressSource
                                                 NoRegister)
@@ -1877,6 +1877,16 @@ mnemonicRegister mnemonic =
     ROR -> Latch
     INC -> Latch
     DEC -> Latch
+
+
+addressingModeIndexRegister
+    :: AddressingMode -> InternalRegister
+addressingModeIndexRegister addressing =
+  case addressing of
+    ZeroPageXIndexedAddressing -> XIndexRegister
+    ZeroPageYIndexedAddressing -> YIndexRegister
+    AbsoluteXIndexedAddressing -> XIndexRegister
+    AbsoluteYIndexedAddressing -> YIndexRegister
 
 
 mnemonicIndexRegister
