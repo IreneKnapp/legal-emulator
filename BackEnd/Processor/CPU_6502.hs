@@ -283,7 +283,27 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                                    storeByte outerState
                                              effectiveAddress
                                              storedByte
-                             in (0x00, cpuState, outerState')
+                                 status =
+                                   cpu6502StateStatusRegister cpuState
+                                 maybeArithmetic =
+                                   microcodeInstructionArithmeticOperation
+                                    microcodeInstruction
+                                 accumulator =
+                                   cpu6502StateAccumulator cpuState
+                                 (status', _) =
+                                   case maybeArithmetic of
+                                     Nothing -> (status, undefined)
+                                     Just arithmetic ->
+                                       performArithmetic arithmetic
+                                                         status
+                                                         accumulator
+                                                         storedByte
+                                 cpuState' =
+                                   cpuState {
+                                       cpu6502StateStatusRegister =
+                                         status'
+                                     }
+                             in (0x00, cpuState', outerState')
                 cpuState'' =
                   case microcodeInstructionRegisterFromLatch
                         microcodeInstruction of
@@ -1392,7 +1412,10 @@ decodeOperation opcode =
                buildMicrocodeInstruction
                 (storeValueMicrocodeInstruction StoredAddressSource
                                                 Latch)
-                [],
+                [if mnemonicPerformsArithmeticOnWrite mnemonic
+                  then usingArithmeticOperation
+                        $ mnemonicArithmeticOperation mnemonic
+                  else id],
                fetchOpcodeMicrocodeInstruction]
         (AbsoluteAddressing, WriteCharacter) ->
               [buildMicrocodeInstruction
@@ -1437,7 +1460,10 @@ decodeOperation opcode =
                buildMicrocodeInstruction
                 (storeValueMicrocodeInstruction StoredAddressSource
                                                 Latch)
-                [],
+                [if mnemonicPerformsArithmeticOnWrite mnemonic
+                  then usingArithmeticOperation
+                        $ mnemonicArithmeticOperation mnemonic
+                  else id],
                fetchOpcodeMicrocodeInstruction]
         (ZeroPageAddressing, WriteCharacter) ->
               [buildMicrocodeInstruction
@@ -1495,7 +1521,10 @@ decodeOperation opcode =
                buildMicrocodeInstruction
                 (storeValueMicrocodeInstruction StoredAddressSource
                                                 Latch)
-                [],
+                [if mnemonicPerformsArithmeticOnWrite mnemonic
+                  then usingArithmeticOperation
+                        $ mnemonicArithmeticOperation mnemonic
+                  else id],
                fetchOpcodeMicrocodeInstruction]
         (_, WriteCharacter)
           | elem addressing [ZeroPageXIndexedAddressing,
@@ -1577,7 +1606,10 @@ decodeOperation opcode =
                buildMicrocodeInstruction
                 (storeValueMicrocodeInstruction StoredAddressSource
                                                 Latch)
-                [],
+                [if mnemonicPerformsArithmeticOnWrite mnemonic
+                  then usingArithmeticOperation
+                        $ mnemonicArithmeticOperation mnemonic
+                  else id],
                fetchOpcodeMicrocodeInstruction]
         (_, WriteCharacter)
           | elem addressing [AbsoluteXIndexedAddressing,
@@ -1674,7 +1706,10 @@ decodeOperation opcode =
                buildMicrocodeInstruction
                 (storeValueMicrocodeInstruction StoredAddressSource
                                                 Latch)
-                [],
+                [if mnemonicPerformsArithmeticOnWrite mnemonic
+                  then usingArithmeticOperation
+                        $ mnemonicArithmeticOperation mnemonic
+                  else id],
                fetchOpcodeMicrocodeInstruction]
         (XIndexedIndirectAddressing, WriteCharacter) ->
               [buildMicrocodeInstruction
@@ -1768,7 +1803,10 @@ decodeOperation opcode =
                buildMicrocodeInstruction
                 (storeValueMicrocodeInstruction StoredAddressSource
                                                 Latch)
-                [],
+                [if mnemonicPerformsArithmeticOnWrite mnemonic
+                  then usingArithmeticOperation
+                        $ mnemonicArithmeticOperation mnemonic
+                  else id],
                fetchOpcodeMicrocodeInstruction]
         (IndirectYIndexedAddressing, WriteCharacter) ->
               [buildMicrocodeInstruction
@@ -1964,7 +2002,15 @@ mnemonicArithmeticOperation mnemonic =
     -- Extended mnemonics
     LXA -> ArithmeticAnd
     LAX -> ArithmeticIdentity
+    DCP -> ArithmeticCompare
     _ -> error $ "No arithmetic operation for mnemonic " ++ show mnemonic
+
+
+mnemonicPerformsArithmeticOnWrite :: InstructionMnemonic -> Bool
+mnemonicPerformsArithmeticOnWrite mnemonic =
+  case mnemonic of
+    DCP -> True
+    _ -> False
 
 
 mnemonicTransformation :: InstructionMnemonic -> Transformation
