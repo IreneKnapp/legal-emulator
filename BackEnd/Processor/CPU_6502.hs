@@ -1511,13 +1511,15 @@ decodeOperation opcode =
                     (fetchValueMicrocodeInstruction
                       StoredAddressSource
                       $ mnemonicRegister mnemonic)
-                    [],
+                    [usingArithmeticOperation
+                      $ mnemonicArithmeticOperation mnemonic],
                    fetchOpcodeMicrocodeInstruction]
                   [buildMicrocodeInstruction
                     (fetchValueMicrocodeInstruction
                       StoredAddressSource
                       $ mnemonicRegister mnemonic)
-                    [],
+                    [usingArithmeticOperation
+                      $ mnemonicArithmeticOperation mnemonic],
                    fetchOpcodeMicrocodeInstruction]]]
         (_, ReadWriteCharacter)
           | elem addressing [AbsoluteXIndexedAddressing,
