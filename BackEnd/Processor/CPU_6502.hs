@@ -1940,30 +1940,6 @@ addressingModeIndexRegister addressing =
     AbsoluteYIndexedAddressing -> YIndexRegister
 
 
-mnemonicIndexRegister
-    :: InstructionMnemonic -> InternalRegister
-mnemonicIndexRegister mnemonic =
-  case mnemonic of
-    AND -> XIndexRegister
-    ORA -> XIndexRegister
-    EOR -> XIndexRegister
-    ADC -> XIndexRegister
-    SBC -> XIndexRegister
-    LDA -> XIndexRegister
-    LDX -> YIndexRegister
-    LDY -> XIndexRegister
-    STA -> XIndexRegister
-    STX -> YIndexRegister
-    STY -> XIndexRegister
-    CMP -> XIndexRegister
-    ASL -> XIndexRegister
-    LSR -> XIndexRegister
-    ROL -> XIndexRegister
-    ROR -> XIndexRegister
-    INC -> XIndexRegister
-    DEC -> XIndexRegister
-
-
 mnemonicArithmeticOperation
      :: InstructionMnemonic -> ArithmeticOperation
 mnemonicArithmeticOperation mnemonic =
