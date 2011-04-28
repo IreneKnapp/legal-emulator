@@ -2003,7 +2003,9 @@ mnemonicArithmeticOperation mnemonic =
     NOP -> ArithmeticNoOperation
     -- Extended mnemonics
     LXA -> ArithmeticAnd
+    RLA -> ArithmeticAnd
     SLO -> ArithmeticInclusiveOr
+    SRE -> ArithmeticExclusiveOr
     ISB -> ArithmeticSubtract
     LAX -> ArithmeticIdentity
     DCP -> ArithmeticCompare
@@ -2013,7 +2015,9 @@ mnemonicArithmeticOperation mnemonic =
 mnemonicPerformsArithmeticOnWrite :: InstructionMnemonic -> Bool
 mnemonicPerformsArithmeticOnWrite mnemonic =
   case mnemonic of
+    RLA -> True
     SLO -> True
+    SRE -> True
     ISB -> True
     DCP -> True
     _ -> False
