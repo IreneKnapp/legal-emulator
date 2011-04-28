@@ -91,24 +91,8 @@ main = do
                                    ++ showHexWord8 byte2,
                                    Just $ fromIntegral byte2)
                                 ZeroPageXIndexedAddressing ->
-                                  let x = cpu6502StateXIndexRegister cpuState
-                                      effective =
-                                        shiftL (fromIntegral
-                                                 $ debugFetch
-                                                    $ fromIntegral
-                                                       $ byte2 + x)
-                                               16
-                                        + (fromIntegral
-                                            $ debugFetch
-                                               $ fromIntegral
-                                                  $ byte2 + x + 1)
-                                  in ("($"
-                                      ++ showHexWord8 byte2
-                                      ++ ",X) @ "
-                                      ++ showHexWord8 (byte2 + x)
-                                      ++ " = "
-                                      ++ showHexWord16 effective,
-                                      Nothing)
+                                  (show addressingMode,
+                                   Nothing)
                                 ZeroPageYIndexedAddressing ->
                                   (show addressingMode,
                                    Nothing)
@@ -129,8 +113,24 @@ main = do
                                   in ("$" ++ showHexWord16 effectiveAddress,
                                       Nothing)
                                 XIndexedIndirectAddressing ->
-                                  (show addressingMode,
-                                   Nothing)
+                                  let x = cpu6502StateXIndexRegister cpuState
+                                      effective =
+                                        (fromIntegral
+                                          $ debugFetch
+                                             $ fromIntegral
+                                                $ byte2 + x)
+                                        + shiftL (fromIntegral
+                                                   $ debugFetch
+                                                      $ fromIntegral
+                                                         $ byte2 + x + 1)
+                                                 8
+                                  in ("($"
+                                      ++ showHexWord8 byte2
+                                      ++ ",X) @ "
+                                      ++ showHexWord8 (byte2 + x)
+                                      ++ " = "
+                                      ++ showHexWord16 effective,
+                                      Just effective)
                                 IndirectYIndexedAddressing ->
                                   (show addressingMode,
                                    Nothing)
