@@ -466,20 +466,6 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                   internalOverflowA' || internalOverflowB'
                 internalNegative' =
                   internalNegativeA' || internalNegativeB'
-                microcodeInstructionQueue'' =
-                  if microcodeInstructionDecodeOperation
-                      microcodeInstruction
-                    then if checkForInstead microcodeInstruction
-                            && programCounterHighByteWasWrong
-                           then microcodeInstructionQueue'
-                           else decodeOperation fetchedByte
-                    else case microcodeInstructionConditional
-                               microcodeInstruction of
-                           Nothing -> microcodeInstructionQueue'
-                           Just (condition, ifTrue, ifFalse) ->
-                             if testCondition condition cpuState
-                               then ifTrue
-                               else ifFalse
                 cpuState''' = cpuState'' {
                                   cpu6502StateProgramCounter = programCounter',
                                   cpu6502StateInternalStoredAddress =
@@ -494,33 +480,49 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                                   cpu6502StateInternalOverflow =
                                     internalOverflow',
                                   cpu6502StateInternalNegative =
-                                    internalNegative',
-                                  cpu6502StateMicrocodeInstructionQueue =
-                                    microcodeInstructionQueue''
+                                    internalNegative'
                                 }
-                cpuState'''' = case microcodeInstructionRegisterRegisterCopy
-                                     microcodeInstruction of
-                                 Nothing -> cpuState'''
-                                 Just (source, destination) ->
-                                   computeStoreInternalRegister
-                                    destination
-                                    cpuState'''
-                                    $ computeInternalRegister
-                                       source
-                                       cpuState'''
+                microcodeInstructionQueue'' =
+                  if microcodeInstructionDecodeOperation
+                      microcodeInstruction
+                    then if checkForInstead microcodeInstruction
+                            && programCounterHighByteWasWrong
+                           then microcodeInstructionQueue'
+                           else decodeOperation fetchedByte
+                    else case microcodeInstructionConditional
+                               microcodeInstruction of
+                           Nothing -> microcodeInstructionQueue'
+                           Just (condition, ifTrue, ifFalse) ->
+                             if testCondition condition cpuState'''
+                               then ifTrue
+                               else ifFalse
+                cpuState'''' = cpuState''' {
+                                   cpu6502StateMicrocodeInstructionQueue =
+                                     microcodeInstructionQueue''
+                                 }
+                cpuState''''' = case microcodeInstructionRegisterRegisterCopy
+                                      microcodeInstruction of
+                                  Nothing -> cpuState''''
+                                  Just (source, destination) ->
+                                    computeStoreInternalRegister
+                                     destination
+                                     cpuState''''
+                                     $ computeInternalRegister
+                                        source
+                                        cpuState''''
                 statusRegister'''' =
                   case microcodeInstructionUpdateStatusForRegister
                         microcodeInstruction of
-                    Nothing -> cpu6502StateStatusRegister cpuState''''
+                    Nothing -> cpu6502StateStatusRegister cpuState'''''
                     Just register ->
                       updateStatusRegisterForValue
-                       (cpu6502StateStatusRegister cpuState'''')
-                       $ computeInternalRegister register cpuState''''
-                cpuState''''' = cpuState'''' {
+                       (cpu6502StateStatusRegister cpuState''''')
+                       $ computeInternalRegister register cpuState'''''
+                cpuState'''''' = cpuState''''' {
                                     cpu6502StateStatusRegister =
                                       statusRegister''''
                                   }
-            in (cpuState''''', outerState')
+            in (cpuState'''''', outerState')
       outerState'' = putState outerState' cpuState'
   in outerState''
 
