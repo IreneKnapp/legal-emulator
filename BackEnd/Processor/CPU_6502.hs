@@ -290,9 +290,9 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                                     microcodeInstruction
                                  accumulator =
                                    cpu6502StateAccumulator cpuState
-                                 (status', _) =
+                                 (status', accumulator') =
                                    case maybeArithmetic of
-                                     Nothing -> (status, undefined)
+                                     Nothing -> (status, accumulator)
                                      Just arithmetic ->
                                        performArithmetic arithmetic
                                                          status
@@ -301,7 +301,9 @@ cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
                                  cpuState' =
                                    cpuState {
                                        cpu6502StateStatusRegister =
-                                         status'
+                                         status',
+                                       cpu6502StateAccumulator =
+                                         accumulator'
                                      }
                              in (0x00, cpuState', outerState')
                 cpuState'' =
@@ -2001,6 +2003,7 @@ mnemonicArithmeticOperation mnemonic =
     NOP -> ArithmeticNoOperation
     -- Extended mnemonics
     LXA -> ArithmeticAnd
+    ISB -> ArithmeticSubtract
     LAX -> ArithmeticIdentity
     DCP -> ArithmeticCompare
     _ -> error $ "No arithmetic operation for mnemonic " ++ show mnemonic
@@ -2010,6 +2013,7 @@ mnemonicPerformsArithmeticOnWrite :: InstructionMnemonic -> Bool
 mnemonicPerformsArithmeticOnWrite mnemonic =
   case mnemonic of
     DCP -> True
+    ISB -> True
     _ -> False
 
 
