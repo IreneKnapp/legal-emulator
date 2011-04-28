@@ -604,6 +604,9 @@ computeInternalRegister internalRegister cpuState =
       $ shiftR (cpu6502StateInternalStoredAddress cpuState) 0 .&. 0xFF
     Latch ->
       cpu6502StateInternalLatch cpuState
+    AccumulatorAndXIndexRegister ->
+      cpu6502StateAccumulator cpuState
+      .&. cpu6502StateXIndexRegister cpuState
 
 
 computeStoreInternalRegister
@@ -1031,15 +1034,15 @@ cpu6502DecodeInstructionMnemonicAndAddressingMode opcode =
     0x94 -> Just (STY, ZeroPageXIndexedAddressing, False)
     0x95 -> Just (STA, ZeroPageXIndexedAddressing, False)
     0x96 -> Just (STX, ZeroPageYIndexedAddressing, False)
-    0x97 -> Just (SAX, ZeroPageXIndexedAddressing, True)
+    0x97 -> Just (SAX, ZeroPageYIndexedAddressing, True)
     0x98 -> Just (TYA, ImpliedAddressing, False)
     0x99 -> Just (STA, AbsoluteYIndexedAddressing, False)
     0x9A -> Just (TXS, ImpliedAddressing, False)
     0x9B -> Just (SHS, AbsoluteYIndexedAddressing, True)
     0x9C -> Just (SHY, AbsoluteXIndexedAddressing, True)
     0x9D -> Just (STA, AbsoluteXIndexedAddressing, False)
-    0x9E -> Just (SHX, AbsoluteXIndexedAddressing, True)
-    0x9F -> Just (SHA, AbsoluteXIndexedAddressing, True)
+    0x9E -> Just (SHX, AbsoluteYIndexedAddressing, True)
+    0x9F -> Just (SHA, AbsoluteYIndexedAddressing, True)
     0xA0 -> Just (LDY, ImmediateAddressing, False)
     0xA1 -> Just (LDA, XIndexedIndirectAddressing, False)
     0xA2 -> Just (LDX, ImmediateAddressing, False)
@@ -1063,7 +1066,7 @@ cpu6502DecodeInstructionMnemonicAndAddressingMode opcode =
     0xB4 -> Just (LDY, ZeroPageXIndexedAddressing, False)
     0xB5 -> Just (LDA, ZeroPageXIndexedAddressing, False)
     0xB6 -> Just (LDX, ZeroPageYIndexedAddressing, False)
-    0xB7 -> Just (LAX, ZeroPageXIndexedAddressing, True)
+    0xB7 -> Just (LAX, ZeroPageYIndexedAddressing, True)
     0xB8 -> Just (CLV, ImpliedAddressing, False)
     0xB9 -> Just (LDA, AbsoluteYIndexedAddressing, False)
     0xBA -> Just (TSX, ImpliedAddressing, False)
@@ -1071,7 +1074,7 @@ cpu6502DecodeInstructionMnemonicAndAddressingMode opcode =
     0xBC -> Just (LDY, AbsoluteXIndexedAddressing, False)
     0xBD -> Just (LDA, AbsoluteXIndexedAddressing, False)
     0xBE -> Just (LDX, AbsoluteYIndexedAddressing, False)
-    0xBF -> Just (LAX, AbsoluteXIndexedAddressing, True)
+    0xBF -> Just (LAX, AbsoluteYIndexedAddressing, True)
     0xC0 -> Just (CPY, ImmediateAddressing, False)
     0xC1 -> Just (CMP, XIndexedIndirectAddressing, False)
     0xC2 -> Nothing
@@ -1922,7 +1925,7 @@ mnemonicRegister mnemonic =
     RLA -> Accumulator
     SRE -> Accumulator
     RRA -> Accumulator
-    SAX -> Accumulator
+    SAX -> AccumulatorAndXIndexRegister
     LAX -> AccumulatorAndXIndexRegister
     DCP -> Accumulator
     ISB -> Accumulator
