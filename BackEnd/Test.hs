@@ -3,6 +3,7 @@ module Main (main) where
 import Data.Array.IArray
 import Data.Bits
 import Data.List
+import Data.Maybe
 import Data.Word
 
 import FileFormat.INES
@@ -121,9 +122,11 @@ main = do
                                   (show addressingMode,
                                    Nothing)
                             showRValueSubreport =
-                              ((instructionCharacter == WriteCharacter)
-                               || (instructionCharacter == ReadWriteCharacter)
-                               || (instructionMnemonic == BIT))
+                              (elem instructionCharacter
+                                    [ReadCharacter,
+                                     ReadWriteCharacter,
+                                     WriteCharacter])
+                              && isJust maybeRValueAddress
                               && (mnemonicRegister instructionMnemonic
                                   /= NoRegister)
                             rvalue = case maybeRValueAddress of
