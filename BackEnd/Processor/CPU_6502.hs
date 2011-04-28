@@ -90,6 +90,7 @@ data InternalRegister
   | StoredAddressLowByte
   | Latch
   | NoRegister
+  | AccumulatorAndXIndexRegister
   deriving (Eq, Show)
 
 
@@ -675,6 +676,11 @@ computeStoreInternalRegister internalRegister cpuState byte =
         }
     NoRegister ->
       cpuState
+    AccumulatorAndXIndexRegister ->
+      cpuState {
+          cpu6502StateAccumulator = byte,
+          cpu6502StateXIndexRegister = byte
+        }
 
 
 performArithmetic :: ArithmeticOperation
@@ -1917,7 +1923,7 @@ mnemonicRegister mnemonic =
     SRE -> Accumulator
     RRA -> Accumulator
     SAX -> Accumulator
-    LAX -> Accumulator
+    LAX -> AccumulatorAndXIndexRegister
     DCP -> Accumulator
     ISB -> Accumulator
     LXA -> Accumulator
