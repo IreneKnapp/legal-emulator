@@ -2006,6 +2006,7 @@ mnemonicArithmeticOperation mnemonic =
     RLA -> ArithmeticAnd
     SLO -> ArithmeticInclusiveOr
     SRE -> ArithmeticExclusiveOr
+    RRA -> ArithmeticAdd
     ISB -> ArithmeticSubtract
     LAX -> ArithmeticIdentity
     DCP -> ArithmeticCompare
@@ -2018,6 +2019,7 @@ mnemonicPerformsArithmeticOnWrite mnemonic =
     RLA -> True
     SLO -> True
     SRE -> True
+    RRA -> True
     ISB -> True
     DCP -> True
     _ -> False
