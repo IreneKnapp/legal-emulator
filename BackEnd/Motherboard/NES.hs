@@ -49,6 +49,7 @@ data HardwareState =
 data SoftwareState =
   SoftwareState {
       softwareStateMotherboardClockCount :: Int,
+      softwareStateLastCPUDataBusValue :: Word8,
       softwareStateCPUState :: CPU_6502_State,
       softwareStatePPUState :: PPU_NES_State,
       softwareStateMotherboardMemory :: UArray Int Word8
@@ -65,6 +66,7 @@ motherboardPowerOnSoftwareState :: SoftwareState
 motherboardPowerOnSoftwareState =
   SoftwareState {
       softwareStateMotherboardClockCount = 0,
+      softwareStateLastCPUDataBusValue = 0x00,
       softwareStateCPUState = cpu6502PowerOnState,
       softwareStatePPUState = ppuNESPowerOnState,
       softwareStateMotherboardMemory = array (0x0000, 0x07FF)
@@ -104,15 +106,21 @@ cpuFetch :: HardwareState
          -> Word16
          -> (SoftwareState, Word8)
 cpuFetch hardwareState softwareState address =
-  case cpuDecodeAddress hardwareState softwareState address of
-    (MotherboardMemory, offset) ->
-      (softwareState,
-       softwareStateMotherboardMemory softwareState ! fromIntegral offset)
-    (ProgramReadOnlyMemoryBank bank, offset) ->
-      (softwareState,
-       hardwareStateProgramReadOnlyMemory hardwareState
-        ! ((bank * 16384) + fromIntegral offset))
-    (NoMemory, _) -> (softwareState, 0x00)
+  let (softwareState', datum) =
+        case cpuDecodeAddress hardwareState softwareState address of
+          (MotherboardMemory, offset) ->
+            (softwareState,
+             softwareStateMotherboardMemory softwareState
+             ! fromIntegral offset)
+          (ProgramReadOnlyMemoryBank bank, offset) ->
+            (softwareState,
+             hardwareStateProgramReadOnlyMemory hardwareState
+              ! ((bank * 16384) + fromIntegral offset))
+          (NoMemory, _) -> (softwareState, 0x00)
+  in (softwareState' {
+          softwareStateLastCPUDataBusValue = datum
+        },
+      datum)
 
 
 cpuStore :: HardwareState
@@ -121,16 +129,20 @@ cpuStore :: HardwareState
          -> Word8
          -> SoftwareState
 cpuStore hardwareState softwareState address value =
-  case cpuDecodeAddress hardwareState softwareState address of
-    (MotherboardMemory, offset) ->
-      let workingMemory' =
-            softwareStateMotherboardMemory softwareState
-             // [(fromIntegral offset, value)]
-      in softwareState {
-             softwareStateMotherboardMemory = workingMemory'
-           }
-    (ProgramReadOnlyMemoryBank _, _) -> softwareState
-    (NoMemory, _) -> softwareState
+  let softwareState' =
+        case cpuDecodeAddress hardwareState softwareState address of
+          (MotherboardMemory, offset) ->
+            let workingMemory' =
+                  softwareStateMotherboardMemory softwareState
+                   // [(fromIntegral offset, value)]
+            in softwareState {
+                   softwareStateMotherboardMemory = workingMemory'
+                 }
+          (ProgramReadOnlyMemoryBank _, _) -> softwareState
+          (NoMemory, _) -> softwareState
+  in softwareState' {
+         softwareStateLastCPUDataBusValue = value
+       }
 
 
 cpuCycle :: HardwareState
