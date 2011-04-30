@@ -14,10 +14,8 @@ data PPU_NES_State =
       ppuNESStateHorizontalClock :: Int,
       ppuNESStateVerticalClock :: Int
       {-
-      ppuNESStateControlRegister :: Word8,
-      ppuNESStateMaskRegister :: Word8,
-      ppuNESStateStatusRegister :: Word8,
-      ppuNESState
+      ppuNESStateCompleteFrame :: PPUFrame
+      ppuNESStateChanges :: [(Int, Int, PPUChagne)]
       -}
     }
 

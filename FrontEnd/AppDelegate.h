@@ -8,10 +8,11 @@
 
 #import <Cocoa/Cocoa.h>
 
+@class GameView;
 @interface AppDelegate : NSObject <NSApplicationDelegate> {
     IBOutlet NSWindow *gameListWindow;
     IBOutlet NSWindow *gameWindow;
-    IBOutlet NSOpenGLView *openGLView;
+    IBOutlet GameView *gameView;
 }
 
 - (IBAction) addGames: (id) sender;

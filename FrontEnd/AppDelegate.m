@@ -7,10 +7,17 @@
 //
 
 #import "AppDelegate.h"
+#import "Emulator.h"
+#import "GameView.h"
 
 @implementation AppDelegate
 
 - (void) applicationDidFinishLaunching: (NSNotification *) notification {
+    int result = emulator_init();
+    if(result != 1) {
+        NSLog(@"Internal failure to initialize emulation core.");
+        exit(1);
+    }
 }
 
 
@@ -24,7 +31,7 @@
 
 - (IBAction) playGame: (id) sender {
     [gameWindow makeKeyAndOrderFront: self];
-    [openGLView setNeedsDisplay: YES];
+    [gameView setNeedsDisplay: YES];
 }
 
 @end

@@ -11,12 +11,15 @@
 
 @interface GameView : NSOpenGLView {
     BOOL initialized;
-    uint8_t x;
-    uint8_t y;
+    uint32_t nTextures;
+    GLuint *textures;
+    uint32_t currentTexture;
 }
 
 - (void) awakeFromNib;
 - (BOOL) acceptsFirstResponder;
 - (void) keyDown: (NSEvent *) event;
+- (void) initOpenGL;
+- (void) initTextures;
 - (void) drawRect: (NSRect) dirtyRectangle;
 @end
