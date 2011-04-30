@@ -9,10 +9,12 @@
 #import <Cocoa/Cocoa.h>
 
 @interface AppDelegate : NSObject <NSApplicationDelegate> {
-    NSWindow *window;
+    IBOutlet NSWindow *gameListWindow;
+    IBOutlet NSWindow *gameWindow;
+    IBOutlet NSOpenGLView *openGLView;
 }
-@property (assign) IBOutlet NSWindow *window;
 
 - (IBAction) addGames: (id) sender;
 - (IBAction) removeGames: (id) sender;
+- (IBAction) playGame: (id) sender;
 @end

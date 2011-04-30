@@ -1,19 +1,30 @@
 //
-//  Legal_EmulatorAppDelegate.m
+//  AppDelegate.m
 //  Legal Emulator
 //
 //  Created by Dan Knapp on 4/21/11.
 //  Copyright 2011 Dan Knapp. All rights reserved.
 //
 
-#import "Legal_EmulatorAppDelegate.h"
+#import "AppDelegate.h"
 
-@implementation Legal_EmulatorAppDelegate
+@implementation AppDelegate
 
-@synthesize window;
+- (void) applicationDidFinishLaunching: (NSNotification *) notification {
+}
 
-- (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
-	// Insert code here to initialize your application 
+
+- (IBAction) addGames: (id) sender {
+}
+
+
+- (IBAction) removeGames: (id) sender {
+}
+
+
+- (IBAction) playGame: (id) sender {
+    [gameWindow makeKeyAndOrderFront: self];
+    [openGLView setNeedsDisplay: YES];
 }
 
 @end
