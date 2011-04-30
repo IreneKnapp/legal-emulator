@@ -6,10 +6,19 @@ module PPU.PPU_NES
   )
   where
 
+import Data.Word
+
+
 data PPU_NES_State =
   PPU_NES_State {
       ppuNESStateHorizontalClock :: Int,
       ppuNESStateVerticalClock :: Int
+      {-
+      ppuNESStateControlRegister :: Word8,
+      ppuNESStateMaskRegister :: Word8,
+      ppuNESStateStatusRegister :: Word8,
+      ppuNESState
+      -}
     }
 
 
@@ -21,11 +30,12 @@ ppuNESPowerOnState =
     }
 
 
-ppuNESCycle :: ((outerState -> PPU_NES_State),
+ppuNESCycle :: ((outerState -> Word16 -> (Word8, outerState)),
+                (outerState -> PPU_NES_State),
                 (outerState -> PPU_NES_State -> outerState))
             -> outerState
             -> outerState
-ppuNESCycle (getState, putState) outerState =
+ppuNESCycle (fetchByte, getState, putState) outerState =
   let ppuState = getState outerState
       horizontalClock = ppuNESStateHorizontalClock ppuState
       verticalClock = ppuNESStateVerticalClock ppuState

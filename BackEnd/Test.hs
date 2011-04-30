@@ -16,7 +16,7 @@ import Processor.CPU_6502
 main :: IO ()
 main = do
   maybeHardwareState <- 
-    readINESFile "/Users/dankna/Projects/legal-emulator/Tests/nestest.nes"
+    readINESFile "/Users/dankna/Projects/legal-emulator/Tests/smb1.nes"
   case maybeHardwareState of
     Nothing -> putStrLn $ "Failed to load."
     Just hardwareState -> do
@@ -35,6 +35,27 @@ main = do
                      $ bounds
                      $ hardwareStateCharacterReadOnlyMemory hardwareState)
       -}
+      let loop begun state = do
+            let softwareState = stateSoftwareState state
+                motherboardClock =
+                  softwareStateMotherboardClockCount softwareState
+                ppuState = softwareStatePPUState softwareState
+                horizontalClock = ppuNESStateHorizontalClock ppuState
+                verticalClock = ppuNESStateVerticalClock ppuState
+            if begun
+               && (motherboardClock == 0)
+               && (horizontalClock == 340)
+               && (verticalClock == 259)
+              then return ()
+              else loop True $ motherboardCycle state
+      state <- loop False
+                    $ State {
+                          stateHardwareState = hardwareState,
+                          stateSoftwareState = motherboardPowerOnSoftwareState
+                        }
+      putStrLn $ "Done."
+
+      {-
       let loop i softwareState = do
             if i == 0
               then return ()
@@ -264,6 +285,7 @@ main = do
                   <- return $ motherboardCycle hardwareState softwareState
                 loop (i - 1) softwareState
       loop 2000000 motherboardPowerOnSoftwareState
+      -}
 
 
 showHexWord16 :: Word16 -> String
