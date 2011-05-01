@@ -15,6 +15,9 @@
     IBOutlet GameView *gameView;
 }
 
+- (void) applicationDidFinishLaunching: (NSNotification *) notification;
+- (NSSize) windowWillResize: (NSWindow *) window
+                     toSize: (NSSize) proposedFrameSize;
 - (IBAction) addGames: (id) sender;
 - (IBAction) removeGames: (id) sender;
 - (IBAction) playGame: (id) sender;

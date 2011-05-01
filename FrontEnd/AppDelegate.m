@@ -18,6 +18,44 @@
         NSLog(@"Internal failure to initialize emulation core.");
         exit(1);
     }
+    
+    [gameWindow setContentMinSize: NSMakeSize(256.0, 240.0)];
+}
+
+
+- (NSSize) windowWillResize: (NSWindow *) window
+                     toSize: (NSSize) proposedFrameSize
+{    
+    if([window isEqual: gameWindow]) {
+        NSSize proposedContentSize
+            = [window contentRectForFrameRect:
+                        NSMakeRect(0.0,
+                                   0.0,
+                                   proposedFrameSize.width,
+                                   proposedFrameSize.height)].size;
+        
+        double enforcedAspect = 256.0 / 240.0;
+        NSSize intermediateContentSize
+            = NSMakeSize(proposedContentSize.height * enforcedAspect,
+                         proposedContentSize.height);
+        
+        double intermediateScale = intermediateContentSize.width / 256.0;
+        double enforcedScale = round(intermediateScale * 2.0) / 2.0;
+        double scaleRatio = enforcedScale / intermediateScale;
+        NSSize enforcedContentSize
+            = NSMakeSize(intermediateContentSize.width * scaleRatio,
+                         intermediateContentSize.height * scaleRatio);
+        
+        NSSize enforcedFrameSize
+            = [window frameRectForContentRect:
+                        NSMakeRect(0.0,
+                                   0.0,
+                                   enforcedContentSize.width,
+                                   enforcedContentSize.height)].size;
+        return enforcedFrameSize;
+    } else {
+        return proposedFrameSize;
+    }
 }
 
 

@@ -73,6 +73,16 @@
     glEnable(GL_STENCIL_TEST);
     
     glEnable(GL_TEXTURE_2D);
+    
+    glClearAccum(0.0f, 0.0f, 0.0f, 0.0f);
+}
+
+
+- (void) reshape {
+    [[self openGLContext] makeCurrentContext];
+    NSSize size = [self bounds].size;
+    glViewport(0, 0, size.width, size.height);
+    [self setNeedsDisplay: YES];
 }
 
 
@@ -105,6 +115,35 @@
     }
     
     free(buffer);
+    
+    /*
+    glGenTextures(1, &pixelTexture);
+    
+    uint8_t pixelTextureBuffer[64] =
+        {
+            0x80, 0x40, 0x40, 0x00, 0x00, 0x40, 0x40, 0x80,
+            0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40,
+            0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
+            0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
+            0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80
+        };
+    glBindTexture(GL_TEXTURE_2D, pixelTexture);
+    glTexImage2D(GL_TEXTURE_2D,
+                 0,
+                 GL_ALPHA,
+                 8, 8,
+                 0,
+                 GL_ALPHA,
+                 GL_UNSIGNED_BYTE,
+                 pixelTextureBuffer);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    */
 }
 
 
@@ -119,7 +158,10 @@
     }
     
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
+    
+    glDisable(GL_COLOR_LOGIC_OP);
+    glDisable(GL_BLEND);
+    
     glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
     
     glStencilMask(0xFF);
@@ -228,6 +270,75 @@
         glVertex3s(0, 240, 0);
         glEnd();
     }
+    
+    /*
+    glStencilFunc(GL_ALWAYS, 0x00, 0x00);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+    glDepthFunc(GL_ALWAYS);
+    
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+    glBindTexture(GL_TEXTURE_2D, pixelTexture);
+    glEnable(GL_BLEND);
+    glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBegin(GL_QUADS);
+    glTexCoord2f(0.0f, 0.0f);
+    glVertex2s(0, 0);
+    glTexCoord2f(256.0f, 0.0f);
+    glVertex2s(256, 0);
+    glTexCoord2f(256.0f, 240.0f);
+    glVertex2s(256, 240);
+    glTexCoord2f(0.0f, 240.0f);
+    glVertex2s(0, 240);
+    glEnd();
+    */
+    
+    /*
+    glDisable(GL_BLEND);
+    glEnable(GL_COLOR_LOGIC_OP);
+    glLogicOp(GL_AND);
+    for(int x = 0; x < 256; x++) {
+        glColor4f(0.0, 0.0, 0.0, 1.0);
+        glBegin(GL_QUADS);
+        glVertex2f(x, 0);
+        glVertex2f(x+0.001, 0);
+        glVertex2f(x+0.001, 240);
+        glVertex2f(x, 240);
+        glEnd();
+        
+        glColor4f(0.0, 0.0, 0.0, 1.0);
+        glBegin(GL_QUADS);
+        glVertex2f(x+0.999, 0);
+        glVertex2f(x+1, 0);
+        glVertex2f(x+1, 240);
+        glVertex2f(x+0.999, 240);
+        glEnd();
+        
+        glColor4f(1.0, 0.0, 0.0, 1.0);
+        glBegin(GL_QUADS);
+        glVertex2f(x+0.001, 0);
+        glVertex2f(x+0.334, 0);
+        glVertex2f(x+0.334, 240);
+        glVertex2f(x+0.001, 240);
+        glEnd();
+        
+        glColor4f(0.0, 1.0, 0.0, 1.0);
+        glBegin(GL_QUADS);
+        glVertex2f(x+0.334, 0);
+        glVertex2f(x+0.667, 0);
+        glVertex2f(x+0.667, 240);
+        glVertex2f(x+0.334, 240);
+        glEnd();
+        
+        glColor4f(0.0, 0.0, 1.0, 1.0);
+        glBegin(GL_QUADS);
+        glVertex2f(x+0.667, 0);
+        glVertex2f(x+0.999, 0);
+        glVertex2f(x+0.999, 240);
+        glVertex2f(x+0.667, 240);
+        glEnd();
+    }
+    */
     
     glFlush();
     [[self openGLContext] flushBuffer];

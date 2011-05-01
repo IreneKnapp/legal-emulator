@@ -14,12 +14,14 @@
     uint32_t nTextures;
     GLuint *textures;
     uint32_t currentTexture;
+    //GLuint pixelTexture;
 }
 
 - (void) awakeFromNib;
 - (BOOL) acceptsFirstResponder;
 - (void) keyDown: (NSEvent *) event;
 - (void) initOpenGL;
+- (void) reshape;
 - (void) initTextures;
 - (void) drawRect: (NSRect) dirtyRectangle;
 @end
