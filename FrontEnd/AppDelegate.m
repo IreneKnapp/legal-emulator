@@ -13,13 +13,16 @@
 @implementation AppDelegate
 
 - (void) applicationDidFinishLaunching: (NSNotification *) notification {
+    [gameWindow setContentMinSize: NSMakeSize(256.0, 240.0)];
+    
     int result = emulator_init();
     if(result != 1) {
         NSLog(@"Internal failure to initialize emulation core.");
         exit(1);
     }
     
-    [gameWindow setContentMinSize: NSMakeSize(256.0, 240.0)];
+    [gameView prepareGameFromFilename:
+                  @"/Users/dankna/Projects/legal-emulator/Tests/smb1.nes"];
 }
 
 

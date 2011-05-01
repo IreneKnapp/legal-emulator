@@ -17,6 +17,11 @@
 }
 
 
+- (void) prepareGameFromFilename: (NSString *) filename {
+    game = emulator_load_game((char *) [filename UTF8String]);
+}
+
+
 - (BOOL) acceptsFirstResponder {
     return YES;
 }
@@ -91,13 +96,12 @@
     
     uint8_t *buffer = malloc(sizeof(uint8_t) * 16384);
     
-    
-    nTextures = emulator_get_n_textures();
+    nTextures = game_get_n_textures(game);
     textures = malloc(sizeof(GLuint) * nTextures);
     glGenTextures(nTextures, textures);
     
     for(uint32_t i = 0; i < nTextures; i++) {
-        emulator_get_texture(i, buffer);
+        game_get_texture(game, i, buffer);
         
         glBindTexture(GL_TEXTURE_2D, textures[i]);
         glTexImage2D(GL_TEXTURE_2D,

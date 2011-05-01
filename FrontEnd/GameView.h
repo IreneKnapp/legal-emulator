@@ -15,9 +15,11 @@
     GLuint *textures;
     uint32_t currentTexture;
     //GLuint pixelTexture;
+    void *game;
 }
 
 - (void) awakeFromNib;
+- (void) prepareGameFromFilename: (NSString *) filename;
 - (BOOL) acceptsFirstResponder;
 - (void) keyDown: (NSEvent *) event;
 - (void) initOpenGL;

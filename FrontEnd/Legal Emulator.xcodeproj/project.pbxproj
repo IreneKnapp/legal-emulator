@@ -33,6 +33,7 @@
 		E23F8915136C3F8F005F4E19 /* NES.hs in Resources */ = {isa = PBXBuildFile; fileRef = E23F8914136C3F8F005F4E19 /* NES.hs */; };
 		E23F8917136C3FA2005F4E19 /* CPU_6502.hs in Resources */ = {isa = PBXBuildFile; fileRef = E23F8916136C3FA2005F4E19 /* CPU_6502.hs */; };
 		E23F8919136C3FAA005F4E19 /* INES.hs in Resources */ = {isa = PBXBuildFile; fileRef = E23F8918136C3FAA005F4E19 /* INES.hs */; };
+		E23F8D76136E1CC7005F4E19 /* libHSutf8-string-0.3.6.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E23F8D75136E1CC7005F4E19 /* libHSutf8-string-0.3.6.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -72,6 +73,7 @@
 		E23F8914136C3F8F005F4E19 /* NES.hs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = NES.hs; path = ../BackEnd/Motherboard/NES.hs; sourceTree = SOURCE_ROOT; };
 		E23F8916136C3FA2005F4E19 /* CPU_6502.hs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = CPU_6502.hs; path = ../BackEnd/Processor/CPU_6502.hs; sourceTree = SOURCE_ROOT; };
 		E23F8918136C3FAA005F4E19 /* INES.hs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = INES.hs; path = ../BackEnd/FileFormat/INES.hs; sourceTree = SOURCE_ROOT; };
+		E23F8D75136E1CC7005F4E19 /* libHSutf8-string-0.3.6.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libHSutf8-string-0.3.6.a"; path = "/usr/local/cabal/ghc-7.1.20110125/lib/utf8-string-0.3.6/libHSutf8-string-0.3.6.a"; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -90,6 +92,7 @@
 				E23F8531136C043D005F4E19 /* libHSinteger-gmp-0.2.0.2.a in Frameworks */,
 				E23F8535136C0450005F4E19 /* libiconv.2.dylib in Frameworks */,
 				E23F8539136C046C005F4E19 /* libHSarray-0.3.0.2.a in Frameworks */,
+				E23F8D76136E1CC7005F4E19 /* libHSutf8-string-0.3.6.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -110,6 +113,7 @@
 		1058C7A0FEA54F0111CA2CBB /* Linked Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				E23F8D75136E1CC7005F4E19 /* libHSutf8-string-0.3.6.a */,
 				E23F8538136C046C005F4E19 /* libHSarray-0.3.0.2.a */,
 				E23F8534136C0450005F4E19 /* libiconv.2.dylib */,
 				E23F8530136C043D005F4E19 /* libHSinteger-gmp-0.2.0.2.a */,
@@ -348,6 +352,7 @@
 					"\"$(LOCAL_LIBRARY_DIR)/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/bytestring-0.9.1.10\"",
 					"\"$(LOCAL_LIBRARY_DIR)/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/integer-gmp-0.2.0.2\"",
 					"\"$(LOCAL_LIBRARY_DIR)/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/array-0.3.0.2\"",
+					"\"/usr/local/cabal/ghc-7.1.20110125/lib/utf8-string-0.3.6\"",
 				);
 				PRODUCT_NAME = "Legal Emulator";
 			};
@@ -372,6 +377,7 @@
 					"\"$(LOCAL_LIBRARY_DIR)/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/bytestring-0.9.1.10\"",
 					"\"$(LOCAL_LIBRARY_DIR)/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/integer-gmp-0.2.0.2\"",
 					"\"$(LOCAL_LIBRARY_DIR)/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/array-0.3.0.2\"",
+					"\"/usr/local/cabal/ghc-7.1.20110125/lib/utf8-string-0.3.6\"",
 				);
 				PRODUCT_NAME = "Legal Emulator";
 			};
