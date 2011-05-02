@@ -43,7 +43,7 @@
                          proposedContentSize.height);
         
         double intermediateScale = intermediateContentSize.width / 256.0;
-        double enforcedScale = round(intermediateScale * 2.0) / 2.0;
+        double enforcedScale = round(intermediateScale);
         double scaleRatio = enforcedScale / intermediateScale;
         NSSize enforcedContentSize
             = NSMakeSize(intermediateContentSize.width * scaleRatio,
