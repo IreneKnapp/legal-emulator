@@ -126,7 +126,7 @@
     float scale = ((float) viewport[2]) / 256.0;
     
     GLfloat *convolutionKernelData = malloc(sizeof(GLfloat) * 5 * 5);
-    float sigma = powf(0.8f, scale / 4.0f);
+    float sigma = powf(0.8f, 4.0f / scale);
     float usefulFactor = 0.5f * powf(sigma, -2.0f);
     float centerValue = usefulFactor / 3.14159f;
     for(int y = 0; y < 5; y++) {
