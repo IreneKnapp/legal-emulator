@@ -19,6 +19,14 @@
 
 - (void) prepareGameFromFilename: (NSString *) filename {
     game = emulator_load_game((char *) [filename UTF8String]);
+    
+    NSString *windowTitle = @"No Game";
+    if(game) {
+        char *name = game_name(game);
+        windowTitle = [NSString stringWithUTF8String: name];
+        string_free(name);
+    }
+    [[self window] setTitle: windowTitle];
 }
 
 
