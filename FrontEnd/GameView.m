@@ -132,7 +132,7 @@
     
     glDisable(GL_COLOR_LOGIC_OP);
     glDisable(GL_BLEND);
-    glDisable(GL_CONVOLUTION_2D);
+    glDisable(GL_SEPARABLE_2D);
     glEnable(GL_ALPHA_TEST);
     glEnable(GL_STENCIL_TEST);
     glEnable(GL_DEPTH_TEST);
@@ -252,8 +252,10 @@
     
     float scale = ((float) viewport[2]) / 256.0;
     float contrastAdjustment = 1.0;
+    int convolutionFilterSize = 3;
     
     if(scale > 1.0) {
+        
         contrastAdjustment *= 2.0;
         
         glStencilFunc(GL_ALWAYS, 0x00, 0x00);
@@ -266,6 +268,7 @@
         
         if(scale >= 4.0f) {
             contrastAdjustment *= 2.0;
+            convolutionFilterSize = 5;
             
             double interPixelHorizontalSpace = 0.0005;
             for(int x = 0; x < 256; x++) {
@@ -377,50 +380,41 @@
         glDisable(GL_ALPHA_TEST);
         glDisable(GL_STENCIL_TEST);
         glDisable(GL_DEPTH_TEST);
-        glEnable(GL_CONVOLUTION_2D);
-        int convolutionFilterWidth = 5;
-        int convolutionFilterHeight = 5;
-        uint8_t *convolutionFilterData
-            = malloc(convolutionFilterWidth * convolutionFilterHeight * 4);
+        glEnable(GL_SEPARABLE_2D);
+        uint8_t *convolutionFilterData = malloc(convolutionFilterSize * 4);
         float sigma = powf(0.8f, scale / 4.0f);
         float usefulFactor = 0.5 * powf(sigma, -2.0f);
-        float centerValue = usefulFactor / 3.14159f;
-        for(int y = 0; y < convolutionFilterHeight; y++) {
-            for(int x = 0; x < convolutionFilterWidth; x++) {
-                int distanceX = x - convolutionFilterWidth / 2;
-                int distanceY = y - convolutionFilterHeight / 2;
-                float expTop = powf(distanceX, 2.0) + powf(distanceY, 2.0);
-                float value = centerValue * expf(-expTop * usefulFactor);
-                uint8_t scaledValue = value / centerValue * 255.0;
-                for(int i = 0; i < 4; i++)
-                    convolutionFilterData[(y * convolutionFilterWidth + x) * 4 + i]
-                        = scaledValue;
-            }
+        float centerValue = sqrtf(usefulFactor / 3.14159f);
+        for(int i = 0; i < convolutionFilterSize; i++) {
+           int distance = i - convolutionFilterSize / 2;
+            float expTop = powf(distance, 2.0);
+            float value = centerValue * expf(-expTop * usefulFactor);
+            uint8_t scaledValue = value / centerValue * 255.0;
+            for(int j = 0; j < 4; j++)
+                convolutionFilterData[i * 4 + j]
+                    = scaledValue;
         }
         
         GLfloat convolutionFilterScale = 0.0;
-        for(int y = 0; y < convolutionFilterHeight; y++) {
-            for(int x = 0; x < convolutionFilterWidth; x++) {
-                int baseValueIndex = (y * convolutionFilterWidth + x) * 4;
-                uint8_t redValue = convolutionFilterData[baseValueIndex + 0];
-                uint8_t greenValue = convolutionFilterData[baseValueIndex + 1];
-                uint8_t blueValue = convolutionFilterData[baseValueIndex + 2];
-                uint8_t alphaValue = convolutionFilterData[baseValueIndex + 3];
-                uint8_t maxValue = 0;
-                if(maxValue < redValue) maxValue = redValue;
-                if(maxValue < greenValue) maxValue = greenValue;
-                if(maxValue < blueValue) maxValue = blueValue;
-                if(maxValue < alphaValue) maxValue = alphaValue;
-                convolutionFilterScale += maxValue;
-            }
+        for(int i = 0; i < convolutionFilterSize; i++) {
+            uint8_t redValue = convolutionFilterData[i * 4 + 0];
+            uint8_t greenValue = convolutionFilterData[i * 4 + 1];
+            uint8_t blueValue = convolutionFilterData[i * 4 + 2];
+            uint8_t alphaValue = convolutionFilterData[i * 4 + 3];
+            uint8_t maxValue = 0;
+            if(maxValue < redValue) maxValue = redValue;
+            if(maxValue < greenValue) maxValue = greenValue;
+            if(maxValue < blueValue) maxValue = blueValue;
+            if(maxValue < alphaValue) maxValue = alphaValue;
+            convolutionFilterScale += maxValue;
         }
         convolutionFilterScale = 255.0 / convolutionFilterScale;
         
-        glConvolutionParameteri(GL_CONVOLUTION_2D,
+        glConvolutionParameteri(GL_SEPARABLE_2D,
                                 GL_CONVOLUTION_BORDER_MODE,
                                 GL_CONSTANT_BORDER);
         GLfloat convolutionBorderColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-        glConvolutionParameterfv(GL_CONVOLUTION_2D,
+        glConvolutionParameterfv(GL_SEPARABLE_2D,
                                  GL_CONVOLUTION_BORDER_COLOR,
                                  convolutionBorderColor);
         GLfloat convolutionFilterScaleColor[4] =
@@ -437,19 +431,20 @@
                 0.0,
                 0.0
             };
-        glConvolutionParameterfv(GL_CONVOLUTION_2D,
+        glConvolutionParameterfv(GL_SEPARABLE_2D,
                                  GL_CONVOLUTION_FILTER_SCALE,
                                  convolutionFilterScaleColor);
-        glConvolutionParameterfv(GL_CONVOLUTION_2D,
+        glConvolutionParameterfv(GL_SEPARABLE_2D,
                                  GL_CONVOLUTION_FILTER_BIAS,
                                  convolutionFilterBiasColor);
-        glConvolutionFilter2D(GL_CONVOLUTION_2D,
-                              GL_RGBA,
-                              convolutionFilterWidth,
-                              convolutionFilterHeight,
-                              GL_RGBA,
-                              GL_UNSIGNED_BYTE,
-                              convolutionFilterData);
+        glSeparableFilter2D(GL_SEPARABLE_2D,
+                            GL_RGBA,
+                            convolutionFilterSize,
+                            convolutionFilterSize,
+                            GL_RGBA,
+                            GL_UNSIGNED_BYTE,
+                            convolutionFilterData,
+                            convolutionFilterData);
         free(convolutionFilterData);
         glRasterPos2i(0, 240);
         glPixelTransferf(GL_POST_CONVOLUTION_RED_SCALE, contrastAdjustment);
