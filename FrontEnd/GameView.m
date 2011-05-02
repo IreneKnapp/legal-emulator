@@ -59,28 +59,115 @@
     [context setValues: (const GLint *) &swapInterval
              forParameter: NSOpenGLCPSwapInterval];
     
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClearStencil(0x80);
-    
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(0, 256, 240, 0, -1, 1);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    
+    glClearStencil(0x80);
+    
     glDepthFunc(GL_LEQUAL);
     glClearDepth(1.0f);
     
     glAlphaFunc(GL_GREATER, 0.0f);
     
-    glClearAccum(0.0f, 0.0f, 0.0f, 0.0f);
+    GLchar *shaderSource =
+        "uniform float kernel[25];\n"
+        "uniform float scale;\n"
+        "uniform float contrastAdjustment;\n"
+        "uniform sampler2D texture;\n"
+        "\n"
+        "void main() {\n"
+        "    int x, y;\n"
+        "    vec4 total = vec4(0.0);\n"
+        "    for(y = 0; y < 5; y++) {\n"
+        "        for(x = 0; x < 5; x++) {\n"
+        "           total += texture2D(texture,\n"
+        "                              gl_TexCoord[0].st\n"
+        "                              + vec2(float(x - 2)\n"
+        "                                     / (256.0 * scale),\n"
+        "                                     float(y - 2)\n"
+        "                                     / (240.0 * scale)))\n"
+        "                    * kernel[y * 5 + x];\n"
+        "        }\n"
+        "    }\n"
+        "    total *= contrastAdjustment;\n"
+        "    gl_FragColor = total;\n"
+        "}\n";
+    shader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(shader, 1, (const GLchar **) &shaderSource, NULL);
+    glCompileShader(shader);
+    GLint compileStatus;
+    glGetShaderiv(program, GL_COMPILE_STATUS, &compileStatus);
+    if(compileStatus == GL_FALSE) {
+        GLint infoLogLength;
+        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLogLength);
+        GLchar *buffer = malloc(infoLogLength + 1);
+        glGetShaderInfoLog(shader, infoLogLength + 1, NULL, buffer);
+        printf("%s\n", buffer);
+        free(buffer);
+    }
+    
+    program = glCreateProgram();
+    glAttachShader(program, shader);
+    glLinkProgram(program);
+    
+    [self recomputeConvolutionKernel];
+}
+
+
+- (void) recomputeConvolutionKernel {
+    GLint viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    
+    float scale = ((float) viewport[2]) / 256.0;
+    
+    GLfloat *convolutionKernelData = malloc(sizeof(GLfloat) * 5 * 5);
+    float sigma = powf(0.8f, scale / 4.0f);
+    float usefulFactor = 0.5f * powf(sigma, -2.0f);
+    float centerValue = usefulFactor / 3.14159f;
+    for(int y = 0; y < 5; y++) {
+        for(int x = 0; x < 5; x++) {
+            int distanceY = y - 2;
+            int distanceX = x - 2;
+            float expTop = powf(distanceX, 2.0f) + powf(distanceY, 2.0f);
+            float value = centerValue * expf(-expTop * usefulFactor);
+            float scaledValue = value / centerValue;
+            convolutionKernelData[y * 5 + x] = scaledValue;
+        }
+    }
+    
+    GLfloat convolutionKernelScale = 0.0f;
+    for(int i = 0; i < 25; i++) {
+        convolutionKernelScale += convolutionKernelData[i];
+    }
+    convolutionKernelScale = 1.0f / convolutionKernelScale;
+    
+    for(int i = 0; i < 25; i++) {
+        convolutionKernelData[i] *= convolutionKernelScale;
+    }
+    
+    glUseProgram(program);
+    GLint location = glGetUniformLocation(program, "kernel");
+    glUniform1fv(location, 25, convolutionKernelData);
+    location = glGetUniformLocation(program, "scale");
+    glUniform1f(location, scale);
+    
+    free(convolutionKernelData);
 }
 
 
 - (void) reshape {
     [[self openGLContext] makeCurrentContext];
+    
     NSSize size = [self bounds].size;
     glViewport(0, 0, size.width, size.height);
+    
+    [self recomputeConvolutionKernel];
+    
     [self setNeedsDisplay: YES];
 }
 
@@ -115,6 +202,13 @@
     }
     
     free(buffer);
+    
+    glGenTextures(1, &temporaryTexture);
+    glBindTexture(GL_TEXTURE_2D, temporaryTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 }
 
 
@@ -131,12 +225,11 @@
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     glDisable(GL_COLOR_LOGIC_OP);
-    glDisable(GL_BLEND);
-    glDisable(GL_SEPARABLE_2D);
     glEnable(GL_ALPHA_TEST);
     glEnable(GL_STENCIL_TEST);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_TEXTURE_2D);
+    glUseProgram(0);
     
     glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
     
@@ -251,24 +344,19 @@
     glGetIntegerv(GL_VIEWPORT, viewport);
     
     float scale = ((float) viewport[2]) / 256.0;
-    float contrastAdjustment = 1.0;
-    int convolutionFilterSize = 3;
     
-    if(scale > 1.0) {
-        
-        contrastAdjustment *= 2.0;
+    if(scale >= 2.0) {
+        float contrastAdjustment = 2.0;
         
         glStencilFunc(GL_ALWAYS, 0x00, 0x00);
         glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
         glDepthFunc(GL_ALWAYS);
         
-        glDisable(GL_BLEND);
         glEnable(GL_COLOR_LOGIC_OP);
         glLogicOp(GL_AND);
         
         if(scale >= 4.0f) {
             contrastAdjustment *= 2.0;
-            convolutionFilterSize = 5;
             
             double interPixelHorizontalSpace = 0.0005;
             for(int x = 0; x < 256; x++) {
@@ -287,7 +375,7 @@
                 double pixelBSubpixelBoundaryB
                     = pixelBStart + (pixelBEnd - pixelBStart) * (2.0 / 3.0);
                 
-                glColor4f(0.0, 0.0, 0.0, 1.0);
+                glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
                 glBegin(GL_QUADS);
                 glVertex2f(farLeft, 0);
                 glVertex2f(pixelAStart, 0);
@@ -295,7 +383,7 @@
                 glVertex2f(farLeft, 240);
                 glEnd();
                 
-                glColor4f(1.0, 0.0, 0.0, 1.0);
+                glColor4f(1.0f, 0.0f, 0.0f, 1.0f);
                 glBegin(GL_QUADS);
                 glVertex2f(pixelAStart, 0);
                 glVertex2f(pixelASubpixelBoundaryA, 0);
@@ -303,7 +391,7 @@
                 glVertex2f(pixelAStart, 240);
                 glEnd();
                 
-                glColor4f(0.0, 1.0, 0.0, 1.0);
+                glColor4f(0.0f, 1.0f, 0.0f, 1.0f);
                 glBegin(GL_QUADS);
                 glVertex2f(pixelASubpixelBoundaryA, 0);
                 glVertex2f(pixelASubpixelBoundaryB, 0);
@@ -311,7 +399,7 @@
                 glVertex2f(pixelASubpixelBoundaryA, 240);
                 glEnd();
                 
-                glColor4f(0.0, 0.0, 1.0, 1.0);
+                glColor4f(0.0f, 0.0f, 1.0f, 1.0f);
                 glBegin(GL_QUADS);
                 glVertex2f(pixelASubpixelBoundaryB, 0);
                 glVertex2f(pixelAEnd, 0);
@@ -319,7 +407,7 @@
                 glVertex2f(pixelASubpixelBoundaryB, 240);
                 glEnd();
                 
-                glColor4f(0.0, 0.0, 0.0, 1.0);
+                glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
                 glBegin(GL_QUADS);
                 glVertex2f(pixelAEnd, 0);
                 glVertex2f(pixelBStart, 0);
@@ -327,7 +415,7 @@
                 glVertex2f(pixelAEnd, 240);
                 glEnd();
                 
-                glColor4f(1.0, 0.0, 0.0, 1.0);
+                glColor4f(1.0f, 0.0f, 0.0f, 1.0f);
                 glBegin(GL_QUADS);
                 glVertex2f(pixelBStart, 0);
                 glVertex2f(pixelBSubpixelBoundaryA, 0);
@@ -335,7 +423,7 @@
                 glVertex2f(pixelBStart, 240);
                 glEnd();
                 
-                glColor4f(0.0, 1.0, 0.0, 1.0);
+                glColor4f(0.0f, 1.0f, 0.0f, 1.0f);
                 glBegin(GL_QUADS);
                 glVertex2f(pixelBSubpixelBoundaryA, 0);
                 glVertex2f(pixelBSubpixelBoundaryB, 0);
@@ -343,7 +431,7 @@
                 glVertex2f(pixelBSubpixelBoundaryA, 240);
                 glEnd();
                 
-                glColor4f(0.0, 0.0, 1.0, 1.0);
+                glColor4f(0.0f, 0.0f, 1.0f, 1.0f);
                 glBegin(GL_QUADS);
                 glVertex2f(pixelBSubpixelBoundaryB, 0);
                 glVertex2f(pixelBEnd, 0);
@@ -351,7 +439,7 @@
                 glVertex2f(pixelBSubpixelBoundaryB, 240);
                 glEnd();
                 
-                glColor4f(0.0, 0.0, 0.0, 1.0);
+                glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
                 glBegin(GL_QUADS);
                 glVertex2f(pixelBEnd, 0);
                 glVertex2f(farRight, 0);
@@ -362,10 +450,10 @@
         }
         
         for(int y = 0; y < 240; y++) {
-            double stripeTop = y + 0.5;
-            double stripeBottom = y + 1.0;
+            double stripeTop = y + 0.5f;
+            double stripeBottom = y + 1.0f;
             
-            glColor4f(0.0, 0.0, 0.0, 1.0);
+            glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
             glBegin(GL_QUADS);
             glVertex2f(0, stripeTop);
             glVertex2f(256, stripeTop);
@@ -373,93 +461,36 @@
             glVertex2f(0, stripeBottom);
             glEnd();
         }
-            
+        
         glDisable(GL_COLOR_LOGIC_OP);
-        glDisable(GL_TEXTURE_2D);
-        glDisable(GL_BLEND);
         glDisable(GL_ALPHA_TEST);
         glDisable(GL_STENCIL_TEST);
         glDisable(GL_DEPTH_TEST);
-        glEnable(GL_SEPARABLE_2D);
-        uint8_t *convolutionFilterData = malloc(convolutionFilterSize * 4);
-        float sigma = powf(0.8f, scale / 4.0f);
-        float usefulFactor = 0.5 * powf(sigma, -2.0f);
-        float centerValue = sqrtf(usefulFactor / 3.14159f);
-        for(int i = 0; i < convolutionFilterSize; i++) {
-           int distance = i - convolutionFilterSize / 2;
-            float expTop = powf(distance, 2.0);
-            float value = centerValue * expf(-expTop * usefulFactor);
-            uint8_t scaledValue = value / centerValue * 255.0;
-            for(int j = 0; j < 4; j++)
-                convolutionFilterData[i * 4 + j]
-                    = scaledValue;
-        }
+        glEnable(GL_TEXTURE_2D);
         
-        GLfloat convolutionFilterScale = 0.0;
-        for(int i = 0; i < convolutionFilterSize; i++) {
-            uint8_t redValue = convolutionFilterData[i * 4 + 0];
-            uint8_t greenValue = convolutionFilterData[i * 4 + 1];
-            uint8_t blueValue = convolutionFilterData[i * 4 + 2];
-            uint8_t alphaValue = convolutionFilterData[i * 4 + 3];
-            uint8_t maxValue = 0;
-            if(maxValue < redValue) maxValue = redValue;
-            if(maxValue < greenValue) maxValue = greenValue;
-            if(maxValue < blueValue) maxValue = blueValue;
-            if(maxValue < alphaValue) maxValue = alphaValue;
-            convolutionFilterScale += maxValue;
-        }
-        convolutionFilterScale = 255.0 / convolutionFilterScale;
+        glUseProgram(program);
+        GLint location = glGetUniformLocation(program, "contrastAdjustment");
+        glUniform1f(location, contrastAdjustment);
         
-        glConvolutionParameteri(GL_SEPARABLE_2D,
-                                GL_CONVOLUTION_BORDER_MODE,
-                                GL_CONSTANT_BORDER);
-        GLfloat convolutionBorderColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-        glConvolutionParameterfv(GL_SEPARABLE_2D,
-                                 GL_CONVOLUTION_BORDER_COLOR,
-                                 convolutionBorderColor);
-        GLfloat convolutionFilterScaleColor[4] =
-            {
-                convolutionFilterScale,
-                convolutionFilterScale,
-                convolutionFilterScale,
-                convolutionFilterScale
-            };
-        GLfloat convolutionFilterBiasColor[4] =
-            {
-                0.0,
-                0.0,
-                0.0,
-                0.0
-            };
-        glConvolutionParameterfv(GL_SEPARABLE_2D,
-                                 GL_CONVOLUTION_FILTER_SCALE,
-                                 convolutionFilterScaleColor);
-        glConvolutionParameterfv(GL_SEPARABLE_2D,
-                                 GL_CONVOLUTION_FILTER_BIAS,
-                                 convolutionFilterBiasColor);
-        glSeparableFilter2D(GL_SEPARABLE_2D,
-                            GL_RGBA,
-                            convolutionFilterSize,
-                            convolutionFilterSize,
-                            GL_RGBA,
-                            GL_UNSIGNED_BYTE,
-                            convolutionFilterData,
-                            convolutionFilterData);
-        free(convolutionFilterData);
-        glRasterPos2i(0, 240);
-        glPixelTransferf(GL_POST_CONVOLUTION_RED_SCALE, contrastAdjustment);
-        glPixelTransferf(GL_POST_CONVOLUTION_GREEN_SCALE, contrastAdjustment);
-        glPixelTransferf(GL_POST_CONVOLUTION_BLUE_SCALE, contrastAdjustment);
-        glPixelTransferf(GL_POST_CONVOLUTION_ALPHA_SCALE, contrastAdjustment);
-        glPixelTransferf(GL_POST_CONVOLUTION_RED_BIAS, 0.0f);
-        glPixelTransferf(GL_POST_CONVOLUTION_GREEN_BIAS, 0.0f);
-        glPixelTransferf(GL_POST_CONVOLUTION_BLUE_BIAS, 0.0f);
-        glPixelTransferf(GL_POST_CONVOLUTION_ALPHA_BIAS, 0.0f);
-        glCopyPixels(viewport[0],
-                     viewport[1],
-                     viewport[2],
-                     viewport[3],
-                     GL_COLOR);
+        glBindTexture(GL_TEXTURE_2D, temporaryTexture);
+        
+        glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
+                         viewport[0], viewport[1], viewport[2], viewport[3],
+                         0);
+        
+        glClear(GL_COLOR_BUFFER_BIT);
+        
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        glBegin(GL_QUADS);
+        glTexCoord2f(0.0f, 1.0f);
+        glVertex2s(0.0f, 0.0f);
+        glTexCoord2f(1.0f, 1.0f);
+        glVertex2s(256.0f, 0.0f);
+        glTexCoord2f(1.0f, 0.0f);
+        glVertex2s(256.0f, 240.0f);
+        glTexCoord2f(0.0f, 0.0f);
+        glVertex2s(0.0f, 240.0f);
+        glEnd();
     }
     
     glFlush();

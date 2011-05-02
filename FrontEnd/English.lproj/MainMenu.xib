@@ -588,6 +588,7 @@
 									</object>
 									<string key="NSFrame">{{0, 17}, {560, 621}}</string>
 									<reference key="NSSuperview" ref="1015474581"/>
+									<reference key="NSNextKeyView" ref="13302713"/>
 									<reference key="NSDocView" ref="13302713"/>
 									<reference key="NSBGColor" ref="532247433"/>
 									<int key="NScvFlags">4</int>
@@ -620,6 +621,7 @@
 									</object>
 									<string key="NSFrameSize">{560, 17}</string>
 									<reference key="NSSuperview" ref="1015474581"/>
+									<reference key="NSNextKeyView" ref="123902448"/>
 									<reference key="NSDocView" ref="123902448"/>
 									<reference key="NSBGColor" ref="532247433"/>
 									<int key="NScvFlags">4</int>
@@ -628,6 +630,7 @@
 							</object>
 							<string key="NSFrame">{{-1, 0}, {560, 638}}</string>
 							<reference key="NSSuperview" ref="439893737"/>
+							<reference key="NSNextKeyView" ref="727835878"/>
 							<int key="NSsFlags">560</int>
 							<reference key="NSVScroller" ref="978377427"/>
 							<reference key="NSHScroller" ref="298793548"/>
@@ -651,6 +654,7 @@
 				<string key="NSWindowTitle">Game</string>
 				<string key="NSWindowClass">NSWindow</string>
 				<nil key="NSViewClass"/>
+				<string key="NSWindowContentMaxSize">{1.79769e+308, 1.79769e+308}</string>
 				<object class="NSView" key="NSWindowView" id="286152279">
 					<nil key="NSNextResponder"/>
 					<int key="NSvFlags">256</int>

@@ -14,6 +14,9 @@
     uint32_t nTextures;
     GLuint *textures;
     uint32_t currentTexture;
+    GLuint temporaryTexture;
+    GLuint shader;
+    GLuint program;
     void *game;
 }
 
@@ -22,6 +25,7 @@
 - (BOOL) acceptsFirstResponder;
 - (void) keyDown: (NSEvent *) event;
 - (void) initOpenGL;
+- (void) recomputeConvolutionKernel;
 - (void) reshape;
 - (void) initTextures;
 - (void) drawRect: (NSRect) dirtyRectangle;
