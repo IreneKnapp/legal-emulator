@@ -14,7 +14,6 @@
     uint32_t nTextures;
     GLuint *textures;
     uint32_t currentTexture;
-    //GLuint pixelTexture;
     void *game;
 }
 

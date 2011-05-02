@@ -404,7 +404,7 @@
 										<key>_historyCapacity</key>
 										<integer>0</integer>
 										<key>bookmark</key>
-										<string>E23F8D83136E1CD9005F4E19</string>
+										<string>E23F9374136E9C63005F4E19</string>
 										<key>history</key>
 										<array>
 											<string>E2194379135FE6DD00BAB506</string>
@@ -416,7 +416,7 @@
 											<string>E23F8B91136CA7E3005F4E19</string>
 											<string>E23F8BDF136CE3C9005F4E19</string>
 											<string>E23F8D82136E1CD9005F4E19</string>
-											<string>E23F8D7D136E1CD7005F4E19</string>
+											<string>E23F927D136E93CD005F4E19</string>
 										</array>
 									</dict>
 									<key>SplitCount</key>
@@ -597,7 +597,7 @@
 	<key>StatusbarIsVisible</key>
 	<true/>
 	<key>TimeStamp</key>
-	<real>325983449.51454002</real>
+	<real>326016099.81858701</real>
 	<key>ToolbarConfigUserDefaultsMinorVersion</key>
 	<string>2</string>
 	<key>ToolbarDisplayMode</key>
@@ -614,13 +614,13 @@
 	<integer>5</integer>
 	<key>WindowOrderList</key>
 	<array>
-		<string>E23F8D84136E1CD9005F4E19</string>
+		<string>E23F9375136E9C63005F4E19</string>
 		<string>E23F8440136BDE19005F4E19</string>
 		<string>E23F8441136BDE19005F4E19</string>
 		<string>1CD10A99069EF8BA00B06720</string>
 		<string>E2194348135FE3E300BAB506</string>
-		<string>1C78EAAD065D492600B07095</string>
 		<string>/Users/dankna/Projects/legal-emulator/FrontEnd/Legal Emulator.xcodeproj</string>
+		<string>1C78EAAD065D492600B07095</string>
 	</array>
 	<key>WindowString</key>
 	<string>880 517 788 504 0 0 1680 1028 </string>
@@ -971,7 +971,7 @@
 								<key>Frame</key>
 								<string>{{0, 0}, {610, 332}}</string>
 								<key>RubberWindowFrame</key>
-								<string>562 150 610 373 0 0 1680 1028 </string>
+								<string>565 110 610 373 0 0 1680 1028 </string>
 							</dict>
 							<key>Module</key>
 							<string>PBXDebugCLIModule</string>
@@ -1000,7 +1000,7 @@
 			<key>ToolbarConfiguration</key>
 			<string>xcode.toolbar.config.consoleV3</string>
 			<key>WindowString</key>
-			<string>562 150 610 373 0 0 1680 1028 </string>
+			<string>565 110 610 373 0 0 1680 1028 </string>
 			<key>WindowToolGUID</key>
 			<string>1C78EAAD065D492600B07095</string>
 			<key>WindowToolIsVisible</key>

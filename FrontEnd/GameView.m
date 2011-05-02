@@ -68,16 +68,10 @@
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     
-    glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     glClearDepth(1.0f);
     
-    glEnable(GL_ALPHA_TEST);
     glAlphaFunc(GL_GREATER, 0.0f);
-    
-    glEnable(GL_STENCIL_TEST);
-    
-    glEnable(GL_TEXTURE_2D);
     
     glClearAccum(0.0f, 0.0f, 0.0f, 0.0f);
 }
@@ -93,6 +87,8 @@
 
 - (void) initTextures {
     [[self openGLContext] makeCurrentContext];
+    
+    glEnable(GL_TEXTURE_2D);
     
     uint8_t *buffer = malloc(sizeof(uint8_t) * 16384);
     
@@ -119,35 +115,6 @@
     }
     
     free(buffer);
-    
-    /*
-    glGenTextures(1, &pixelTexture);
-    
-    uint8_t pixelTextureBuffer[64] =
-        {
-            0x80, 0x40, 0x40, 0x00, 0x00, 0x40, 0x40, 0x80,
-            0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40,
-            0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
-            0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
-            0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80
-        };
-    glBindTexture(GL_TEXTURE_2D, pixelTexture);
-    glTexImage2D(GL_TEXTURE_2D,
-                 0,
-                 GL_ALPHA,
-                 8, 8,
-                 0,
-                 GL_ALPHA,
-                 GL_UNSIGNED_BYTE,
-                 pixelTextureBuffer);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    */
 }
 
 
@@ -165,6 +132,11 @@
     
     glDisable(GL_COLOR_LOGIC_OP);
     glDisable(GL_BLEND);
+    glDisable(GL_CONVOLUTION_2D);
+    glEnable(GL_ALPHA_TEST);
+    glEnable(GL_STENCIL_TEST);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_TEXTURE_2D);
     
     glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
     
@@ -275,74 +247,225 @@
         glEnd();
     }
     
-    /*
-    glStencilFunc(GL_ALWAYS, 0x00, 0x00);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-    glDepthFunc(GL_ALWAYS);
+    GLint viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
     
-    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-    glBindTexture(GL_TEXTURE_2D, pixelTexture);
-    glEnable(GL_BLEND);
-    glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glBegin(GL_QUADS);
-    glTexCoord2f(0.0f, 0.0f);
-    glVertex2s(0, 0);
-    glTexCoord2f(256.0f, 0.0f);
-    glVertex2s(256, 0);
-    glTexCoord2f(256.0f, 240.0f);
-    glVertex2s(256, 240);
-    glTexCoord2f(0.0f, 240.0f);
-    glVertex2s(0, 240);
-    glEnd();
-    */
+    float scale = ((float) viewport[2]) / 256.0;
+    float contrastAdjustment = 1.0;
     
-    /*
-    glDisable(GL_BLEND);
-    glEnable(GL_COLOR_LOGIC_OP);
-    glLogicOp(GL_AND);
-    for(int x = 0; x < 256; x++) {
-        glColor4f(0.0, 0.0, 0.0, 1.0);
-        glBegin(GL_QUADS);
-        glVertex2f(x, 0);
-        glVertex2f(x+0.001, 0);
-        glVertex2f(x+0.001, 240);
-        glVertex2f(x, 240);
-        glEnd();
+    if(scale > 1.0) {
+        contrastAdjustment *= 2.0;
         
-        glColor4f(0.0, 0.0, 0.0, 1.0);
-        glBegin(GL_QUADS);
-        glVertex2f(x+0.999, 0);
-        glVertex2f(x+1, 0);
-        glVertex2f(x+1, 240);
-        glVertex2f(x+0.999, 240);
-        glEnd();
+        glStencilFunc(GL_ALWAYS, 0x00, 0x00);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+        glDepthFunc(GL_ALWAYS);
         
-        glColor4f(1.0, 0.0, 0.0, 1.0);
-        glBegin(GL_QUADS);
-        glVertex2f(x+0.001, 0);
-        glVertex2f(x+0.334, 0);
-        glVertex2f(x+0.334, 240);
-        glVertex2f(x+0.001, 240);
-        glEnd();
+        glDisable(GL_BLEND);
+        glEnable(GL_COLOR_LOGIC_OP);
+        glLogicOp(GL_AND);
         
-        glColor4f(0.0, 1.0, 0.0, 1.0);
-        glBegin(GL_QUADS);
-        glVertex2f(x+0.334, 0);
-        glVertex2f(x+0.667, 0);
-        glVertex2f(x+0.667, 240);
-        glVertex2f(x+0.334, 240);
-        glEnd();
+        if(scale >= 4.0f) {
+            contrastAdjustment *= 2.0;
+            
+            double interPixelHorizontalSpace = 0.0005;
+            for(int x = 0; x < 256; x++) {
+                double farLeft = x;
+                double farRight = x + 1.0;
+                double pixelAStart = x + interPixelHorizontalSpace / 2.0;
+                double pixelAEnd = x + 0.5 - interPixelHorizontalSpace / 2.0;
+                double pixelBStart = x + 0.5 + interPixelHorizontalSpace / 2.0;
+                double pixelBEnd = x + 1.0 - interPixelHorizontalSpace / 2.0;
+                double pixelASubpixelBoundaryA
+                    = pixelAStart + (pixelAEnd - pixelAStart) * (1.0 / 3.0);
+                double pixelASubpixelBoundaryB
+                    = pixelAStart + (pixelAEnd - pixelAStart) * (2.0 / 3.0);
+                double pixelBSubpixelBoundaryA
+                    = pixelBStart + (pixelBEnd - pixelBStart) * (1.0 / 3.0);
+                double pixelBSubpixelBoundaryB
+                    = pixelBStart + (pixelBEnd - pixelBStart) * (2.0 / 3.0);
+                
+                glColor4f(0.0, 0.0, 0.0, 1.0);
+                glBegin(GL_QUADS);
+                glVertex2f(farLeft, 0);
+                glVertex2f(pixelAStart, 0);
+                glVertex2f(pixelAStart, 240);
+                glVertex2f(farLeft, 240);
+                glEnd();
+                
+                glColor4f(1.0, 0.0, 0.0, 1.0);
+                glBegin(GL_QUADS);
+                glVertex2f(pixelAStart, 0);
+                glVertex2f(pixelASubpixelBoundaryA, 0);
+                glVertex2f(pixelASubpixelBoundaryA, 240);
+                glVertex2f(pixelAStart, 240);
+                glEnd();
+                
+                glColor4f(0.0, 1.0, 0.0, 1.0);
+                glBegin(GL_QUADS);
+                glVertex2f(pixelASubpixelBoundaryA, 0);
+                glVertex2f(pixelASubpixelBoundaryB, 0);
+                glVertex2f(pixelASubpixelBoundaryB, 240);
+                glVertex2f(pixelASubpixelBoundaryA, 240);
+                glEnd();
+                
+                glColor4f(0.0, 0.0, 1.0, 1.0);
+                glBegin(GL_QUADS);
+                glVertex2f(pixelASubpixelBoundaryB, 0);
+                glVertex2f(pixelAEnd, 0);
+                glVertex2f(pixelAEnd, 240);
+                glVertex2f(pixelASubpixelBoundaryB, 240);
+                glEnd();
+                
+                glColor4f(0.0, 0.0, 0.0, 1.0);
+                glBegin(GL_QUADS);
+                glVertex2f(pixelAEnd, 0);
+                glVertex2f(pixelBStart, 0);
+                glVertex2f(pixelBStart, 240);
+                glVertex2f(pixelAEnd, 240);
+                glEnd();
+                
+                glColor4f(1.0, 0.0, 0.0, 1.0);
+                glBegin(GL_QUADS);
+                glVertex2f(pixelBStart, 0);
+                glVertex2f(pixelBSubpixelBoundaryA, 0);
+                glVertex2f(pixelBSubpixelBoundaryA, 240);
+                glVertex2f(pixelBStart, 240);
+                glEnd();
+                
+                glColor4f(0.0, 1.0, 0.0, 1.0);
+                glBegin(GL_QUADS);
+                glVertex2f(pixelBSubpixelBoundaryA, 0);
+                glVertex2f(pixelBSubpixelBoundaryB, 0);
+                glVertex2f(pixelBSubpixelBoundaryB, 240);
+                glVertex2f(pixelBSubpixelBoundaryA, 240);
+                glEnd();
+                
+                glColor4f(0.0, 0.0, 1.0, 1.0);
+                glBegin(GL_QUADS);
+                glVertex2f(pixelBSubpixelBoundaryB, 0);
+                glVertex2f(pixelBEnd, 0);
+                glVertex2f(pixelBEnd, 240);
+                glVertex2f(pixelBSubpixelBoundaryB, 240);
+                glEnd();
+                
+                glColor4f(0.0, 0.0, 0.0, 1.0);
+                glBegin(GL_QUADS);
+                glVertex2f(pixelBEnd, 0);
+                glVertex2f(farRight, 0);
+                glVertex2f(farRight, 240);
+                glVertex2f(pixelBEnd, 240);
+                glEnd();
+            }
+        }
         
-        glColor4f(0.0, 0.0, 1.0, 1.0);
-        glBegin(GL_QUADS);
-        glVertex2f(x+0.667, 0);
-        glVertex2f(x+0.999, 0);
-        glVertex2f(x+0.999, 240);
-        glVertex2f(x+0.667, 240);
-        glEnd();
+        for(int y = 0; y < 240; y++) {
+            double stripeTop = y + 0.5;
+            double stripeBottom = y + 1.0;
+            
+            glColor4f(0.0, 0.0, 0.0, 1.0);
+            glBegin(GL_QUADS);
+            glVertex2f(0, stripeTop);
+            glVertex2f(256, stripeTop);
+            glVertex2f(256, stripeBottom);
+            glVertex2f(0, stripeBottom);
+            glEnd();
+        }
+            
+        glDisable(GL_COLOR_LOGIC_OP);
+        glDisable(GL_TEXTURE_2D);
+        glDisable(GL_BLEND);
+        glDisable(GL_ALPHA_TEST);
+        glDisable(GL_STENCIL_TEST);
+        glDisable(GL_DEPTH_TEST);
+        glEnable(GL_CONVOLUTION_2D);
+        int convolutionFilterWidth = 5;
+        int convolutionFilterHeight = 5;
+        uint8_t *convolutionFilterData
+            = malloc(convolutionFilterWidth * convolutionFilterHeight * 4);
+        float sigma = powf(0.8f, scale / 4.0f);
+        float usefulFactor = 0.5 * powf(sigma, -2.0f);
+        float centerValue = usefulFactor / 3.14159f;
+        for(int y = 0; y < convolutionFilterHeight; y++) {
+            for(int x = 0; x < convolutionFilterWidth; x++) {
+                int distanceX = x - convolutionFilterWidth / 2;
+                int distanceY = y - convolutionFilterHeight / 2;
+                float expTop = powf(distanceX, 2.0) + powf(distanceY, 2.0);
+                float value = centerValue * expf(-expTop * usefulFactor);
+                uint8_t scaledValue = value / centerValue * 255.0;
+                for(int i = 0; i < 4; i++)
+                    convolutionFilterData[(y * convolutionFilterWidth + x) * 4 + i]
+                        = scaledValue;
+            }
+        }
+        
+        GLfloat convolutionFilterScale = 0.0;
+        for(int y = 0; y < convolutionFilterHeight; y++) {
+            for(int x = 0; x < convolutionFilterWidth; x++) {
+                int baseValueIndex = (y * convolutionFilterWidth + x) * 4;
+                uint8_t redValue = convolutionFilterData[baseValueIndex + 0];
+                uint8_t greenValue = convolutionFilterData[baseValueIndex + 1];
+                uint8_t blueValue = convolutionFilterData[baseValueIndex + 2];
+                uint8_t alphaValue = convolutionFilterData[baseValueIndex + 3];
+                uint8_t maxValue = 0;
+                if(maxValue < redValue) maxValue = redValue;
+                if(maxValue < greenValue) maxValue = greenValue;
+                if(maxValue < blueValue) maxValue = blueValue;
+                if(maxValue < alphaValue) maxValue = alphaValue;
+                convolutionFilterScale += maxValue;
+            }
+        }
+        convolutionFilterScale = 255.0 / convolutionFilterScale;
+        
+        glConvolutionParameteri(GL_CONVOLUTION_2D,
+                                GL_CONVOLUTION_BORDER_MODE,
+                                GL_CONSTANT_BORDER);
+        GLfloat convolutionBorderColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+        glConvolutionParameterfv(GL_CONVOLUTION_2D,
+                                 GL_CONVOLUTION_BORDER_COLOR,
+                                 convolutionBorderColor);
+        GLfloat convolutionFilterScaleColor[4] =
+            {
+                convolutionFilterScale,
+                convolutionFilterScale,
+                convolutionFilterScale,
+                convolutionFilterScale
+            };
+        GLfloat convolutionFilterBiasColor[4] =
+            {
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            };
+        glConvolutionParameterfv(GL_CONVOLUTION_2D,
+                                 GL_CONVOLUTION_FILTER_SCALE,
+                                 convolutionFilterScaleColor);
+        glConvolutionParameterfv(GL_CONVOLUTION_2D,
+                                 GL_CONVOLUTION_FILTER_BIAS,
+                                 convolutionFilterBiasColor);
+        glConvolutionFilter2D(GL_CONVOLUTION_2D,
+                              GL_RGBA,
+                              convolutionFilterWidth,
+                              convolutionFilterHeight,
+                              GL_RGBA,
+                              GL_UNSIGNED_BYTE,
+                              convolutionFilterData);
+        free(convolutionFilterData);
+        glRasterPos2i(0, 240);
+        glPixelTransferf(GL_POST_CONVOLUTION_RED_SCALE, contrastAdjustment);
+        glPixelTransferf(GL_POST_CONVOLUTION_GREEN_SCALE, contrastAdjustment);
+        glPixelTransferf(GL_POST_CONVOLUTION_BLUE_SCALE, contrastAdjustment);
+        glPixelTransferf(GL_POST_CONVOLUTION_ALPHA_SCALE, contrastAdjustment);
+        glPixelTransferf(GL_POST_CONVOLUTION_RED_BIAS, 0.0f);
+        glPixelTransferf(GL_POST_CONVOLUTION_GREEN_BIAS, 0.0f);
+        glPixelTransferf(GL_POST_CONVOLUTION_BLUE_BIAS, 0.0f);
+        glPixelTransferf(GL_POST_CONVOLUTION_ALPHA_BIAS, 0.0f);
+        glCopyPixels(viewport[0],
+                     viewport[1],
+                     viewport[2],
+                     viewport[3],
+                     GL_COLOR);
     }
-    */
     
     glFlush();
     [[self openGLContext] flushBuffer];
