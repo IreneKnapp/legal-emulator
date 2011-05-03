@@ -7,22 +7,23 @@ module Motherboard.NES
    SoftwareState(..),
    AddressMapping(..),
    Processor(..),
-   motherboardPowerOnSoftwareState,
+   powerOnSoftwareState,
    cpuDecodeAddress,
    ppuDecodeAddress,
    debugFetch,
    fetch,
    store,
-   motherboardCycle,
-   motherboardAtCPUCycle
+   cycle,
+   atCPUCycle
   )
   where
 
 import Data.Array.Unboxed
 import Data.Word
+import Prelude hiding (cycle)
 
-import Processor.CPU_6502
-import PPU.PPU_NES
+import qualified Processor.CPU_6502 as CPU
+import qualified PPU.PPU_NES as PPU
 
 
 data Mirroring = HorizontalMirroring
@@ -61,8 +62,8 @@ data SoftwareState =
       softwareStateMotherboardClockCount :: Int,
       softwareStateLastCPUDataBusValue :: Word8,
       softwareStateLastPPUDataBusValue :: Word8,
-      softwareStateCPUState :: CPU_6502_State,
-      softwareStatePPUState :: PPU_NES_State,
+      softwareStateCPUState :: CPU.CPU_6502_State,
+      softwareStatePPUState :: PPU.PPU_NES_State,
       softwareStateMotherboardCPUMemory :: UArray Int Word8,
       softwareStateMotherboardPPUTableMemory
         :: UArray Int Word8,
@@ -89,14 +90,14 @@ data Processor = CPU_6502
                | PPU_NES
 
 
-motherboardPowerOnSoftwareState :: SoftwareState
-motherboardPowerOnSoftwareState =
+powerOnSoftwareState :: SoftwareState
+powerOnSoftwareState =
   SoftwareState {
       softwareStateMotherboardClockCount = 0,
       softwareStateLastCPUDataBusValue = 0x00,
       softwareStateLastPPUDataBusValue = 0x00,
-      softwareStateCPUState = cpu6502PowerOnState,
-      softwareStatePPUState = ppuNESPowerOnState,
+      softwareStateCPUState = CPU.powerOnState,
+      softwareStatePPUState = PPU.powerOnState,
       softwareStateMotherboardCPUMemory = array (0x0000, 0x07FF)
                                                 $ zip [0x0000 .. 0x07FF]
                                                       $ repeat 0x00,
@@ -319,8 +320,8 @@ updateLastDataBusValue state dataBus value =
 
 cpuCallbacks :: ((State -> Word16 -> (Word8, State)),
                  (State -> Word16 -> Word8 -> State),
-                 (State -> CPU_6502_State),
-                 (State -> CPU_6502_State -> State))
+                 (State -> CPU.CPU_6502_State),
+                 (State -> CPU.CPU_6502_State -> State))
 cpuCallbacks = ((\state address ->
                    let (addressMapping, localAddress) =
                          cpuDecodeAddress state address
@@ -351,8 +352,8 @@ cpuCallbacks = ((\state address ->
 
 
 ppuCallbacks :: ((State -> Word16 -> (Word8, State)),
-                 (State -> PPU_NES_State),
-                 (State -> PPU_NES_State -> State))
+                 (State -> PPU.PPU_NES_State),
+                 (State -> PPU.PPU_NES_State -> State))
 ppuCallbacks = ((\state address ->
                    let (addressMapping, localAddress) =
                          ppuDecodeAddress state address
@@ -371,8 +372,8 @@ ppuCallbacks = ((\state address ->
                         }))
 
 
-motherboardCycle :: State -> State
-motherboardCycle state =
+cycle :: State -> State
+cycle state =
   let clockCount =
         softwareStateMotherboardClockCount $ stateSoftwareState state
       chipsToCycle = concat $ map (\(divisor, chip) ->
@@ -383,8 +384,8 @@ motherboardCycle state =
                                    (12, CPU_6502)]
       state' = foldl (\state' chip ->
                         case chip of
-                          CPU_6502 -> cpu6502Cycle cpuCallbacks state'
-                          PPU_NES -> ppuNESCycle ppuCallbacks state')
+                          CPU_6502 -> CPU.cycle cpuCallbacks state'
+                          PPU_NES -> PPU.cycle ppuCallbacks state')
                      state
                      chipsToCycle
       clockCount' = mod (clockCount + 1) 12
@@ -397,7 +398,8 @@ motherboardCycle state =
        }
 
 
-motherboardAtCPUCycle :: HardwareState -> SoftwareState -> Bool
-motherboardAtCPUCycle _ softwareState =
-  let clockCount = softwareStateMotherboardClockCount softwareState
+atCPUCycle :: State -> Bool
+atCPUCycle state =
+  let softwareState = stateSoftwareState state
+      clockCount = softwareStateMotherboardClockCount softwareState
   in mod clockCount 12 == 0

@@ -9,8 +9,8 @@ import Data.Word
 
 import FileFormat.INES
 import Motherboard.NES
-import PPU.PPU_NES
-import Processor.CPU_6502
+import qualified PPU.PPU_NES as PPU
+import qualified Processor.CPU_6502 as CPU
 
 
 main :: IO ()
@@ -62,21 +62,21 @@ main = do
               else do
                 let cpuState = softwareStateCPUState softwareState
                     atInstructionStart =
-                      cpu6502AtInstructionStart cpuState
+                      CPU.atInstructionStart cpuState
                       && motherboardAtCPUCycle hardwareState softwareState
                 if atInstructionStart
                   then do
                     let programCounter = cpu6502StateProgramCounter cpuState
                         debugFetch = cpuDebugFetch hardwareState softwareState
                         opcode = debugFetch programCounter
-                    case cpu6502DecodeInstructionMnemonicAndAddressingMode
+                    case CPU.decodeInstructionMnemonicAndAddressingMode
                           opcode of
                       Nothing -> do
                         putStrLn $ (showHexWord16 programCounter)
                                    ++ "  Invalid instruction."
                       Just (instructionMnemonic, addressingMode, extended)
                        -> do
-                        let nBytes = cpu6502NBytes addressingMode
+                        let nBytes = CPU.nBytes addressingMode
                             byte2 = if nBytes >= 2
                                       then debugFetch $ programCounter + 1
                                       else undefined

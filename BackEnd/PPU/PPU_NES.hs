@@ -1,18 +1,22 @@
 module PPU.PPU_NES
   (
    PPU_NES_State(..),
-   ppuNESPowerOnState,
-   ppuNESCycle
+   powerOnState,
+   cycle
   )
   where
 
 import Data.Word
+import Prelude hiding (cycle)
 
 
 data PPU_NES_State =
   PPU_NES_State {
       ppuNESStateHorizontalClock :: Int,
-      ppuNESStateVerticalClock :: Int
+      ppuNESStateVerticalClock :: Int,
+      ppuNESStateStillPoweringUp :: Bool,
+      ppuNESStateWantsToAssertNMI :: Bool,
+      ppuNESStateSoftwareWantsNMI :: Bool
       {-
       ppuNESStateCompleteFrame :: PPUFrame
       ppuNESStateChanges :: [(Int, Int, PPUChagne)]
@@ -20,32 +24,47 @@ data PPU_NES_State =
     }
 
 
-ppuNESPowerOnState :: PPU_NES_State
-ppuNESPowerOnState =
+powerOnState :: PPU_NES_State
+powerOnState =
   PPU_NES_State {
       ppuNESStateHorizontalClock = 0,
-      ppuNESStateVerticalClock = 241
+      ppuNESStateVerticalClock = 241,
+      ppuNESStateStillPoweringUp = True,
+      ppuNESStateWantsToAssertNMI = True,
+      ppuNESStateSoftwareWantsNMI = False
     }
 
 
-ppuNESCycle :: ((outerState -> Word16 -> (Word8, outerState)),
-                (outerState -> PPU_NES_State),
-                (outerState -> PPU_NES_State -> outerState))
-            -> outerState
-            -> outerState
-ppuNESCycle (fetchByte, getState, putState) outerState =
+cycle :: ((outerState -> Word16 -> (Word8, outerState)),
+          (outerState -> PPU_NES_State),
+          (outerState -> PPU_NES_State -> outerState))
+      -> outerState
+      -> outerState
+cycle (fetchByte, getState, putState) outerState =
   let ppuState = getState outerState
       horizontalClock = ppuNESStateHorizontalClock ppuState
       verticalClock = ppuNESStateVerticalClock ppuState
       horizontalClock' = mod (horizontalClock + 1) 341
       verticalClock' = if horizontalClock == 340
-                         then if verticalClock == 260
-                                then -1
-                                else verticalClock + 1
+                         then mod (verticalClock + 1) 262
                          else verticalClock
+      stillPoweringUp = ppuNESStateStillPoweringUp ppuState
+      stillPoweringUp' =
+        case (stillPoweringUp, horizontalClock, verticalClock) of
+          (False, _, _) -> False
+          (True, 314, 260) -> False
+          (True, _, _) -> True
+      wantsToAssertNMI = ppuNESStateWantsToAssertNMI ppuState
+      wantsToAssertNMI' =
+        case (wantsToAssertNMI, horizontalClock, verticalClock) of
+          (_, 0, 240) -> True
+          (_, 0, 260) -> False
+          (oldValue, _, _) -> oldValue
       ppuState' = ppuState {
                       ppuNESStateHorizontalClock = horizontalClock',
-                      ppuNESStateVerticalClock = verticalClock'
+                      ppuNESStateVerticalClock = verticalClock',
+                      ppuNESStateStillPoweringUp = stillPoweringUp',
+                      ppuNESStateWantsToAssertNMI = wantsToAssertNMI'
                     }
       outerState' = putState outerState ppuState'
   in outerState'

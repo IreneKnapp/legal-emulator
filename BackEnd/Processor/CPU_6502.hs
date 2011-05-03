@@ -5,20 +5,21 @@ module Processor.CPU_6502
    AddressingMode(..),
    InternalRegister(..),
    InstructionCharacter(..),
-   cpu6502PowerOnState,
-   cpu6502Cycle,
+   powerOnState,
+   cycle,
    computeInternalRegister,
-   cpu6502DecodeInstructionMnemonicAndAddressingMode,
+   decodeInstructionMnemonicAndAddressingMode,
    characterizeMnemonic,
    mnemonicRegister,
-   cpu6502NBytes,
-   cpu6502AtInstructionStart
+   nBytes,
+   atInstructionStart
   )
   where
 
 import Data.Bits
 import Data.Int
 import Data.Word
+import Prelude hiding (cycle)
 
 
 data CPU_6502_State =
@@ -183,8 +184,8 @@ data MicrocodeInstruction =
     deriving (Show)
 
 
-cpu6502PowerOnState :: CPU_6502_State
-cpu6502PowerOnState =
+powerOnState :: CPU_6502_State
+powerOnState =
   CPU_6502_State {
       cpu6502StateProgramCounter = 0xC000,
       cpu6502StateStackPointer = 0xFD,
@@ -201,13 +202,13 @@ cpu6502PowerOnState =
     }
 
 
-cpu6502Cycle :: ((outerState -> Word16 -> (Word8, outerState)),
-                 (outerState -> Word16 -> Word8 -> outerState),
-                 (outerState -> CPU_6502_State),
-                 (outerState -> CPU_6502_State -> outerState))
-             -> outerState
-             -> outerState
-cpu6502Cycle (fetchByte, storeByte, getState, putState) outerState =
+cycle :: ((outerState -> Word16 -> (Word8, outerState)),
+          (outerState -> Word16 -> Word8 -> outerState),
+          (outerState -> CPU_6502_State),
+          (outerState -> CPU_6502_State -> outerState))
+      -> outerState
+      -> outerState
+cycle (fetchByte, storeByte, getState, putState) outerState =
   let checkForSetting =
         microcodeInstructionSettingStoredValueBits
       checkForClearing =
@@ -901,9 +902,9 @@ statusTestOverflow :: Word8 -> Bool
 statusTestOverflow status = testBit status 6
 
 
-cpu6502DecodeInstructionMnemonicAndAddressingMode
+decodeInstructionMnemonicAndAddressingMode
     :: Word8 -> Maybe (InstructionMnemonic, AddressingMode, Bool)
-cpu6502DecodeInstructionMnemonicAndAddressingMode opcode =
+decodeInstructionMnemonicAndAddressingMode opcode =
   case opcode of
     0x00 -> Just (BRK, ImpliedAddressing, False)
     0x01 -> Just (ORA, XIndexedIndirectAddressing, False)
@@ -1165,7 +1166,7 @@ cpu6502DecodeInstructionMnemonicAndAddressingMode opcode =
 
 decodeOperation :: Word8 -> [MicrocodeInstruction]
 decodeOperation opcode =
-  case cpu6502DecodeInstructionMnemonicAndAddressingMode opcode of
+  case decodeInstructionMnemonicAndAddressingMode opcode of
     Nothing -> []
     Just (mnemonic, addressing, _) ->
       case (addressing, characterizeMnemonic mnemonic) of
@@ -2343,8 +2344,8 @@ alsoUpdateStatusForRegister register microcodeInstruction =
     }
 
 
-cpu6502NBytes :: AddressingMode -> Int
-cpu6502NBytes addressingMode =
+nBytes :: AddressingMode -> Int
+nBytes addressingMode =
   case addressingMode of
      AccumulatorAddressing -> 1
      ImmediateAddressing -> 2
@@ -2361,8 +2362,8 @@ cpu6502NBytes addressingMode =
      AbsoluteIndirectAddressing -> 3
 
 
-cpu6502AtInstructionStart :: CPU_6502_State -> Bool
-cpu6502AtInstructionStart cpuState =
+atInstructionStart :: CPU_6502_State -> Bool
+atInstructionStart cpuState =
   case cpu6502StateMicrocodeInstructionQueue cpuState of
     [] -> False
     (microcodeInstruction : _) ->
