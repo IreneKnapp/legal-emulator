@@ -36,6 +36,12 @@ foreign export ccall "gamestate_free" gamestateFree
     :: StablePtr NES.State -> IO ()
 foreign export ccall "gamestate_frame_forward" gamestateFrameForward
     :: StablePtr NES.State -> IO (StablePtr NES.State)
+foreign export ccall "gamestate_get_video_frame" gamestateGetVideoFrame
+    :: StablePtr NES.State -> IO (StablePtr PPU.VideoFrame)
+foreign export ccall "video_frame_free" videoFrameFree
+    :: StablePtr PPU.VideoFrame -> IO ()
+foreign export ccall "video_frame_get_name_table" videoFrameGetNameTable
+    :: StablePtr PPU.VideoFrame -> Ptr Word8 -> IO ()
 
 
 stringNew :: String -> IO CString
@@ -165,3 +171,30 @@ gamestateFrameForward state = do
           then newStablePtr state
           else loop vblankEnded' $ NES.cycle state
   loop False state
+
+
+gamestateGetVideoFrame :: StablePtr NES.State -> IO (StablePtr PPU.VideoFrame)
+gamestateGetVideoFrame state = do
+  state <- deRefStablePtr state
+  let softwareState = NES.stateSoftwareState state
+      ppuState = NES.softwareStatePPUState softwareState
+      maybeVideoFrame = PPU.ppuNESStateLatestCompleteFrame ppuState
+  case maybeVideoFrame of
+    Nothing -> return $ castPtrToStablePtr nullPtr
+    Just videoFrame -> newStablePtr videoFrame
+
+
+videoFrameFree :: StablePtr PPU.VideoFrame -> IO ()
+videoFrameFree videoFrame = freeStablePtr videoFrame
+
+
+videoFrameGetNameTable :: StablePtr PPU.VideoFrame -> Ptr Word8 -> IO ()
+videoFrameGetNameTable videoFrame buffer = do
+  videoFrame <- deRefStablePtr videoFrame
+  mapM_ (\y -> do
+           let bufferRow = advancePtr buffer $ y * 33
+           mapM_ (\x -> do
+                    let bufferCell = advancePtr bufferRow x
+                    poke bufferCell 0x00)
+                 [0 .. 32])
+        [0 .. 29]

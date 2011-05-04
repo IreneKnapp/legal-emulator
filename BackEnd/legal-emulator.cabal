@@ -17,7 +17,8 @@ description:
 
 Library
   exposed-modules: Emulator
-  other-modules: FileFormat.INES,
+  other-modules: Assembly,
+                 FileFormat.INES,
                  Motherboard.NES,
                  PPU.PPU_NES,
                  Processor.CPU_6502

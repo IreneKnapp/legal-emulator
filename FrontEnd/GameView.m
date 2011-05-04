@@ -19,6 +19,10 @@
 
 - (void) prepareGameFromFilename: (NSString *) filename {
     game = emulator_load_game((char *) [filename UTF8String]);
+    gamestate = game_power_on_state(game);
+    void *next_gamestate = gamestate_frame_forward(gamestate);
+    gamestate_free(gamestate);
+    gamestate = next_gamestate;
     
     NSString *windowTitle = @"No Game";
     if(game) {
@@ -249,6 +253,7 @@
     
     glStencilFunc(GL_NEVER, 0x00, 0xFF);
     glBindTexture(GL_TEXTURE_2D, 0);
+    /*
     glBegin(GL_QUADS);
     glVertex2s(13, 118);
     glVertex2s(256, 118);
@@ -259,35 +264,66 @@
     glVertex2s(256, 240);
     glVertex2s(0, 240);
     glEnd();
+    */
     
     glStencilFunc(GL_EQUAL, 0xFF, 0x80);
     glDepthFunc(GL_NEVER);
     
-    glStencilMask(0x01);
-    glBindTexture(GL_TEXTURE_2D, textures[currentTexture]);
-    glBegin(GL_QUADS);
-    glTexCoord2f(0.0, 0.0);
-    glVertex2s(0, 0);
-    glTexCoord2f(1.0, 0.0);
-    glVertex2s(128, 0);
-    glTexCoord2f(1.0, 1.0);
-    glVertex2s(128, 128);
-    glTexCoord2f(0.0, 1.0);
-    glVertex2s(0, 128);
-    glEnd();
+    void *video_frame = gamestate_get_video_frame(gamestate);
+    uint8_t *name_table = malloc(sizeof(uint8_t) * 30 * 33);
+    video_frame_get_name_table(video_frame, name_table);
+    video_frame_free(video_frame);
     
-    glStencilMask(0x02);
-    glBindTexture(GL_TEXTURE_2D, textures[currentTexture+1]);
-    glBegin(GL_QUADS);
-    glTexCoord2f(0.0, 0.0);
-    glVertex2s(0, 0);
-    glTexCoord2f(1.0, 0.0);
-    glVertex2s(128, 0);
-    glTexCoord2f(1.0, 1.0);
-    glVertex2s(128, 128);
-    glTexCoord2f(0.0, 1.0);
-    glVertex2s(0, 128);
-    glEnd();
+    for(int nameTableY = 0; nameTableY < 30; nameTableY++) {
+        for(int nameTableX = 0; nameTableX < 33; nameTableX++) {
+            uint8_t name = name_table[nameTableY * 33 + nameTableX];
+            int patternTableCellX = name % 16;
+            int patternTableCellY = name / 16;
+            int patternTablePixelLeft = patternTableCellX * 8;
+            int patternTablePixelRight = patternTablePixelLeft + 8;
+            int patternTablePixelTop = patternTableCellY * 8;
+            int patternTablePixelBottom = patternTablePixelTop + 8;
+            float patternTableTextureLeft = patternTablePixelLeft / 128.0;
+            float patternTableTextureRight = patternTablePixelRight / 128.0;
+            float patternTableTextureTop = patternTablePixelTop / 128.0;
+            float patternTableTextureBottom = patternTablePixelBottom / 128.0;
+            
+            int backgroundCellX = nameTableX;
+            int backgroundCellY = nameTableY;
+            int backgroundPixelLeft = backgroundCellX * 8;
+            int backgroundPixelRight = backgroundPixelLeft + 8;
+            int backgroundPixelTop = backgroundCellY * 8;
+            int backgroundPixelBottom = backgroundPixelTop + 8;
+            
+            glStencilMask(0x01);
+            glBindTexture(GL_TEXTURE_2D, textures[currentTexture]);
+            glBegin(GL_QUADS);
+            glTexCoord2f(patternTableTextureLeft, patternTableTextureTop);
+            glVertex2s(backgroundPixelLeft, backgroundPixelTop);
+            glTexCoord2f(patternTableTextureRight, patternTableTextureTop);
+            glVertex2s(backgroundPixelRight, backgroundPixelTop);
+            glTexCoord2f(patternTableTextureRight, patternTableTextureBottom);
+            glVertex2s(backgroundPixelRight, backgroundPixelBottom);
+            glTexCoord2f(patternTableTextureLeft, patternTableTextureBottom);
+            glVertex2s(backgroundPixelLeft, backgroundPixelBottom);
+            glEnd();
+            
+            glStencilMask(0x02);
+            glBindTexture(GL_TEXTURE_2D, textures[currentTexture+1]);
+            glBegin(GL_QUADS);
+            glTexCoord2f(patternTableTextureLeft, patternTableTextureTop);
+            glVertex2s(backgroundPixelLeft, backgroundPixelTop);
+            glTexCoord2f(patternTableTextureRight, patternTableTextureTop);
+            glVertex2s(backgroundPixelRight, backgroundPixelTop);
+            glTexCoord2f(patternTableTextureRight, patternTableTextureBottom);
+            glVertex2s(backgroundPixelRight, backgroundPixelBottom);
+            glTexCoord2f(patternTableTextureLeft, patternTableTextureBottom);
+            glVertex2s(backgroundPixelLeft, backgroundPixelBottom);
+            glEnd();
+        }
+    }
+    
+    free(name_table);
     
     glBindTexture(GL_TEXTURE_2D, 0);
     

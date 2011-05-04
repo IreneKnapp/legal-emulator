@@ -18,6 +18,7 @@
     GLuint shader;
     GLuint program;
     void *game;
+    void *gamestate;
 }
 
 - (void) awakeFromNib;

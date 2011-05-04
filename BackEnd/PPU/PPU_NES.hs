@@ -1,11 +1,13 @@
 module PPU.PPU_NES
   (
    PPU_NES_State(..),
+   VideoFrame(..),
    powerOnState,
    cycle
   )
   where
 
+import Data.Array.Unboxed
 import Data.Word
 import Prelude hiding (cycle)
 
@@ -16,11 +18,15 @@ data PPU_NES_State =
       ppuNESStateVerticalClock :: Int,
       ppuNESStateStillPoweringUp :: Bool,
       ppuNESStateWantsToAssertNMI :: Bool,
-      ppuNESStateSoftwareWantsNMI :: Bool
-      {-
-      ppuNESStateCompleteFrame :: PPUFrame
-      ppuNESStateChanges :: [(Int, Int, PPUChagne)]
-      -}
+      ppuNESStateSoftwareWantsNMI :: Bool,
+      ppuNESStateLatestCompleteFrame :: Maybe VideoFrame
+      --ppuNESStateChanges :: [(Int, Int, PPUChagne)]
+    }
+
+
+data VideoFrame =
+  VideoFrame {
+      videoFrameNameTable :: UArray (Int, Int) Word8
     }
 
 
@@ -31,7 +37,8 @@ powerOnState =
       ppuNESStateVerticalClock = 241,
       ppuNESStateStillPoweringUp = True,
       ppuNESStateWantsToAssertNMI = True,
-      ppuNESStateSoftwareWantsNMI = False
+      ppuNESStateSoftwareWantsNMI = False,
+      ppuNESStateLatestCompleteFrame = Nothing
     }
 
 
@@ -66,5 +73,24 @@ cycle (fetchByte, getState, putState) outerState =
                       ppuNESStateStillPoweringUp = stillPoweringUp',
                       ppuNESStateWantsToAssertNMI = wantsToAssertNMI'
                     }
-      outerState' = putState outerState ppuState'
+      newlyCompleteFrame =
+        case (horizontalClock', verticalClock') of
+          (0, 240) -> Just $ computeVideoFrame ppuState'
+          _ -> ppuNESStateLatestCompleteFrame ppuState'
+      ppuState'' = ppuState' {
+                      ppuNESStateLatestCompleteFrame = newlyCompleteFrame
+                    }
+      outerState' = putState outerState ppuState''
   in outerState'
+
+
+computeVideoFrame :: PPU_NES_State -> VideoFrame
+computeVideoFrame ppuState =
+  VideoFrame {
+      videoFrameNameTable =
+        array ((0, 0), (32, 29))
+              $ map (\index@(x, y) ->
+                       let name = 0x00
+                       in (index, name))
+                    [(x, y) | y <- [0 .. 29], x <- [0 .. 32]]
+    }

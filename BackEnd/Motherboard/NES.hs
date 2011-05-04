@@ -25,6 +25,9 @@ import Prelude hiding (cycle)
 import qualified Processor.CPU_6502 as CPU
 import qualified PPU.PPU_NES as PPU
 
+import Debug.Trace
+import Assembly
+
 
 data Mirroring = HorizontalMirroring
                | VerticalMirroring
@@ -221,7 +224,10 @@ fetch state dataBus addressMapping offset =
                 value = memory ! fromIntegral offset
             in (state, value)
           PPURegisters ->
-            (state, 0x00)
+            trace ("Read from $"
+                   ++ (showHexWord16 $ 0x2000 + offset)
+                   ++ ".")
+                  (state, 0x00)
           NoMemory ->
             let softwareState = stateSoftwareState state
                 value = case dataBus of
@@ -295,7 +301,12 @@ store state dataBus addressMapping offset value =
                     stateSoftwareState = softwareState'
                   }
           ProgramReadOnlyMemory -> state
-          PPURegisters -> state
+          PPURegisters -> trace ("Write $"
+                                 ++ (showHexWord8 value)
+                                 ++ " to $"
+                                 ++ (showHexWord16 $ 0x2000 + offset)
+                                 ++ ".")
+                                state
           NoMemory -> state
   in updateLastDataBusValue state' CPUDataBus value
 
