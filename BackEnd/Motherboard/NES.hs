@@ -28,6 +28,9 @@ import Assembly
 import qualified Processor.CPU_6502 as CPU
 import qualified PPU.PPU_NES as PPU
 
+import Debug.Trace
+import Assembly
+
 
 data Mirroring = HorizontalMirroring
                | VerticalMirroring
@@ -120,26 +123,43 @@ powerOnSoftwareState =
 
 cpuDecodeAddress :: State
                  -> Word16
-                 -> (AddressMapping, Word16)
+                 -> (AddressMapping, Int)
 cpuDecodeAddress state address =
-  case () of
-    () | address < 0x2000 -> (MotherboardCPUMemory, mod address 0x0800)
-       | address < 0x4000 -> (PPURegisters, mod address 0x0008)
-       | address < 0x8000 -> (NoMemory, 0)
-       | address < 0xC000 -> (ProgramReadOnlyMemory, address - 0x8000)
-       | otherwise -> (ProgramReadOnlyMemory, address - 0xC000)
+  let hardwareState = stateHardwareState state
+      programReadOnlyMemory = hardwareStateProgramReadOnlyMemory hardwareState
+      programReadOnlyMemoryBankSize = 0x4000
+      nProgramReadOnlyMemoryBanks =
+        div (1 + (snd $ bounds programReadOnlyMemory))
+            programReadOnlyMemoryBankSize
+      bankOffset bankIndex = bankIndex * programReadOnlyMemoryBankSize
+      lowBankIndex = 0
+      highBankIndex = if nProgramReadOnlyMemoryBanks < 2
+                        then 0
+                        else 1
+  in case () of
+       () | address < 0x2000 -> (MotherboardCPUMemory,
+                                 fromIntegral $ mod address 0x0800)
+          | address < 0x4000 -> (PPURegisters,
+                                 fromIntegral $ mod address 0x0008)
+          | address < 0x8000 -> (NoMemory, 0)
+          | address < 0xC000 -> (ProgramReadOnlyMemory,
+                                 (fromIntegral $ address - 0x8000)
+                                 + bankOffset lowBankIndex)
+          | otherwise -> (ProgramReadOnlyMemory,
+                          (fromIntegral $ address - 0xC000)
+                          + bankOffset highBankIndex)
 
 
 ppuDecodeAddress :: State
                  -> Word16
-                 -> (AddressMapping, Word16)
+                 -> (AddressMapping, Int)
 ppuDecodeAddress state address =
   case mod address 0x4000 of
     address'
-      | address' < 0x2000 -> (CharacterReadOnlyMemory, address')
+      | address' < 0x2000 -> (CharacterReadOnlyMemory, fromIntegral address')
       | address' < 0x3F00 ->
           let tableIndex = div (mod (address' - 0x2000) 0x1000) 0x0400
-              tableOffset = mod (address' - 0x2000) 0x0400
+              tableOffset = fromIntegral $ mod (address' - 0x2000) 0x0400
           in case tableIndex of
                0 -> (MotherboardPPUTableMemory,
                      0x0000 + tableOffset)
@@ -150,40 +170,41 @@ ppuDecodeAddress state address =
                3 -> (MotherboardPPUTableMemory,
                      0x0400 + tableOffset)
       | otherwise ->
-          (MotherboardPPUPaletteMemory, mod (address' - 0x3F00) 0x20)
+          (MotherboardPPUPaletteMemory,
+           fromIntegral $ mod (address' - 0x3F00) 0x20)
 
 
 debugFetch :: State
            -> DataBus
            -> AddressMapping
-           -> Word16
+           -> Int
            -> Word8
 debugFetch state dataBus addressMapping offset =
   case addressMapping of
     MotherboardCPUMemory ->
       let softwareState = stateSoftwareState state
           memory = softwareStateMotherboardCPUMemory softwareState
-      in memory ! fromIntegral offset
+      in memory ! offset
     MotherboardPPUTableMemory ->
       let softwareState = stateSoftwareState state
           memory = softwareStateMotherboardPPUTableMemory softwareState
-      in memory ! fromIntegral offset
+      in memory ! offset
     MotherboardPPUPaletteMemory ->
       let softwareState = stateSoftwareState state
           memory = softwareStateMotherboardPPUPaletteMemory softwareState
-      in memory ! fromIntegral offset
+      in memory ! offset
     MotherboardPPUSpriteMemory ->
       let softwareState = stateSoftwareState state
           memory = softwareStateMotherboardPPUSpriteMemory softwareState
-      in memory ! fromIntegral offset
+      in memory ! offset
     ProgramReadOnlyMemory ->
       let hardwareState = stateHardwareState state
           memory = hardwareStateProgramReadOnlyMemory hardwareState
-      in memory ! fromIntegral offset
+      in memory ! offset
     CharacterReadOnlyMemory ->
       let hardwareState = stateHardwareState state
           memory = hardwareStateCharacterReadOnlyMemory hardwareState
-      in memory ! fromIntegral offset
+      in memory ! offset
     PPURegisters ->
       0x00
     NoMemory ->
@@ -193,7 +214,7 @@ debugFetch state dataBus addressMapping offset =
 fetch :: State
       -> DataBus
       -> AddressMapping
-      -> Word16
+      -> Int
       -> (State, Word8)
 fetch state dataBus addressMapping offset =
   let (state', value) =
@@ -201,27 +222,27 @@ fetch state dataBus addressMapping offset =
           MotherboardCPUMemory ->
             let softwareState = stateSoftwareState state
                 memory = softwareStateMotherboardCPUMemory softwareState
-                value = memory ! fromIntegral offset
+                value = memory ! offset
             in (state, value)
           MotherboardPPUTableMemory ->
             let softwareState = stateSoftwareState state
                 memory = softwareStateMotherboardPPUTableMemory softwareState
-                value = memory ! fromIntegral offset
+                value = memory ! offset
             in (state, value)
           MotherboardPPUPaletteMemory ->
             let softwareState = stateSoftwareState state
                 memory = softwareStateMotherboardPPUPaletteMemory softwareState
-                value = memory ! fromIntegral offset
+                value = memory ! offset
             in (state, value)
           MotherboardPPUSpriteMemory ->
             let softwareState = stateSoftwareState state
                 memory = softwareStateMotherboardPPUSpriteMemory softwareState
-                value = memory ! fromIntegral offset
+                value = memory ! offset
             in (state, value)
           ProgramReadOnlyMemory ->
             let hardwareState = stateHardwareState state
                 memory = hardwareStateProgramReadOnlyMemory hardwareState
-                value = memory ! fromIntegral offset
+                value = memory ! offset
             in (state, value)
           PPURegisters ->
             let register = PPU.decodeRegister offset
@@ -239,7 +260,7 @@ fetch state dataBus addressMapping offset =
 store :: State
       -> DataBus
       -> AddressMapping
-      -> Word16
+      -> Int
       -> Word8
       -> State
 store state dataBus addressMapping offset value =
@@ -348,15 +369,23 @@ cpuCallbacks = ((\state address ->
                                CPUDataBus
                                addressMapping
                                localAddress
-                   in (value, state')),
+                   in trace ("Read $"
+                             ++ showHexWord8 value
+                             ++ " from $"
+                             ++ showHexWord16 address)
+                            (value, state')),
                 (\state address value ->
                    let (addressMapping, localAddress) =
                          cpuDecodeAddress state address
-                   in store state
-                            CPUDataBus
-                            addressMapping
-                            localAddress
-                            value),
+                   in trace ("Write $"
+                             ++ showHexWord8 value
+                             ++ " to $"
+                             ++ showHexWord16 address)
+                      $ store state
+                              CPUDataBus
+                              addressMapping
+                              localAddress
+                              value),
                 (\_ -> False),
                 (\state ->
                   let softwareState = stateSoftwareState state

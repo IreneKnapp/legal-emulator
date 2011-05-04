@@ -17,6 +17,8 @@ import qualified Motherboard.NES as NES
 import qualified PPU.PPU_NES as PPU
 import qualified Processor.CPU_6502 as CPU
 
+import Debug.Trace
+
 
 foreign export ccall "string_free" stringFree
     :: CString -> IO ()
@@ -202,7 +204,10 @@ gamestateFrameForward state tracePointer = do
                 poke tracePointer traceCString
               else return ()
             newStablePtr state
-          else loop vblankEnded' traceLines' $ NES.cycle state
+          else if NES.aboutToBeginInstruction state
+                 then trace (last traceLines')
+                            $ loop vblankEnded' traceLines' $ NES.cycle state
+                 else loop vblankEnded' traceLines' $ NES.cycle state
   loop False [] state
 
 

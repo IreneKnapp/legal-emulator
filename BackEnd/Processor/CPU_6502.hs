@@ -1918,7 +1918,7 @@ powerOnMicrocode =
                                      ProgramCounterLowByte)
      [],
    buildMicrocodeInstruction
-    (fetchValueMicrocodeInstruction (FixedAddressSource 0xFFFF)
+    (fetchValueMicrocodeInstruction (FixedAddressSource 0xFFFD)
                                     ProgramCounterHighByte)
     [],
    fetchOpcodeMicrocodeInstruction]

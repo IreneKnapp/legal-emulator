@@ -65,7 +65,7 @@ powerOnState =
     }
 
 
-decodeRegister :: Word16 -> Register
+decodeRegister :: Int -> Register
 decodeRegister offset =
   case offset of
     0 -> Control1
