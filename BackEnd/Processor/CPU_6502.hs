@@ -40,7 +40,9 @@ data CPU_6502_State =
       cpu6502StateInternalStoredAddress :: Word16,
       cpu6502StateInternalLatch :: Word8,
       cpu6502StateMicrocodeInstructionQueue :: [MicrocodeInstruction],
-      cpu6502StateInterruptNoticed :: Maybe InterruptType
+      cpu6502StateInterruptNoticed :: Maybe InterruptType,
+      cpu6502StateInterruptAlreadyProcessed :: Bool,
+      cpu6502StateNonMaskableInterruptAlreadyProcessed :: Bool
     }
 
 
@@ -210,7 +212,9 @@ powerOnState =
       cpu6502StateInternalStoredAddress = 0x0000,
       cpu6502StateInternalLatch = 0x00,
       cpu6502StateMicrocodeInstructionQueue = powerOnMicrocode,
-      cpu6502StateInterruptNoticed = Nothing
+      cpu6502StateInterruptNoticed = Nothing,
+      cpu6502StateInterruptAlreadyProcessed = False,
+      cpu6502StateNonMaskableInterruptAlreadyProcessed = False
     }
 
 
@@ -523,12 +527,24 @@ cycle (fetchByte,
                   internalOverflowA' || internalOverflowB'
                 internalNegative' =
                   internalNegativeA' || internalNegativeB'
+                interruptAlreadyProcessed =
+                  cpu6502StateInterruptAlreadyProcessed cpuState''
+                interruptAlreadyProcessed' =
+                  interruptAlreadyProcessed
+                  && getIRQAsserted outerState
+                nonMaskableInterruptAlreadyProcessed =
+                  cpu6502StateNonMaskableInterruptAlreadyProcessed cpuState''
+                nonMaskableInterruptAlreadyProcessed' =
+                  nonMaskableInterruptAlreadyProcessed
+                  && getNMIAsserted outerState
                 interruptNoticed =
                   cpu6502StateInterruptNoticed cpuState''
                 interruptNoticed' =
                   case (interruptNoticed,
-                        getIRQAsserted outerState,
-                        getNMIAsserted outerState) of
+                        getIRQAsserted outerState
+                        && not interruptAlreadyProcessed,
+                        getNMIAsserted outerState
+                        && not nonMaskableInterruptAlreadyProcessed) of
                     (Just NonMaskableInterrupt, _, _) ->
                       Just NonMaskableInterrupt
                     (_, _, True) ->
@@ -539,24 +555,29 @@ cycle (fetchByte,
                       Just Interrupt
                     (_, False, False) ->
                       interruptNoticed
-                cpuState''' = cpuState'' {
-                                  cpu6502StateProgramCounter = programCounter',
-                                  cpu6502StateInternalStoredAddress =
-                                    storedAddress'',
-                                  cpu6502StateStackPointer = stackPointer',
-                                  cpu6502StateXIndexRegister = xIndexRegister',
-                                  cpu6502StateYIndexRegister = yIndexRegister',
-                                  cpu6502StateAccumulator = accumulator',
-                                  cpu6502StateInternalLatch = latch',
-                                  cpu6502StateStatusRegister =
-                                    statusRegister''',
-                                  cpu6502StateInternalOverflow =
-                                    internalOverflow',
-                                  cpu6502StateInternalNegative =
-                                    internalNegative',
-                                  cpu6502StateInterruptNoticed =
-                                    interruptNoticed'
-                                }
+                cpuState''' =
+                  cpuState'' {
+                      cpu6502StateProgramCounter = programCounter',
+                      cpu6502StateInternalStoredAddress =
+                        storedAddress'',
+                      cpu6502StateStackPointer = stackPointer',
+                      cpu6502StateXIndexRegister = xIndexRegister',
+                      cpu6502StateYIndexRegister = yIndexRegister',
+                      cpu6502StateAccumulator = accumulator',
+                      cpu6502StateInternalLatch = latch',
+                      cpu6502StateStatusRegister =
+                      statusRegister''',
+                      cpu6502StateInternalOverflow =
+                        internalOverflow',
+                      cpu6502StateInternalNegative =
+                        internalNegative',
+                      cpu6502StateInterruptNoticed =
+                        interruptNoticed',
+                      cpu6502StateInterruptAlreadyProcessed =
+                        interruptAlreadyProcessed',
+                      cpu6502StateNonMaskableInterruptAlreadyProcessed =
+                        nonMaskableInterruptAlreadyProcessed'
+                    }
                 (microcodeInstructionQueue'', interruptNoticed'') =
                   if microcodeInstructionDecodeOperation
                       microcodeInstruction
