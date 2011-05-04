@@ -237,7 +237,7 @@ cycle (fetchByte, storeByte, getTableMemory, getState, putState) outerState =
       wantsToAssertNMI = ppuNESStateWantsToAssertNMI ppuState
       wantsToAssertNMI' =
         case (wantsToAssertNMI, horizontalClock, verticalClock) of
-          (_, 0, 240) -> True
+          (_, 0, 241) -> True
           (_, 0, 260) -> False
           (oldValue, _, _) -> oldValue
       ppuState' = ppuState {
