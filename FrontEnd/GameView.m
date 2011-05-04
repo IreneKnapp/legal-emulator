@@ -14,13 +14,20 @@
 
 - (void) awakeFromNib {
     initialized = NO;
+    traceExecution = YES;
 }
 
 
 - (void) prepareGameFromFilename: (NSString *) filename {
     game = emulator_load_game((char *) [filename UTF8String]);
     gamestate = game_power_on_state(game);
-    void *next_gamestate = gamestate_frame_forward(gamestate);
+    char *trace = NULL;
+    void *next_gamestate
+      = gamestate_frame_forward(gamestate, traceExecution ? trace : NULL);
+    if(trace) {
+        printf("%s", trace);
+        string_free(trace);
+    }
     gamestate_free(gamestate);
     gamestate = next_gamestate;
     
@@ -270,7 +277,7 @@
     glDepthFunc(GL_NEVER);
     
     void *video_frame = gamestate_get_video_frame(gamestate);
-    uint8_t *name_table = malloc(sizeof(uint8_t) * 30 * 33);
+    uint8_t *name_table = malloc(sizeof(uint8_t) * 33 * 30);
     video_frame_get_name_table(video_frame, name_table);
     video_frame_free(video_frame);
     

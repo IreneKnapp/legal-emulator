@@ -21,15 +21,13 @@ module Motherboard.NES
   where
 
 import Data.Array.Unboxed
+import qualified Data.ByteString as BS
 import Data.Word
 import Prelude hiding (cycle)
 
 import Assembly
 import qualified Processor.CPU_6502 as CPU
 import qualified PPU.PPU_NES as PPU
-
-import Debug.Trace
-import Assembly
 
 
 data Mirroring = HorizontalMirroring
@@ -47,6 +45,7 @@ data State =
   State {
       stateHardwareState :: HardwareState,
       stateSoftwareState :: SoftwareState
+      -- stateConsoleOutputBuffer :: ByteString
     }
 
 
@@ -369,19 +368,19 @@ cpuCallbacks = ((\state address ->
                                CPUDataBus
                                addressMapping
                                localAddress
-                   in trace ("Read $"
+                   in {-trace ("Read $"
                              ++ showHexWord8 value
                              ++ " from $"
-                             ++ showHexWord16 address)
+                             ++ showHexWord16 address)-}
                             (value, state')),
                 (\state address value ->
                    let (addressMapping, localAddress) =
                          cpuDecodeAddress state address
-                   in trace ("Write $"
+                   in {-trace ("Write $"
                              ++ showHexWord8 value
                              ++ " to $"
                              ++ showHexWord16 address)
-                      $ store state
+                      $-} store state
                               CPUDataBus
                               addressMapping
                               localAddress
@@ -406,6 +405,7 @@ cpuCallbacks = ((\state address ->
 
 ppuCallbacks :: ((State -> Word16 -> (Word8, State)),
                  (State -> Word16 -> Word8 -> State),
+                 (State -> (Word16 -> Word8)),
                  (State -> PPU.PPU_NES_State),
                  (State -> PPU.PPU_NES_State -> State))
 ppuCallbacks = ((\state address ->
@@ -422,6 +422,11 @@ ppuCallbacks = ((\state address ->
                             addressMapping
                             localAddress
                             value),
+                (\state ->
+                   let softwareState = stateSoftwareState state
+                       memory =
+                         softwareStateMotherboardPPUTableMemory softwareState
+                   in (\offset -> memory ! fromIntegral offset)),
                 (\state -> softwareStatePPUState $ stateSoftwareState state),
                 (\state ppuState ->
                    let softwareState = stateSoftwareState state
@@ -493,5 +498,9 @@ disassembleUpcomingInstruction state =
                        leftPad (show $ PPU.ppuNESStateHorizontalClock ppuState)
                                3),
                       ("SL",
-                       show $ PPU.ppuNESStateVerticalClock ppuState)]
+                       show $ PPU.ppuNESStateVerticalClock ppuState),
+                      ("F",
+                       case PPU.ppuNESStateLatestCompleteFrame ppuState of
+                         Nothing -> "no"
+                         Just _ -> "yes")]
   in disassembly

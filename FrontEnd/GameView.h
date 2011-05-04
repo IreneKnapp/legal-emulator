@@ -19,6 +19,7 @@
     GLuint program;
     void *game;
     void *gamestate;
+    BOOL traceExecution;
 }
 
 - (void) awakeFromNib;

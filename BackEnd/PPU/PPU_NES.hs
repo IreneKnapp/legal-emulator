@@ -19,9 +19,6 @@ import Data.Bits
 import Data.Word
 import Prelude hiding (cycle)
 
-import Debug.Trace
-import Assembly
-
 
 data PPU_NES_State =
   PPU_NES_State {
@@ -30,6 +27,7 @@ data PPU_NES_State =
       ppuNESStateStillPoweringUp :: Bool,
       ppuNESStateWantsToAssertNMI :: Bool,
       ppuNESStateAllowedToAssertNMI :: Bool,
+      ppuNESStateIncompleteFrame :: IncompleteVideoFrame,
       ppuNESStateLatestCompleteFrame :: Maybe VideoFrame
       --ppuNESStateChanges :: [(Int, Int, PPUChange)]
     }
@@ -47,6 +45,12 @@ data Register
   deriving (Eq, Show)
 
 
+data IncompleteVideoFrame =
+  IncompleteVideoFrame {
+      incompleteVideoFrameNameTableMemory :: Word16 -> Word8
+    }
+
+
 data VideoFrame =
   VideoFrame {
       videoFrameNameTable :: UArray (Int, Int) Word8
@@ -61,6 +65,7 @@ powerOnState =
       ppuNESStateStillPoweringUp = True,
       ppuNESStateWantsToAssertNMI = True,
       ppuNESStateAllowedToAssertNMI = False,
+      ppuNESStateIncompleteFrame = blankIncompleteVideoFrame,
       ppuNESStateLatestCompleteFrame = Nothing
     }
 
@@ -106,12 +111,13 @@ registerWriteable register =
 
 registerFetch :: ((outerState -> Word16 -> (Word8, outerState)),
                   (outerState -> Word16 -> Word8 -> outerState),
+                  (outerState -> (Word16 -> Word8)),
                   (outerState -> PPU_NES_State),
                   (outerState -> PPU_NES_State -> outerState))
               -> outerState
               -> Register
               -> (outerState, Word8)
-registerFetch (_, _, getState, putState) outerState register =
+registerFetch (_, _, _, getState, putState) outerState register =
   let ppuState = getState outerState
       (ppuState', value) =
         case register of
@@ -126,18 +132,18 @@ registerFetch (_, _, getState, putState) outerState register =
                 ppuState' = ppuState {
                                 ppuNESStateWantsToAssertNMI = False
                               }
-            in trace ("Read $"
+            in {-trace ("Read $"
                       ++ (showHexWord8 value)
                       ++ " from "
-                      ++ (show register))
+                      ++ (show register))-}
                      (ppuState', value)
           Access ->
             let value = 0x00
                 ppuState' = ppuState
-            in trace ("Read $"
+            in {-trace ("Read $"
                       ++ (showHexWord8 value)
                       ++ " from "
-                      ++ (show register))
+                      ++ (show register))-}
                      (ppuState', value)
       outerState' = putState outerState ppuState'
   in (outerState', value)
@@ -145,13 +151,14 @@ registerFetch (_, _, getState, putState) outerState register =
 
 registerStore :: ((outerState -> Word16 -> (Word8, outerState)),
                   (outerState -> Word16 -> Word8 -> outerState),
+                  (outerState -> (Word16 -> Word8)),
                   (outerState -> PPU_NES_State),
                   (outerState -> PPU_NES_State -> outerState))
               -> outerState
               -> Register
               -> Word8
               -> outerState
-registerStore (_, _, getState, putState) outerState register value =
+registerStore (_, _, _, getState, putState) outerState register value =
   let ppuState = getState outerState
       (ppuState', outerState') =
         case register of
@@ -163,69 +170,69 @@ registerStore (_, _, getState, putState) outerState register value =
                                   allowedToAssertNMI'
                               }
                 outerState' = outerState
-            in trace ("Write $"
+            in {-trace ("Write $"
                       ++ (showHexWord8 value)
                       ++ " to "
                       ++ (show register))
-                     $ if stillPoweringUp
+                     $-} if stillPoweringUp
                          then (ppuState, outerState)
                          else (ppuState', outerState')
           Control2 ->
             let stillPoweringUp = ppuNESStateStillPoweringUp ppuState
                 ppuState' = ppuState
                 outerState' = outerState
-            in trace ("Write $"
+            in {-trace ("Write $"
                       ++ (showHexWord8 value)
                       ++ " to "
                       ++ (show register))
-                     $ if stillPoweringUp
+                     $-} if stillPoweringUp
                          then (ppuState, outerState)
                          else (ppuState', outerState')
           SpriteAddress ->
             let ppuState' = ppuState
                 outerState' = outerState
-            in trace ("Write $"
+            in {-trace ("Write $"
                       ++ (showHexWord8 value)
                       ++ " to "
-                      ++ (show register))
+                      ++ (show register))-}
                      (ppuState', outerState')
           SpriteAccess ->
             let ppuState' = ppuState
                 outerState' = outerState
-            in trace ("Write $"
+            in {-trace ("Write $"
                       ++ (showHexWord8 value)
                       ++ " to "
-                      ++ (show register))
+                      ++ (show register))-}
                      (ppuState', outerState')
           PermanentAddress ->
             let stillPoweringUp = ppuNESStateStillPoweringUp ppuState
                 ppuState' = ppuState
                 outerState' = outerState
-            in trace ("Write $"
+            in {-trace ("Write $"
                       ++ (showHexWord8 value)
                       ++ " to "
                       ++ (show register))
-                     $ if stillPoweringUp
+                     $-} if stillPoweringUp
                          then (ppuState, outerState)
                          else (ppuState', outerState')
           TemporaryAddress ->
             let stillPoweringUp = ppuNESStateStillPoweringUp ppuState
                 ppuState' = ppuState
                 outerState' = outerState
-            in trace ("Write $"
+            in {-trace ("Write $"
                       ++ (showHexWord8 value)
                       ++ " to "
                       ++ (show register))
-                     $ if stillPoweringUp
+                     $-} if stillPoweringUp
                          then (ppuState, outerState)
                          else (ppuState', outerState')
           Access ->
             let ppuState' = ppuState
                 outerState' = outerState
-            in trace ("Write $"
+            in {-trace ("Write $"
                       ++ (showHexWord8 value)
                       ++ " to "
-                      ++ (show register))
+                      ++ (show register))-}
                      (ppuState', outerState')
       outerState'' = putState outerState' ppuState'
   in outerState''
@@ -240,11 +247,12 @@ assertingNMI ppuState =
 
 cycle :: ((outerState -> Word16 -> (Word8, outerState)),
           (outerState -> Word16 -> Word8 -> outerState),
+          (outerState -> (Word16 -> Word8)),
           (outerState -> PPU_NES_State),
           (outerState -> PPU_NES_State -> outerState))
       -> outerState
       -> outerState
-cycle (fetchByte, storeByte, getState, putState) outerState =
+cycle (fetchByte, storeByte, getTableMemory, getState, putState) outerState =
   let ppuState = getState outerState
       horizontalClock = ppuNESStateHorizontalClock ppuState
       verticalClock = ppuNESStateVerticalClock ppuState
@@ -270,24 +278,45 @@ cycle (fetchByte, storeByte, getState, putState) outerState =
                       ppuNESStateStillPoweringUp = stillPoweringUp',
                       ppuNESStateWantsToAssertNMI = wantsToAssertNMI'
                     }
-      newlyCompleteFrame =
-        case (horizontalClock', verticalClock') of
+      incompleteFrame =
+        case (horizontalClock, verticalClock) of
+          (0, 240) -> blankIncompleteVideoFrame
+          (0, 0) ->
+            let incompleteFrame = ppuNESStateIncompleteFrame ppuState'
+            in incompleteFrame {
+                   incompleteVideoFrameNameTableMemory =
+                     getTableMemory outerState
+                 }
+          _ -> ppuNESStateIncompleteFrame ppuState'
+      completeFrame =
+        case (horizontalClock, verticalClock) of
           (0, 240) -> Just $ computeVideoFrame ppuState'
           _ -> ppuNESStateLatestCompleteFrame ppuState'
       ppuState'' = ppuState' {
-                      ppuNESStateLatestCompleteFrame = newlyCompleteFrame
+                      ppuNESStateIncompleteFrame = incompleteFrame,
+                      ppuNESStateLatestCompleteFrame = completeFrame
                     }
       outerState' = putState outerState ppuState''
   in outerState'
 
 
+blankIncompleteVideoFrame :: IncompleteVideoFrame
+blankIncompleteVideoFrame =
+  IncompleteVideoFrame {
+      incompleteVideoFrameNameTableMemory = (\_ -> 0x00)
+    }
+
+
 computeVideoFrame :: PPU_NES_State -> VideoFrame
 computeVideoFrame ppuState =
-  VideoFrame {
-      videoFrameNameTable =
-        array ((0, 0), (32, 29))
-              $ map (\index@(x, y) ->
-                       let name = 0x00
-                       in (index, name))
-                    [(x, y) | y <- [0 .. 29], x <- [0 .. 32]]
-    }
+  let incompleteFrame = ppuNESStateIncompleteFrame ppuState
+      nameTableMemory = incompleteVideoFrameNameTableMemory incompleteFrame
+  in VideoFrame {
+        videoFrameNameTable =
+          array ((0, 0), (32, 29))
+                $ map (\index@(x, y) ->
+                         let name = nameTableMemory
+                                     $ fromIntegral $ y * 32 + x
+                         in (index, name))
+                      [(x, y) | y <- [0 .. 29], x <- [0 .. 32]]
+      }

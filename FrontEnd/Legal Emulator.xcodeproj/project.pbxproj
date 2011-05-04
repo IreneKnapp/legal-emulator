@@ -28,7 +28,6 @@
 		E23F890E136C3F7F005F4E19 /* Emulator.hs in Resources */ = {isa = PBXBuildFile; fileRef = E23F890A136C3F7F005F4E19 /* Emulator.hs */; };
 		E23F890F136C3F7F005F4E19 /* EmulatorExtras.c in Sources */ = {isa = PBXBuildFile; fileRef = E23F890B136C3F7F005F4E19 /* EmulatorExtras.c */; };
 		E23F8910136C3F7F005F4E19 /* legal-emulator.cabal in Resources */ = {isa = PBXBuildFile; fileRef = E23F890C136C3F7F005F4E19 /* legal-emulator.cabal */; };
-		E23F8911136C3F7F005F4E19 /* Test.hs in Resources */ = {isa = PBXBuildFile; fileRef = E23F890D136C3F7F005F4E19 /* Test.hs */; };
 		E23F8913136C3F88005F4E19 /* PPU_NES.hs in Resources */ = {isa = PBXBuildFile; fileRef = E23F8912136C3F88005F4E19 /* PPU_NES.hs */; };
 		E23F8915136C3F8F005F4E19 /* NES.hs in Resources */ = {isa = PBXBuildFile; fileRef = E23F8914136C3F8F005F4E19 /* NES.hs */; };
 		E23F8917136C3FA2005F4E19 /* CPU_6502.hs in Resources */ = {isa = PBXBuildFile; fileRef = E23F8916136C3FA2005F4E19 /* CPU_6502.hs */; };
@@ -68,7 +67,6 @@
 		E23F890A136C3F7F005F4E19 /* Emulator.hs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Emulator.hs; path = ../BackEnd/Emulator.hs; sourceTree = SOURCE_ROOT; };
 		E23F890B136C3F7F005F4E19 /* EmulatorExtras.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = EmulatorExtras.c; path = ../BackEnd/EmulatorExtras.c; sourceTree = SOURCE_ROOT; };
 		E23F890C136C3F7F005F4E19 /* legal-emulator.cabal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = "legal-emulator.cabal"; path = "../BackEnd/legal-emulator.cabal"; sourceTree = SOURCE_ROOT; };
-		E23F890D136C3F7F005F4E19 /* Test.hs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Test.hs; path = ../BackEnd/Test.hs; sourceTree = SOURCE_ROOT; };
 		E23F8912136C3F88005F4E19 /* PPU_NES.hs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = PPU_NES.hs; path = ../BackEnd/PPU/PPU_NES.hs; sourceTree = SOURCE_ROOT; };
 		E23F8914136C3F8F005F4E19 /* NES.hs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = NES.hs; path = ../BackEnd/Motherboard/NES.hs; sourceTree = SOURCE_ROOT; };
 		E23F8916136C3FA2005F4E19 /* CPU_6502.hs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = CPU_6502.hs; path = ../BackEnd/Processor/CPU_6502.hs; sourceTree = SOURCE_ROOT; };
@@ -202,7 +200,6 @@
 				E23F890A136C3F7F005F4E19 /* Emulator.hs */,
 				E23F890B136C3F7F005F4E19 /* EmulatorExtras.c */,
 				E23F890C136C3F7F005F4E19 /* legal-emulator.cabal */,
-				E23F890D136C3F7F005F4E19 /* Test.hs */,
 			);
 			name = "Backend Sources";
 			sourceTree = "<group>";
@@ -260,7 +257,6 @@
 				E23F8447136BDE66005F4E19 /* Legal-Emulator.icns in Resources */,
 				E23F890E136C3F7F005F4E19 /* Emulator.hs in Resources */,
 				E23F8910136C3F7F005F4E19 /* legal-emulator.cabal in Resources */,
-				E23F8911136C3F7F005F4E19 /* Test.hs in Resources */,
 				E23F8913136C3F88005F4E19 /* PPU_NES.hs in Resources */,
 				E23F8915136C3F8F005F4E19 /* NES.hs in Resources */,
 				E23F8917136C3FA2005F4E19 /* CPU_6502.hs in Resources */,

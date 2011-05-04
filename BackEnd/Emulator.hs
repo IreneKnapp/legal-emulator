@@ -17,8 +17,6 @@ import qualified Motherboard.NES as NES
 import qualified PPU.PPU_NES as PPU
 import qualified Processor.CPU_6502 as CPU
 
-import Debug.Trace
-
 
 foreign export ccall "string_free" stringFree
     :: CString -> IO ()
@@ -187,7 +185,11 @@ gamestateFrameForward state tracePointer = do
             vblankEnded' =
               vblankEnded
               || ((horizontalClock == 0) && (verticalClock == 261))
-            ppuEligibleToEnd = vblankEnded && (verticalClock >= 240)
+            ppuEligibleToEnd =
+              vblankEnded
+              && (verticalClock >= 240)
+              && (verticalClock < 261)
+              && (isJust $ PPU.ppuNESStateLatestCompleteFrame ppuState)
             cpuState = NES.softwareStateCPUState softwareState
             cpuEligibleToEnd = CPU.atInstructionStart cpuState
             motherboardEligibleToEnd = NES.atCPUCycle state
@@ -204,10 +206,7 @@ gamestateFrameForward state tracePointer = do
                 poke tracePointer traceCString
               else return ()
             newStablePtr state
-          else if NES.aboutToBeginInstruction state
-                 then trace (last traceLines')
-                            $ loop vblankEnded' traceLines' $ NES.cycle state
-                 else loop vblankEnded' traceLines' $ NES.cycle state
+          else loop vblankEnded' traceLines' $ NES.cycle state
   loop False [] state
 
 
@@ -229,10 +228,12 @@ videoFrameFree videoFrame = freeStablePtr videoFrame
 videoFrameGetNameTable :: StablePtr PPU.VideoFrame -> Ptr Word8 -> IO ()
 videoFrameGetNameTable videoFrame buffer = do
   videoFrame <- deRefStablePtr videoFrame
+  let nameTable = PPU.videoFrameNameTable videoFrame
   mapM_ (\y -> do
            let bufferRow = advancePtr buffer $ y * 33
            mapM_ (\x -> do
                     let bufferCell = advancePtr bufferRow x
-                    poke bufferCell 0x00)
+                        value = nameTable ! (x, y)
+                    poke bufferCell value)
                  [0 .. 32])
         [0 .. 29]
