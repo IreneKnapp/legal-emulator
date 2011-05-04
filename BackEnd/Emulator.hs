@@ -34,8 +34,14 @@ foreign export ccall "game_power_on_state" gamePowerOnState
     :: StablePtr NES.HardwareState -> IO (StablePtr NES.State)
 foreign export ccall "gamestate_free" gamestateFree
     :: StablePtr NES.State -> IO ()
+foreign export ccall "gamestate_about_to_begin_instruction"
+                     gamestateAboutToBeginInstruction
+    :: StablePtr NES.State -> IO CInt
+foreign export ccall "gamestate_disassemble_upcoming_instruction"
+                     gamestateDisassembleUpcomingInstruction
+    :: StablePtr NES.State -> IO CString
 foreign export ccall "gamestate_frame_forward" gamestateFrameForward
-    :: StablePtr NES.State -> IO (StablePtr NES.State)
+    :: StablePtr NES.State -> Ptr CString -> IO (StablePtr NES.State)
 foreign export ccall "gamestate_get_video_frame" gamestateGetVideoFrame
     :: StablePtr NES.State -> IO (StablePtr PPU.VideoFrame)
 foreign export ccall "video_frame_free" videoFrameFree
@@ -146,11 +152,31 @@ gamestateFree :: StablePtr NES.State -> IO ()
 gamestateFree state = freeStablePtr state
 
 
-gamestateFrameForward :: StablePtr NES.State -> IO (StablePtr NES.State)
-gamestateFrameForward state = do
+gamestateAboutToBeginInstruction :: StablePtr NES.State -> IO CInt
+gamestateAboutToBeginInstruction state = do
   state <- deRefStablePtr state
-  let loop vblankEnded state = do
-        let softwareState = NES.stateSoftwareState state
+  return $ if NES.aboutToBeginInstruction state
+             then 1
+             else 0
+
+
+gamestateDisassembleUpcomingInstruction :: StablePtr NES.State -> IO CString
+gamestateDisassembleUpcomingInstruction state = do
+  state <- deRefStablePtr state
+  let disassembly = NES.disassembleUpcomingInstruction state
+  stringNew disassembly
+
+
+gamestateFrameForward
+    :: StablePtr NES.State -> Ptr CString -> IO (StablePtr NES.State)
+gamestateFrameForward state tracePointer = do
+  state <- deRefStablePtr state
+  let loop vblankEnded traceLines state = do
+        let traceLines' =
+              if NES.aboutToBeginInstruction state
+                then traceLines ++ [NES.disassembleUpcomingInstruction state]
+                else traceLines
+            softwareState = NES.stateSoftwareState state
             motherboardClock =
               NES.softwareStateMotherboardClockCount softwareState
             ppuState = NES.softwareStatePPUState softwareState
@@ -168,9 +194,16 @@ gamestateFrameForward state = do
               && cpuEligibleToEnd
               && motherboardEligibleToEnd
         if shouldEnd
-          then newStablePtr state
-          else loop vblankEnded' $ NES.cycle state
-  loop False state
+          then do
+            if tracePointer /= nullPtr
+              then do
+                let trace = intercalate "\n" traceLines ++ "\n"
+                traceCString <- stringNew trace
+                poke tracePointer traceCString
+              else return ()
+            newStablePtr state
+          else loop vblankEnded' traceLines' $ NES.cycle state
+  loop False [] state
 
 
 gamestateGetVideoFrame :: StablePtr NES.State -> IO (StablePtr PPU.VideoFrame)

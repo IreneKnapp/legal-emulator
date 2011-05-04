@@ -14,7 +14,9 @@ module Motherboard.NES
    fetch,
    store,
    cycle,
-   atCPUCycle
+   atCPUCycle,
+   aboutToBeginInstruction,
+   disassembleUpcomingInstruction
   )
   where
 
@@ -22,11 +24,9 @@ import Data.Array.Unboxed
 import Data.Word
 import Prelude hiding (cycle)
 
+import Assembly
 import qualified Processor.CPU_6502 as CPU
 import qualified PPU.PPU_NES as PPU
-
-import Debug.Trace
-import Assembly
 
 
 data Mirroring = HorizontalMirroring
@@ -68,8 +68,7 @@ data SoftwareState =
       softwareStateCPUState :: CPU.CPU_6502_State,
       softwareStatePPUState :: PPU.PPU_NES_State,
       softwareStateMotherboardCPUMemory :: UArray Int Word8,
-      softwareStateMotherboardPPUTableMemory
-        :: UArray Int Word8,
+      softwareStateMotherboardPPUTableMemory :: UArray Int Word8,
       softwareStateMotherboardPPUPaletteMemory :: UArray Int Word8,
       softwareStateMotherboardPPUSpriteMemory :: UArray Int Word8
     }
@@ -155,10 +154,11 @@ ppuDecodeAddress state address =
 
 
 debugFetch :: State
+           -> DataBus
            -> AddressMapping
            -> Word16
            -> Word8
-debugFetch state addressMapping offset =
+debugFetch state dataBus addressMapping offset =
   case addressMapping of
     MotherboardCPUMemory ->
       let softwareState = stateSoftwareState state
@@ -187,7 +187,7 @@ debugFetch state addressMapping offset =
     PPURegisters ->
       0x00
     NoMemory ->
-      0x00
+      lastDataBusValue state dataBus
 
 
 fetch :: State
@@ -224,17 +224,14 @@ fetch state dataBus addressMapping offset =
                 value = memory ! fromIntegral offset
             in (state, value)
           PPURegisters ->
-            trace ("Read from $"
-                   ++ (showHexWord16 $ 0x2000 + offset)
-                   ++ ".")
-                  (state, 0x00)
+            let register = PPU.decodeRegister offset
+                readable = PPU.registerReadable register
+            in if readable
+                 then PPU.registerFetch ppuCallbacks state register
+                 else let value = lastDataBusValue state dataBus
+                      in (state, value)
           NoMemory ->
-            let softwareState = stateSoftwareState state
-                value = case dataBus of
-                          CPUDataBus ->
-                            softwareStateLastCPUDataBusValue softwareState
-                          PPUDataBus ->
-                            softwareStateLastPPUDataBusValue softwareState
+            let value = lastDataBusValue state dataBus
             in (state, value)
   in (updateLastDataBusValue state' dataBus value, value)
 
@@ -301,14 +298,22 @@ store state dataBus addressMapping offset value =
                     stateSoftwareState = softwareState'
                   }
           ProgramReadOnlyMemory -> state
-          PPURegisters -> trace ("Write $"
-                                 ++ (showHexWord8 value)
-                                 ++ " to $"
-                                 ++ (showHexWord16 $ 0x2000 + offset)
-                                 ++ ".")
-                                state
+          PPURegisters ->
+            let register = PPU.decodeRegister offset
+                writeable = PPU.registerWriteable register
+            in if writeable
+                 then PPU.registerStore ppuCallbacks state register value
+                 else state
           NoMemory -> state
   in updateLastDataBusValue state' CPUDataBus value
+
+
+lastDataBusValue :: State -> DataBus -> Word8
+lastDataBusValue state dataBus=
+  let softwareState = stateSoftwareState state
+  in case dataBus of
+       CPUDataBus -> softwareStateLastCPUDataBusValue softwareState
+       PPUDataBus -> softwareStateLastPPUDataBusValue softwareState
 
 
 updateLastDataBusValue :: State -> DataBus -> Word8 -> State
@@ -331,6 +336,8 @@ updateLastDataBusValue state dataBus value =
 
 cpuCallbacks :: ((State -> Word16 -> (Word8, State)),
                  (State -> Word16 -> Word8 -> State),
+                 (State -> Bool),
+                 (State -> Bool),
                  (State -> CPU.CPU_6502_State),
                  (State -> CPU.CPU_6502_State -> State))
 cpuCallbacks = ((\state address ->
@@ -350,6 +357,12 @@ cpuCallbacks = ((\state address ->
                             addressMapping
                             localAddress
                             value),
+                (\_ -> False),
+                (\state ->
+                  let softwareState = stateSoftwareState state
+                      ppuState = softwareStatePPUState softwareState
+                      nmiAsserted = PPU.assertingNMI ppuState
+                  in nmiAsserted),
                 (\state -> softwareStateCPUState $ stateSoftwareState state),
                 (\state cpuState ->
                    let softwareState = stateSoftwareState state
@@ -363,6 +376,7 @@ cpuCallbacks = ((\state address ->
 
 
 ppuCallbacks :: ((State -> Word16 -> (Word8, State)),
+                 (State -> Word16 -> Word8 -> State),
                  (State -> PPU.PPU_NES_State),
                  (State -> PPU.PPU_NES_State -> State))
 ppuCallbacks = ((\state address ->
@@ -371,6 +385,14 @@ ppuCallbacks = ((\state address ->
                        (state', value) =
                          fetch state PPUDataBus addressMapping localAddress
                    in (value, state')),
+                (\state address value ->
+                   let (addressMapping, localAddress) =
+                         ppuDecodeAddress state address
+                   in store state
+                            PPUDataBus
+                            addressMapping
+                            localAddress
+                            value),
                 (\state -> softwareStatePPUState $ stateSoftwareState state),
                 (\state ppuState ->
                    let softwareState = stateSoftwareState state
@@ -414,3 +436,33 @@ atCPUCycle state =
   let softwareState = stateSoftwareState state
       clockCount = softwareStateMotherboardClockCount softwareState
   in mod clockCount 12 == 0
+
+
+aboutToBeginInstruction :: State -> Bool
+aboutToBeginInstruction state =
+  let softwareState = stateSoftwareState state
+      cpuState = softwareStateCPUState softwareState
+      atInstructionStart =
+        CPU.atInstructionStart cpuState
+        && atCPUCycle state
+  in atInstructionStart
+
+
+disassembleUpcomingInstruction :: State -> String
+disassembleUpcomingInstruction state =
+  let softwareState = stateSoftwareState state
+      cpuState = softwareStateCPUState softwareState
+      ppuState = softwareStatePPUState softwareState
+      debugFetch' address =
+        let (addressMapping, localAddress) =
+              cpuDecodeAddress state address
+        in debugFetch state CPUDataBus addressMapping localAddress
+      disassembly = CPU.disassembleInstruction
+                     cpuState
+                     debugFetch'
+                     [("CYC",
+                       leftPad (show $ PPU.ppuNESStateHorizontalClock ppuState)
+                               3),
+                      ("SL",
+                       show $ PPU.ppuNESStateVerticalClock ppuState)]
+  in disassembly

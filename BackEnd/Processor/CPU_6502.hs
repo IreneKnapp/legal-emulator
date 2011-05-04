@@ -11,15 +11,20 @@ module Processor.CPU_6502
    decodeInstructionMnemonicAndAddressingMode,
    characterizeMnemonic,
    mnemonicRegister,
-   nBytes,
-   atInstructionStart
+   addressingModeNBytes,
+   atInstructionStart,
+   disassembleInstruction
   )
   where
 
 import Data.Bits
 import Data.Int
+import Data.List hiding (cycle)
+import Data.Maybe
 import Data.Word
 import Prelude hiding (cycle)
+
+import Assembly
 
 
 data CPU_6502_State =
@@ -34,7 +39,8 @@ data CPU_6502_State =
       cpu6502StateInternalNegative :: Bool,
       cpu6502StateInternalStoredAddress :: Word16,
       cpu6502StateInternalLatch :: Word8,
-      cpu6502StateMicrocodeInstructionQueue :: [MicrocodeInstruction]
+      cpu6502StateMicrocodeInstructionQueue :: [MicrocodeInstruction],
+      cpu6502StateInterruptNoticed :: Maybe InterruptType
     }
 
 
@@ -184,6 +190,12 @@ data MicrocodeInstruction =
     deriving (Show)
 
 
+data InterruptType
+  = Interrupt
+  | NonMaskableInterrupt
+  deriving (Eq, Show)
+
+
 powerOnState :: CPU_6502_State
 powerOnState =
   CPU_6502_State {
@@ -197,18 +209,26 @@ powerOnState =
       cpu6502StateInternalNegative = False,
       cpu6502StateInternalStoredAddress = 0x0000,
       cpu6502StateInternalLatch = 0x00,
-      cpu6502StateMicrocodeInstructionQueue =
-        [fetchOpcodeMicrocodeInstruction]
+      cpu6502StateMicrocodeInstructionQueue = powerOnMicrocode,
+      cpu6502StateInterruptNoticed = Nothing
     }
 
 
 cycle :: ((outerState -> Word16 -> (Word8, outerState)),
           (outerState -> Word16 -> Word8 -> outerState),
+          (outerState -> Bool),
+          (outerState -> Bool),
           (outerState -> CPU_6502_State),
           (outerState -> CPU_6502_State -> outerState))
       -> outerState
       -> outerState
-cycle (fetchByte, storeByte, getState, putState) outerState =
+cycle (fetchByte,
+       storeByte,
+       getIRQAsserted,
+       getNMIAsserted,
+       getState,
+       putState)
+      outerState =
   let checkForSetting =
         microcodeInstructionSettingStoredValueBits
       checkForClearing =
@@ -503,6 +523,22 @@ cycle (fetchByte, storeByte, getState, putState) outerState =
                   internalOverflowA' || internalOverflowB'
                 internalNegative' =
                   internalNegativeA' || internalNegativeB'
+                interruptNoticed =
+                  cpu6502StateInterruptNoticed cpuState''
+                interruptNoticed' =
+                  case (interruptNoticed,
+                        getIRQAsserted outerState,
+                        getNMIAsserted outerState) of
+                    (Just NonMaskableInterrupt, _, _) ->
+                      Just NonMaskableInterrupt
+                    (_, _, True) ->
+                      Just NonMaskableInterrupt
+                    (Just Interrupt, _, _) ->
+                      Just Interrupt
+                    (_, True, False) ->
+                      Just Interrupt
+                    (_, False, False) ->
+                      interruptNoticed
                 cpuState''' = cpuState'' {
                                   cpu6502StateProgramCounter = programCounter',
                                   cpu6502StateInternalStoredAddress =
@@ -517,7 +553,9 @@ cycle (fetchByte, storeByte, getState, putState) outerState =
                                   cpu6502StateInternalOverflow =
                                     internalOverflow',
                                   cpu6502StateInternalNegative =
-                                    internalNegative'
+                                    internalNegative',
+                                  cpu6502StateInterruptNoticed =
+                                    interruptNoticed'
                                 }
                 microcodeInstructionQueue'' =
                   if microcodeInstructionDecodeOperation
@@ -525,7 +563,13 @@ cycle (fetchByte, storeByte, getState, putState) outerState =
                     then if checkForInstead microcodeInstruction
                             && programCounterHighByteWasWrong
                            then microcodeInstructionQueue'
-                           else decodeOperation fetchedByte
+                           else case interruptNoticed' of
+                                  Nothing ->
+                                    decodeOperation fetchedByte
+                                  Just Interrupt ->
+                                    interruptMicrocode
+                                  Just NonMaskableInterrupt ->
+                                    nonMaskableInterruptMicrocode
                     else case microcodeInstructionConditional
                                microcodeInstruction of
                            Nothing -> microcodeInstructionQueue'
@@ -1176,7 +1220,8 @@ decodeOperation opcode =
               [buildMicrocodeInstruction
                 (fetchValueMicrocodeInstruction ProgramCounterAddressSource
                                                 NoRegister)
-                [alsoIncrementProgramCounter],
+                [alsoIncrementProgramCounter,
+                 alsoSetStatusBits 0x04],
                buildMicrocodeInstruction
                 (storeValueMicrocodeInstruction (FixedAddressSource 0x0100)
                                                 ProgramCounterHighByte)
@@ -1206,7 +1251,8 @@ decodeOperation opcode =
               [buildMicrocodeInstruction
                 (fetchValueMicrocodeInstruction ProgramCounterAddressSource
                                                 NoRegister)
-                [],
+                [alsoIncrementProgramCounter,
+                 alsoClearStatusBits 0x04],
                buildMicrocodeInstruction
                 (fetchValueMicrocodeInstruction (FixedAddressSource 0x0100)
                                                 NoRegister)
@@ -1366,7 +1412,10 @@ decodeOperation opcode =
                                                 $ mnemonicRegister mnemonic)
                 [alsoIncrementProgramCounter,
                  usingArithmeticOperation
-                  $ mnemonicArithmeticOperation mnemonic],
+                  $ mnemonicArithmeticOperation mnemonic,
+                 case mnemonic of
+                   ASR -> alsoTransformAccumulator LogicalShiftRight
+                   _ -> id],
                fetchOpcodeMicrocodeInstruction]
         (AbsoluteAddressing, ControlCharacter) ->
           case mnemonic of
@@ -1579,7 +1628,12 @@ decodeOperation opcode =
                       StoredAddressSource
                       $ mnemonicRegister mnemonic)
                     [usingArithmeticOperation
-                      $ mnemonicArithmeticOperation mnemonic],
+                      $ mnemonicArithmeticOperation mnemonic,
+                     case mnemonic of
+                       LAS -> alsoCopyRegisterToRegister
+                               StackPointer
+                               AccumulatorAndXIndexRegister
+                       _ -> id],
                    fetchOpcodeMicrocodeInstruction]]]
         (_, ReadWriteCharacter)
           | elem addressing [AbsoluteXIndexedAddressing,
@@ -1857,6 +1911,86 @@ decodeOperation opcode =
                fetchOpcodeMicrocodeInstruction]
 
 
+powerOnMicrocode :: [MicrocodeInstruction]
+powerOnMicrocode =
+  [buildMicrocodeInstruction
+     (fetchValueMicrocodeInstruction (FixedAddressSource 0xFFFC)
+                                     ProgramCounterLowByte)
+     [],
+   buildMicrocodeInstruction
+    (fetchValueMicrocodeInstruction (FixedAddressSource 0xFFFF)
+                                    ProgramCounterHighByte)
+    [],
+   fetchOpcodeMicrocodeInstruction]
+
+
+interruptMicrocode :: [MicrocodeInstruction]
+interruptMicrocode =
+  [buildMicrocodeInstruction
+    (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                    NoRegister)
+    [alsoIncrementProgramCounter,
+     alsoSetStatusBits 0x04],
+   buildMicrocodeInstruction
+    (storeValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                    ProgramCounterHighByte)
+    [usingAddressOffsetRegister StackPointer,
+     alsoDecrementStackPointer],
+   buildMicrocodeInstruction
+    (storeValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                    ProgramCounterLowByte)
+    [usingAddressOffsetRegister StackPointer,
+     alsoDecrementStackPointer],
+   buildMicrocodeInstruction
+    (storeValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                    StatusRegister)
+    [usingAddressOffsetRegister StackPointer,
+     settingHardwareBFlagInStoredValue,
+     alsoDecrementStackPointer],
+   buildMicrocodeInstruction
+    (fetchValueMicrocodeInstruction (FixedAddressSource 0xFFFE)
+                                    ProgramCounterLowByte)
+    [],
+   buildMicrocodeInstruction
+    (fetchValueMicrocodeInstruction (FixedAddressSource 0xFFFF)
+                                    ProgramCounterHighByte)
+    [],
+   fetchOpcodeMicrocodeInstruction]
+
+
+nonMaskableInterruptMicrocode :: [MicrocodeInstruction]
+nonMaskableInterruptMicrocode =
+  [buildMicrocodeInstruction
+    (fetchValueMicrocodeInstruction ProgramCounterAddressSource
+                                    NoRegister)
+    [alsoIncrementProgramCounter],
+   buildMicrocodeInstruction
+    (storeValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                    ProgramCounterHighByte)
+    [usingAddressOffsetRegister StackPointer,
+     alsoDecrementStackPointer],
+   buildMicrocodeInstruction
+    (storeValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                    ProgramCounterLowByte)
+    [usingAddressOffsetRegister StackPointer,
+     alsoDecrementStackPointer],
+   buildMicrocodeInstruction
+    (storeValueMicrocodeInstruction (FixedAddressSource 0x0100)
+                                    StatusRegister)
+    [usingAddressOffsetRegister StackPointer,
+     settingHardwareBFlagInStoredValue,
+     alsoDecrementStackPointer],
+   buildMicrocodeInstruction
+    (fetchValueMicrocodeInstruction (FixedAddressSource 0xFFFA)
+                                    ProgramCounterLowByte)
+    [],
+   buildMicrocodeInstruction
+    (fetchValueMicrocodeInstruction (FixedAddressSource 0xFFFB)
+                                    ProgramCounterHighByte)
+    [],
+   fetchOpcodeMicrocodeInstruction]
+
+
 characterizeMnemonic :: InstructionMnemonic -> InstructionCharacter
 characterizeMnemonic mnemonic =
   case mnemonic of
@@ -1917,13 +2051,16 @@ characterizeMnemonic mnemonic =
     STA -> WriteCharacter
     STX -> WriteCharacter
     STY -> WriteCharacter
-    -- Extended mnemonics
+    -- Extended mnemonic
+    ASR -> ReadCharacter
+    ANE -> ReadCharacter
     SLO -> ReadWriteCharacter
     RLA -> ReadWriteCharacter
     SRE -> ReadWriteCharacter
     RRA -> ReadWriteCharacter
     SAX -> WriteCharacter
     LAX -> ReadCharacter
+    LAS -> ReadCharacter
     DCP -> ReadWriteCharacter
     ISB -> ReadWriteCharacter
     LXA -> ReadCharacter
@@ -1962,12 +2099,15 @@ mnemonicRegister mnemonic =
     INC -> Latch
     DEC -> Latch
     -- Extended mnemonics
+    ASR -> Accumulator
+    ANE -> Accumulator
     SLO -> Accumulator
     RLA -> Accumulator
     SRE -> Accumulator
     RRA -> Accumulator
     SAX -> AccumulatorAndXIndexRegister
     LAX -> AccumulatorAndXIndexRegister
+    LAS -> StackPointer
     DCP -> Accumulator
     ISB -> Accumulator
     LXA -> Accumulator
@@ -2003,6 +2143,7 @@ mnemonicArithmeticOperation mnemonic =
     BIT -> ArithmeticBitCompare
     NOP -> ArithmeticNoOperation
     -- Extended mnemonics
+    ASR -> ArithmeticAnd
     LXA -> ArithmeticAnd
     RLA -> ArithmeticAnd
     SLO -> ArithmeticInclusiveOr
@@ -2344,8 +2485,8 @@ alsoUpdateStatusForRegister register microcodeInstruction =
     }
 
 
-nBytes :: AddressingMode -> Int
-nBytes addressingMode =
+addressingModeNBytes :: AddressingMode -> Int
+addressingModeNBytes addressingMode =
   case addressingMode of
      AccumulatorAddressing -> 1
      ImmediateAddressing -> 2
@@ -2374,3 +2515,181 @@ atInstructionStart cpuState =
               then False
               else True
         else False
+
+
+disassembleInstruction
+    :: CPU_6502_State -> (Word16 -> Word8) -> [(String, String)] -> String
+disassembleInstruction cpuState debugFetch extraFields =
+  let programCounter = cpu6502StateProgramCounter cpuState
+      opcode = debugFetch programCounter
+  in case decodeInstructionMnemonicAndAddressingMode opcode of
+       Nothing -> (showHexWord16 programCounter) ++ "  Invalid instruction."
+       Just (instructionMnemonic, addressingMode, extended) ->
+         let nBytes = addressingModeNBytes addressingMode
+             byte2 = debugFetch $ programCounter + 1
+             byte3 = debugFetch $ programCounter + 2
+             bytes = case nBytes of
+                       1 -> [opcode]
+                       2 -> [opcode, byte2]
+                       3 -> [opcode, byte2, byte3]
+             instructionCharacter = characterizeMnemonic instructionMnemonic
+             addressReport = showHexWord16 programCounter
+             byteReport = rightPad (intercalate " " $ map showHexWord8 bytes)
+                                   8
+             (lValueSubreport, maybeRValueAddress) =
+               case addressingMode of
+                 AccumulatorAddressing ->
+                   ("A", Nothing)
+                 ImmediateAddressing ->
+                   ("#$"
+                    ++ showHexWord8 byte2,
+                    Nothing)
+                 AbsoluteAddressing ->
+                   ("$"
+                    ++ showHexWord8 byte3
+                    ++ showHexWord8 byte2,
+                    Just $ shiftL (fromIntegral byte3) 8
+                           .|. fromIntegral byte2)
+                 ZeroPageAddressing ->
+                   ("$"
+                    ++ showHexWord8 byte2,
+                    Just $ fromIntegral byte2)
+                 ZeroPageXIndexedAddressing ->
+                   let x = cpu6502StateXIndexRegister cpuState
+                   in ("$"
+                       ++ showHexWord8 byte2
+                       ++ ",X @ "
+                       ++ showHexWord8 (byte2 + x),
+                       Just $ fromIntegral $ byte2 + x)
+                 ZeroPageYIndexedAddressing ->
+                   let y = cpu6502StateYIndexRegister cpuState
+                   in ("$"
+                       ++ showHexWord8 byte2
+                       ++ ",Y @ "
+                       ++ showHexWord8 (byte2 + y),
+                       Just $ fromIntegral $ byte2 + y)
+                 AbsoluteXIndexedAddressing ->
+                   let x = cpu6502StateXIndexRegister cpuState
+                       indexed = fromIntegral byte2
+                                 + shiftL (fromIntegral byte3) 8
+                       effective = indexed + fromIntegral x
+                   in ("$"
+                       ++ showHexWord16 indexed
+                       ++ ",X @ "
+                       ++ showHexWord16 effective,
+                       Just effective)
+                 AbsoluteYIndexedAddressing ->
+                   let y = cpu6502StateYIndexRegister cpuState
+                       indexed = fromIntegral byte2
+                                 + shiftL (fromIntegral byte3) 8
+                       effective = indexed + fromIntegral y
+                   in ("$"
+                       ++ showHexWord16 indexed
+                       ++ ",Y @ "
+                       ++ showHexWord16 effective,
+                       Just effective)
+                 ImpliedAddressing ->
+                   ("",
+                    Nothing)
+                 RelativeAddressing ->
+                   let programCounterInt =
+                         fromIntegral programCounter + nBytes :: Int
+                       offsetInt =
+                         fromIntegral $ (fromIntegral byte2 :: Int8) :: Int
+                       effectiveAddress
+                         = fromIntegral $ programCounterInt + offsetInt
+                   in ("$" ++ showHexWord16 effectiveAddress,
+                       Nothing)
+                 XIndexedIndirectAddressing ->
+                   let x = cpu6502StateXIndexRegister cpuState
+                       effective = (fromIntegral
+                                     $ debugFetch
+                                        $ fromIntegral
+                                           $ byte2 + x)
+                                   + shiftL (fromIntegral
+                                              $ debugFetch
+                                                 $ fromIntegral
+                                                    $ byte2 + x + 1)
+                                            8
+                   in ("($"
+                       ++ showHexWord8 byte2
+                       ++ ",X) @ "
+                       ++ showHexWord8 (byte2 + x)
+                       ++ " = "
+                       ++ showHexWord16 effective,
+                       Just effective)
+                 IndirectYIndexedAddressing ->
+                   let y = cpu6502StateYIndexRegister cpuState
+                       indirectLow = debugFetch $ fromIntegral $ byte2
+                       indirectHigh = debugFetch $ fromIntegral $ byte2 + 1
+                       indirect = fromIntegral indirectLow
+                                  + shiftL (fromIntegral indirectHigh) 8
+                       effective = indirect + fromIntegral y
+                   in ("($"
+                       ++ showHexWord8 byte2
+                       ++ "),Y = "
+                       ++ showHexWord16 indirect
+                       ++ " @ "
+                       ++ showHexWord16 effective,
+                       Just effective)
+                 AbsoluteIndirectAddressing ->
+                   let indirect = fromIntegral byte2
+                                  + shiftL (fromIntegral byte3) 8
+                       effective = (fromIntegral $ debugFetch indirect)
+                                   + shiftL (fromIntegral
+                                              $ debugFetch $ indirect + 1)
+                                            8
+                   in ("($"
+                       ++ showHexWord16 indirect
+                       ++ ") = "
+                       ++ showHexWord16 effective,
+                       Just effective)
+             showRValueSubreport =
+               isJust maybeRValueAddress
+               && (((elem instructionCharacter [ReadCharacter,
+                                                ReadWriteCharacter,
+                                                WriteCharacter])
+                    && (mnemonicRegister instructionMnemonic /= NoRegister))
+                   || (extended && (instructionMnemonic == NOP)))
+             rValue = case maybeRValueAddress of
+                        Nothing -> 0x00
+                        Just rValueAddress -> debugFetch rValueAddress
+             rValueSubreport = " = " ++ showHexWord8 rValue
+             disassemblyReport =
+               rightPad (show instructionMnemonic
+                         ++ " "
+                         ++ lValueSubreport
+                         ++ if showRValueSubreport
+                              then rValueSubreport
+                              else "")
+                        30
+             stateReport =
+               intercalate " "
+                           $ map (\(label, value) -> label ++ ":" ++ value)
+                                 $ [("A",
+                                     showHexWord8
+                                      $ cpu6502StateAccumulator cpuState),
+                                    ("X",
+                                     showHexWord8
+                                      $ cpu6502StateXIndexRegister cpuState),
+                                    ("Y",
+                                     showHexWord8
+                                      $ cpu6502StateYIndexRegister cpuState),
+                                    ("P",
+                                     showHexWord8
+                                      $ cpu6502StateStatusRegister cpuState
+                                        .|. 0x20),
+                                    ("SP",
+                                     showHexWord8
+                                      $ cpu6502StateStackPointer cpuState)]
+                                   ++ extraFields
+             report = addressReport
+                      ++ "  "
+                      ++ byteReport
+                      ++ (if extended
+                            then " *"
+                            else "  ")
+                      ++ disassemblyReport
+                      ++ "  "
+                      ++ stateReport
+         in report

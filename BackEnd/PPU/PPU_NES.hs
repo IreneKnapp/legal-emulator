@@ -1,15 +1,26 @@
 module PPU.PPU_NES
   (
    PPU_NES_State(..),
+   Register(..),
    VideoFrame(..),
    powerOnState,
+   decodeRegister,
+   registerReadable,
+   registerWriteable,
+   registerFetch,
+   registerStore,
+   assertingNMI,
    cycle
   )
   where
 
 import Data.Array.Unboxed
+import Data.Bits
 import Data.Word
 import Prelude hiding (cycle)
+
+import Debug.Trace
+import Assembly
 
 
 data PPU_NES_State =
@@ -18,10 +29,22 @@ data PPU_NES_State =
       ppuNESStateVerticalClock :: Int,
       ppuNESStateStillPoweringUp :: Bool,
       ppuNESStateWantsToAssertNMI :: Bool,
-      ppuNESStateSoftwareWantsNMI :: Bool,
+      ppuNESStateAllowedToAssertNMI :: Bool,
       ppuNESStateLatestCompleteFrame :: Maybe VideoFrame
-      --ppuNESStateChanges :: [(Int, Int, PPUChagne)]
+      --ppuNESStateChanges :: [(Int, Int, PPUChange)]
     }
+
+
+data Register
+  = Control1
+  | Control2
+  | Status
+  | SpriteAddress
+  | SpriteAccess
+  | PermanentAddress
+  | TemporaryAddress
+  | Access
+  deriving (Eq, Show)
 
 
 data VideoFrame =
@@ -37,17 +60,191 @@ powerOnState =
       ppuNESStateVerticalClock = 241,
       ppuNESStateStillPoweringUp = True,
       ppuNESStateWantsToAssertNMI = True,
-      ppuNESStateSoftwareWantsNMI = False,
+      ppuNESStateAllowedToAssertNMI = False,
       ppuNESStateLatestCompleteFrame = Nothing
     }
 
 
+decodeRegister :: Word16 -> Register
+decodeRegister offset =
+  case offset of
+    0 -> Control1
+    1 -> Control2
+    2 -> Status
+    3 -> SpriteAddress
+    4 -> SpriteAccess
+    5 -> PermanentAddress
+    6 -> TemporaryAddress
+    7 -> Access
+
+
+registerReadable :: Register -> Bool
+registerReadable register =
+  case register of
+    Control1 -> False
+    Control2 -> False
+    Status -> True
+    SpriteAddress -> False
+    SpriteAccess -> False
+    PermanentAddress -> False
+    TemporaryAddress -> False
+    Access -> True
+
+
+registerWriteable :: Register -> Bool
+registerWriteable register =
+  case register of
+    Control1 -> True
+    Control2 -> True
+    Status -> False
+    SpriteAddress -> True
+    SpriteAccess -> True
+    PermanentAddress -> True
+    TemporaryAddress -> True
+    Access -> True
+
+
+registerFetch :: ((outerState -> Word16 -> (Word8, outerState)),
+                  (outerState -> Word16 -> Word8 -> outerState),
+                  (outerState -> PPU_NES_State),
+                  (outerState -> PPU_NES_State -> outerState))
+              -> outerState
+              -> Register
+              -> (outerState, Word8)
+registerFetch (_, _, getState, putState) outerState register =
+  let ppuState = getState outerState
+      (ppuState', value) =
+        case register of
+          Status ->
+            let wantsToAssertNMI = ppuNESStateWantsToAssertNMI ppuState
+                value = foldl (\value (bitIndex, bitValue) ->
+                                  if bitValue
+                                    then setBit value bitIndex
+                                    else clearBit value bitIndex)
+                              0x00
+                              $ [(7, wantsToAssertNMI)]
+                ppuState' = ppuState {
+                                ppuNESStateWantsToAssertNMI = False
+                              }
+            in trace ("Read $"
+                      ++ (showHexWord8 value)
+                      ++ " from "
+                      ++ (show register))
+                     (ppuState', value)
+          Access ->
+            let value = 0x00
+                ppuState' = ppuState
+            in trace ("Read $"
+                      ++ (showHexWord8 value)
+                      ++ " from "
+                      ++ (show register))
+                     (ppuState', value)
+      outerState' = putState outerState ppuState'
+  in (outerState', value)
+
+
+registerStore :: ((outerState -> Word16 -> (Word8, outerState)),
+                  (outerState -> Word16 -> Word8 -> outerState),
+                  (outerState -> PPU_NES_State),
+                  (outerState -> PPU_NES_State -> outerState))
+              -> outerState
+              -> Register
+              -> Word8
+              -> outerState
+registerStore (_, _, getState, putState) outerState register value =
+  let ppuState = getState outerState
+      (ppuState', outerState') =
+        case register of
+          Control1 ->
+            let stillPoweringUp = ppuNESStateStillPoweringUp ppuState
+                allowedToAssertNMI' = testBit value 7
+                ppuState' = ppuState {
+                                ppuNESStateAllowedToAssertNMI =
+                                  allowedToAssertNMI'
+                              }
+                outerState' = outerState
+            in trace ("Write $"
+                      ++ (showHexWord8 value)
+                      ++ " to "
+                      ++ (show register))
+                     $ if stillPoweringUp
+                         then (ppuState, outerState)
+                         else (ppuState', outerState')
+          Control2 ->
+            let stillPoweringUp = ppuNESStateStillPoweringUp ppuState
+                ppuState' = ppuState
+                outerState' = outerState
+            in trace ("Write $"
+                      ++ (showHexWord8 value)
+                      ++ " to "
+                      ++ (show register))
+                     $ if stillPoweringUp
+                         then (ppuState, outerState)
+                         else (ppuState', outerState')
+          SpriteAddress ->
+            let ppuState' = ppuState
+                outerState' = outerState
+            in trace ("Write $"
+                      ++ (showHexWord8 value)
+                      ++ " to "
+                      ++ (show register))
+                     (ppuState', outerState')
+          SpriteAccess ->
+            let ppuState' = ppuState
+                outerState' = outerState
+            in trace ("Write $"
+                      ++ (showHexWord8 value)
+                      ++ " to "
+                      ++ (show register))
+                     (ppuState', outerState')
+          PermanentAddress ->
+            let stillPoweringUp = ppuNESStateStillPoweringUp ppuState
+                ppuState' = ppuState
+                outerState' = outerState
+            in trace ("Write $"
+                      ++ (showHexWord8 value)
+                      ++ " to "
+                      ++ (show register))
+                     $ if stillPoweringUp
+                         then (ppuState, outerState)
+                         else (ppuState', outerState')
+          TemporaryAddress ->
+            let stillPoweringUp = ppuNESStateStillPoweringUp ppuState
+                ppuState' = ppuState
+                outerState' = outerState
+            in trace ("Write $"
+                      ++ (showHexWord8 value)
+                      ++ " to "
+                      ++ (show register))
+                     $ if stillPoweringUp
+                         then (ppuState, outerState)
+                         else (ppuState', outerState')
+          Access ->
+            let ppuState' = ppuState
+                outerState' = outerState
+            in trace ("Write $"
+                      ++ (showHexWord8 value)
+                      ++ " to "
+                      ++ (show register))
+                     (ppuState', outerState')
+      outerState'' = putState outerState' ppuState'
+  in outerState''
+
+
+assertingNMI :: PPU_NES_State -> Bool
+assertingNMI ppuState =
+  let wantsToAssertNMI = ppuNESStateWantsToAssertNMI ppuState
+      allowedToAssertNMI = ppuNESStateAllowedToAssertNMI ppuState
+  in wantsToAssertNMI && allowedToAssertNMI
+
+
 cycle :: ((outerState -> Word16 -> (Word8, outerState)),
+          (outerState -> Word16 -> Word8 -> outerState),
           (outerState -> PPU_NES_State),
           (outerState -> PPU_NES_State -> outerState))
       -> outerState
       -> outerState
-cycle (fetchByte, getState, putState) outerState =
+cycle (fetchByte, storeByte, getState, putState) outerState =
   let ppuState = getState outerState
       horizontalClock = ppuNESStateHorizontalClock ppuState
       verticalClock = ppuNESStateVerticalClock ppuState
