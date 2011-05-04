@@ -557,29 +557,34 @@ cycle (fetchByte,
                                   cpu6502StateInterruptNoticed =
                                     interruptNoticed'
                                 }
-                microcodeInstructionQueue'' =
+                (microcodeInstructionQueue'', interruptNoticed'') =
                   if microcodeInstructionDecodeOperation
                       microcodeInstruction
                     then if checkForInstead microcodeInstruction
                             && programCounterHighByteWasWrong
-                           then microcodeInstructionQueue'
-                           else case interruptNoticed' of
-                                  Nothing ->
-                                    decodeOperation fetchedByte
-                                  Just Interrupt ->
-                                    interruptMicrocode
-                                  Just NonMaskableInterrupt ->
-                                    nonMaskableInterruptMicrocode
+                           then (microcodeInstructionQueue',
+                                 interruptNoticed')
+                           else (case interruptNoticed' of
+                                   Nothing ->
+                                     decodeOperation fetchedByte
+                                   Just Interrupt ->
+                                     interruptMicrocode
+                                   Just NonMaskableInterrupt ->
+                                     nonMaskableInterruptMicrocode,
+                                 Nothing)
                     else case microcodeInstructionConditional
                                microcodeInstruction of
-                           Nothing -> microcodeInstructionQueue'
+                           Nothing -> (microcodeInstructionQueue',
+                                       interruptNoticed')
                            Just (condition, ifTrue, ifFalse) ->
                              if testCondition condition cpuState'''
-                               then ifTrue
-                               else ifFalse
+                               then (ifTrue, interruptNoticed')
+                               else (ifFalse, interruptNoticed')
                 cpuState'''' = cpuState''' {
                                    cpu6502StateMicrocodeInstructionQueue =
-                                     microcodeInstructionQueue''
+                                     microcodeInstructionQueue'',
+                                   cpu6502StateInterruptNoticed =
+                                     interruptNoticed''
                                  }
                 cpuState''''' = case microcodeInstructionRegisterRegisterCopy
                                       microcodeInstruction of

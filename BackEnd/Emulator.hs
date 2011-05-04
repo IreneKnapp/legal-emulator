@@ -52,20 +52,16 @@ foreign export ccall "video_frame_get_name_table" videoFrameGetNameTable
 
 stringNew :: String -> IO CString
 stringNew string = do
-  BS.useAsCString (UTF8.fromString string)
-                  (\cStringAutomatic -> do
-                     let getBufferLength = do
-                           getBufferLength' 0 cStringAutomatic
-                         getBufferLength' lengthSoFar buffer = do
-                           character <- peek buffer
-                           case character of
-                             0 -> return $ lengthSoFar + 1
-                             _ -> getBufferLength' (lengthSoFar + 1)
-                                                   (plusPtr buffer 1)
-                     bufferLength <- getBufferLength
-                     cString <- mallocArray bufferLength
-                     copyArray cString cStringAutomatic bufferLength
-                     return cString)
+  let byteString = UTF8.fromString string
+      bufferLength = 1 + BS.length byteString
+  cString <- mallocArray bufferLength
+  mapM_ (\index -> do
+           let byte = BS.index byteString index
+               element = advancePtr cString index
+           poke element byte)
+        [0 .. bufferLength - 2]
+  poke (advancePtr cString $ bufferLength - 1) 0x00
+  return $ castPtr cString
 
 
 stringFree :: CString -> IO ()
@@ -201,7 +197,7 @@ gamestateFrameForward state tracePointer = do
           then do
             if tracePointer /= nullPtr
               then do
-                let trace = intercalate "\n" traceLines ++ "\n"
+                let trace = concat $ map (\line -> line ++ "\n") traceLines
                 traceCString <- stringNew trace
                 poke tracePointer traceCString
               else return ()

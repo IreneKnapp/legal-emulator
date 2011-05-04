@@ -19,6 +19,9 @@ import Data.Bits
 import Data.Word
 import Prelude hiding (cycle)
 
+import Debug.Trace
+import Assembly
+
 
 data PPU_NES_State =
   PPU_NES_State {
@@ -289,7 +292,10 @@ registerStore (_, storeByte, _, getState, putState)
                 outerState' = outerState
             in if stillPoweringUp
                  then (ppuState, outerState)
-                 else (ppuState', outerState')
+                 else trace ("Write of $"
+                             ++ showHexWord8 value
+                             ++ " to Address1.")
+                            (ppuState', outerState')
           Address2 ->
             let stillPoweringUp = ppuNESStateStillPoweringUp ppuState
                 writtenOddNumberOfTimesToAddresses =
@@ -300,10 +306,10 @@ registerStore (_, storeByte, _, getState, putState)
                 temporaryAddress = ppuNESStateTemporaryAddress ppuState
                 (permanentAddress', temporaryAddress') =
                   if not writtenOddNumberOfTimesToAddresses
-                    then ((permanentAddress .&. 0x3FFF)
+                    then ((permanentAddress .&. 0x00FF)
                           .|. (shiftL (fromIntegral $ value .&. 0x3F) 8),
                           temporaryAddress)
-                    else ((permanentAddress .&. 0x00FF)
+                    else ((permanentAddress .&. 0xFF00)
                           .|. (fromIntegral value),
                           permanentAddress')
                 ppuState' = ppuState {
@@ -317,7 +323,10 @@ registerStore (_, storeByte, _, getState, putState)
                 outerState' = outerState
             in if stillPoweringUp
                  then (ppuState, outerState)
-                 else (ppuState', outerState')
+                 else trace ("Write of $"
+                             ++ showHexWord8 value
+                             ++ " to Address2.")
+                            (ppuState', outerState')
           Access ->
             let addressIncrementVertically =
                   ppuNESStateAddressIncrementVertically ppuState
@@ -332,7 +341,12 @@ registerStore (_, storeByte, _, getState, putState)
                                   permanentAddress'
                               }
                 outerState' = storeByte outerState permanentAddress value
-            in (ppuState', outerState')
+            in trace ("Write of $"
+                      ++ showHexWord8 value
+                      ++ " to $"
+                      ++ showHexWord16 permanentAddress
+                      ++ ".")
+                     (ppuState', outerState')
       outerState'' = putState outerState' ppuState'
   in outerState''
 

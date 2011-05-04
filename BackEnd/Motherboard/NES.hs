@@ -33,6 +33,7 @@ import qualified PPU.PPU_NES as PPU
 data Mirroring = HorizontalMirroring
                | VerticalMirroring
                | FourScreenMirroring
+               deriving (Eq, Show)
 
 
 data System = PlainSystem
@@ -78,6 +79,7 @@ data SoftwareState =
 
 data DataBus = CPUDataBus
              | PPUDataBus
+             deriving (Eq, Show)
 
 
 data AddressMapping = MotherboardCPUMemory
@@ -88,10 +90,12 @@ data AddressMapping = MotherboardCPUMemory
                     | CharacterReadOnlyMemory
                     | PPURegisters
                     | NoMemory
+                    deriving (Eq, Show)
 
 
 data Processor = CPU_6502
                | PPU_NES
+               deriving (Eq, Show)
 
 
 powerOnSoftwareState :: SoftwareState
@@ -243,6 +247,11 @@ fetch state dataBus addressMapping offset =
                 memory = hardwareStateProgramReadOnlyMemory hardwareState
                 value = memory ! offset
             in (state, value)
+          CharacterReadOnlyMemory ->
+            let hardwareState = stateHardwareState state
+                memory = hardwareStateCharacterReadOnlyMemory hardwareState
+                value = memory ! offset
+            in (state, value)
           PPURegisters ->
             let register = PPU.decodeRegister offset
                 readable = PPU.registerReadable register
@@ -270,7 +279,7 @@ store state dataBus addressMapping offset value =
                  memory =
                    softwareStateMotherboardCPUMemory softwareState
                  memory' =
-                   memory // [(fromIntegral offset, value)]
+                   memory // [(offset, value)]
                  softwareState' =
                    softwareState {
                        softwareStateMotherboardCPUMemory = memory'
@@ -283,7 +292,7 @@ store state dataBus addressMapping offset value =
                  memory =
                    softwareStateMotherboardPPUTableMemory softwareState
                  memory' =
-                   memory // [(fromIntegral offset, value)]
+                   memory // [(offset, value)]
                  softwareState' =
                    softwareState {
                        softwareStateMotherboardPPUTableMemory = memory'
@@ -296,7 +305,7 @@ store state dataBus addressMapping offset value =
                  memory =
                    softwareStateMotherboardPPUPaletteMemory softwareState
                  memory' =
-                   memory // [(fromIntegral offset, value)]
+                   memory // [(offset, value)]
                  softwareState' =
                    softwareState {
                        softwareStateMotherboardPPUPaletteMemory = memory'
@@ -309,7 +318,7 @@ store state dataBus addressMapping offset value =
                  memory =
                    softwareStateMotherboardPPUSpriteMemory softwareState
                  memory' =
-                   memory // [(fromIntegral offset, value)]
+                   memory // [(offset, value)]
                  softwareState' =
                    softwareState {
                        softwareStateMotherboardPPUSpriteMemory = memory'
@@ -318,6 +327,7 @@ store state dataBus addressMapping offset value =
                     stateSoftwareState = softwareState'
                   }
           ProgramReadOnlyMemory -> state
+          CharacterReadOnlyMemory -> state
           PPURegisters ->
             let register = PPU.decodeRegister offset
                 writeable = PPU.registerWriteable register
@@ -325,7 +335,7 @@ store state dataBus addressMapping offset value =
                  then PPU.registerStore ppuCallbacks state register value
                  else state
           NoMemory -> state
-  in updateLastDataBusValue state' CPUDataBus value
+  in updateLastDataBusValue state' dataBus value
 
 
 lastDataBusValue :: State -> DataBus -> Word8
