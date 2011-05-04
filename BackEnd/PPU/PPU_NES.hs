@@ -27,7 +27,20 @@ data PPU_NES_State =
       ppuNESStateStillPoweringUp :: Bool,
       ppuNESStateWantsToAssertNMI :: Bool,
       ppuNESStateAllowedToAssertNMI :: Bool,
+      ppuNESStateTallSprites :: Bool,
+      ppuNESStatePatternTableForBackground :: Int,
+      ppuNESStatePatternTableForSprites :: Int,
+      ppuNESStateAddressIncrementVertically :: Bool,
+      ppuNESStatePaletteMonochrome :: Bool,
+      ppuNESStateBackgroundClipped :: Bool,
+      ppuNESStateSpritesClipped :: Bool,
+      ppuNESStateBackgroundVisible :: Bool,
+      ppuNESStateSpritesVisible :: Bool,
+      ppuNESStateIntensifiedColor :: Maybe PrimaryColor,
       ppuNESStateWrittenOddNumberOfTimesToAddresses :: Bool,
+      ppuNESStatePermanentAddress :: Word16,
+      ppuNESStateTemporaryAddress :: Word16,
+      ppuNESStateXOffset :: Word8,
       ppuNESStateIncompleteFrame :: IncompleteVideoFrame,
       ppuNESStateLatestCompleteFrame :: Maybe VideoFrame
       --ppuNESStateChanges :: [(Int, Int, PPUChange)]
@@ -40,10 +53,14 @@ data Register
   | Status
   | SpriteAddress
   | SpriteAccess
-  | PermanentAddress
-  | TemporaryAddress
+  | Address1
+  | Address2
   | Access
   deriving (Eq, Show)
+
+
+data PrimaryColor = Red | Green | Blue
+                  deriving (Eq, Show)
 
 
 data IncompleteVideoFrame =
@@ -66,7 +83,20 @@ powerOnState =
       ppuNESStateStillPoweringUp = True,
       ppuNESStateWantsToAssertNMI = True,
       ppuNESStateAllowedToAssertNMI = False,
+      ppuNESStateTallSprites = False,
+      ppuNESStatePatternTableForBackground = 0,
+      ppuNESStatePatternTableForSprites = 0,
+      ppuNESStateAddressIncrementVertically = False,
+      ppuNESStatePaletteMonochrome = False,
+      ppuNESStateBackgroundClipped = False,
+      ppuNESStateSpritesClipped = False,
+      ppuNESStateBackgroundVisible = False,
+      ppuNESStateSpritesVisible = False,
+      ppuNESStateIntensifiedColor = Nothing,
       ppuNESStateWrittenOddNumberOfTimesToAddresses = False,
+      ppuNESStatePermanentAddress = 0x0000,
+      ppuNESStateTemporaryAddress = 0x0000,
+      ppuNESStateXOffset = 0x00,
       ppuNESStateIncompleteFrame = blankIncompleteVideoFrame,
       ppuNESStateLatestCompleteFrame = Nothing
     }
@@ -80,8 +110,8 @@ decodeRegister offset =
     2 -> Status
     3 -> SpriteAddress
     4 -> SpriteAccess
-    5 -> PermanentAddress
-    6 -> TemporaryAddress
+    5 -> Address1
+    6 -> Address2
     7 -> Access
 
 
@@ -93,8 +123,8 @@ registerReadable register =
     Status -> True
     SpriteAddress -> False
     SpriteAccess -> False
-    PermanentAddress -> False
-    TemporaryAddress -> False
+    Address1 -> False
+    Address2 -> False
     Access -> True
 
 
@@ -106,8 +136,8 @@ registerWriteable register =
     Status -> False
     SpriteAddress -> True
     SpriteAccess -> True
-    PermanentAddress -> True
-    TemporaryAddress -> True
+    Address1 -> True
+    Address2 -> True
     Access -> True
 
 
@@ -124,13 +154,14 @@ registerFetch (_, _, _, getState, putState) outerState register =
       (ppuState', value) =
         case register of
           Status ->
+            -- TODO other bits
             let wantsToAssertNMI = ppuNESStateWantsToAssertNMI ppuState
                 value = foldl (\value (bitIndex, bitValue) ->
                                   if bitValue
                                     then setBit value bitIndex
                                     else clearBit value bitIndex)
                               0x00
-                              $ [(7, wantsToAssertNMI)]
+                              [(7, wantsToAssertNMI)]
                 ppuState' =
                   ppuState {
                       ppuNESStateWantsToAssertNMI = False,
@@ -154,16 +185,37 @@ registerStore :: ((outerState -> Word16 -> (Word8, outerState)),
               -> Register
               -> Word8
               -> outerState
-registerStore (_, _, _, getState, putState) outerState register value =
+registerStore (_, storeByte, _, getState, putState)
+              outerState register value =
   let ppuState = getState outerState
       (ppuState', outerState') =
         case register of
           Control1 ->
             let stillPoweringUp = ppuNESStateStillPoweringUp ppuState
-                allowedToAssertNMI' = testBit value 7
+                allowedToAssertNMI = testBit value 7
+                tallSprites = testBit value 5
+                patternTableForBackground =
+                  fromIntegral $ shiftR value 4 .&. 0x01
+                patternTableForSprites =
+                  fromIntegral $ shiftR value 3 .&. 0x01
+                addressIncrementVertically = testBit value 2
+                nameTable = value .&. 0x03
+                permanentAddress = ppuNESStatePermanentAddress ppuState
+                permanentAddress' =
+                  (permanentAddress .&. 0xF3FF)
+                  .|. (shiftL (fromIntegral nameTable) 10)
                 ppuState' = ppuState {
                                 ppuNESStateAllowedToAssertNMI =
-                                  allowedToAssertNMI'
+                                  allowedToAssertNMI,
+                                ppuNESStateTallSprites = tallSprites,
+                                ppuNESStatePatternTableForBackground =
+                                  patternTableForBackground,
+                                ppuNESStatePatternTableForSprites =
+                                  patternTableForSprites,
+                                ppuNESStateAddressIncrementVertically =
+                                  addressIncrementVertically,
+                                ppuNESStatePermanentAddress =
+                                  permanentAddress'
                               }
                 outerState' = outerState
             in if stillPoweringUp
@@ -171,7 +223,31 @@ registerStore (_, _, _, getState, putState) outerState register value =
                  else (ppuState', outerState')
           Control2 ->
             let stillPoweringUp = ppuNESStateStillPoweringUp ppuState
-                ppuState' = ppuState
+                paletteMonochrome = testBit value 0
+                backgroundClipped = testBit value 1
+                spritesClipped = testBit value 2
+                backgroundVisible = testBit value 3
+                spritesVisible = testBit value 4
+                intensifiedColor =
+                  case shiftR value 5 of
+                    0x01 -> Just Green
+                    0x02 -> Just Blue
+                    0x04 -> Just Red
+                    _ -> Nothing
+                ppuState' = ppuState {
+                                ppuNESStatePaletteMonochrome =
+                                  paletteMonochrome,
+                                ppuNESStateBackgroundClipped =
+                                  backgroundClipped,
+                                ppuNESStateSpritesClipped =
+                                  spritesClipped,
+                                ppuNESStateBackgroundVisible =
+                                  backgroundVisible,
+                                ppuNESStateSpritesVisible =
+                                  spritesVisible,
+                                ppuNESStateIntensifiedColor =
+                                  intensifiedColor
+                              }
                 outerState' = outerState
             in if stillPoweringUp
                  then (ppuState, outerState)
@@ -184,23 +260,78 @@ registerStore (_, _, _, getState, putState) outerState register value =
             let ppuState' = ppuState
                 outerState' = outerState
             in (ppuState', outerState')
-          PermanentAddress ->
+          Address1 ->
             let stillPoweringUp = ppuNESStateStillPoweringUp ppuState
-                ppuState' = ppuState
+                writtenOddNumberOfTimesToAddresses =
+                  ppuNESStateWrittenOddNumberOfTimesToAddresses ppuState
+                writtenOddNumberOfTimesToAddresses' =
+                  not writtenOddNumberOfTimesToAddresses
+                valueHighFive = shiftR value 3 .&. 0x1F
+                valueLowThree = value .&. 0x07
+                permanentAddress = ppuNESStatePermanentAddress ppuState
+                xOffset = ppuNESStateXOffset ppuState
+                (permanentAddress', xOffset') =
+                  if not writtenOddNumberOfTimesToAddresses
+                    then ((permanentAddress .&. 0xFFE0)
+                          .|. (fromIntegral valueHighFive),
+                          valueLowThree)
+                    else ((permanentAddress .&. 0x8C1F)
+                          .|. (shiftL (fromIntegral valueHighFive) 5)
+                          .|. (shiftL (fromIntegral valueLowThree) 12),
+                          xOffset)
+                ppuState' = ppuState {
+                                ppuNESStateWrittenOddNumberOfTimesToAddresses =
+                                  writtenOddNumberOfTimesToAddresses',
+                                ppuNESStatePermanentAddress =
+                                  permanentAddress',
+                                ppuNESStateXOffset = xOffset'
+                              }
                 outerState' = outerState
             in if stillPoweringUp
                  then (ppuState, outerState)
                  else (ppuState', outerState')
-          TemporaryAddress ->
+          Address2 ->
             let stillPoweringUp = ppuNESStateStillPoweringUp ppuState
-                ppuState' = ppuState
+                writtenOddNumberOfTimesToAddresses =
+                  ppuNESStateWrittenOddNumberOfTimesToAddresses ppuState
+                writtenOddNumberOfTimesToAddresses' =
+                  not writtenOddNumberOfTimesToAddresses
+                permanentAddress = ppuNESStatePermanentAddress ppuState
+                temporaryAddress = ppuNESStateTemporaryAddress ppuState
+                (permanentAddress', temporaryAddress') =
+                  if not writtenOddNumberOfTimesToAddresses
+                    then ((permanentAddress .&. 0x3FFF)
+                          .|. (shiftL (fromIntegral $ value .&. 0x3F) 8),
+                          temporaryAddress)
+                    else ((permanentAddress .&. 0x00FF)
+                          .|. (fromIntegral value),
+                          permanentAddress')
+                ppuState' = ppuState {
+                                ppuNESStateWrittenOddNumberOfTimesToAddresses =
+                                  writtenOddNumberOfTimesToAddresses',
+                                ppuNESStatePermanentAddress =
+                                  permanentAddress',
+                                ppuNESStateTemporaryAddress =
+                                  temporaryAddress'
+                              }
                 outerState' = outerState
             in if stillPoweringUp
                  then (ppuState, outerState)
                  else (ppuState', outerState')
           Access ->
-            let ppuState' = ppuState
-                outerState' = outerState
+            let addressIncrementVertically =
+                  ppuNESStateAddressIncrementVertically ppuState
+                permanentAddress = ppuNESStatePermanentAddress ppuState
+                permanentAddress' =
+                  permanentAddress
+                  + if addressIncrementVertically
+                      then 32
+                      else 1
+                ppuState' = ppuState {
+                                ppuNESStatePermanentAddress =
+                                  permanentAddress'
+                              }
+                outerState' = storeByte outerState permanentAddress value
             in (ppuState', outerState')
       outerState'' = putState outerState' ppuState'
   in outerState''
@@ -240,11 +371,25 @@ cycle (fetchByte, storeByte, getTableMemory, getState, putState) outerState =
           (_, 0, 241) -> True
           (_, 0, 260) -> False
           (oldValue, _, _) -> oldValue
+      backgroundVisible = ppuNESStateBackgroundVisible ppuState
+      spritesVisible = ppuNESStateSpritesVisible ppuState
+      forcedBlank = not backgroundVisible && not spritesVisible
+      temporaryAddress = ppuNESStateTemporaryAddress ppuState
+      permanentAddress = ppuNESStatePermanentAddress ppuState
+      permanentAddress' =
+        if forcedBlank
+          then permanentAddress
+          else case (horizontalClock, verticalClock) of
+                 (0, 261) -> temporaryAddress
+                 (0, _) -> (permanentAddress .&. 0xFBE0)
+                           .|. (temporaryAddress .&. 0x041F)
+                 _ -> permanentAddress
       ppuState' = ppuState {
                       ppuNESStateHorizontalClock = horizontalClock',
                       ppuNESStateVerticalClock = verticalClock',
                       ppuNESStateStillPoweringUp = stillPoweringUp',
-                      ppuNESStateWantsToAssertNMI = wantsToAssertNMI'
+                      ppuNESStateWantsToAssertNMI = wantsToAssertNMI',
+                      ppuNESStatePermanentAddress = permanentAddress'
                     }
       incompleteFrame =
         case (horizontalClock, verticalClock) of
