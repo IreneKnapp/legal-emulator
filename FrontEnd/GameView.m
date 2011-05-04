@@ -49,22 +49,29 @@
 - (void) keyDown: (NSEvent *) event {
     switch([event keyCode]) {
     case 0: // a
-        if(currentTexture > 1)
-            currentTexture -= 2;
-        [self setNeedsDisplay: YES];
-        break;
-    case 1: // s
-        if(currentTexture + 2 < nTextures)
-            currentTexture += 2;
-        [self setNeedsDisplay: YES];
+        {
+            char *trace = NULL;
+            void *next_gamestate
+              = gamestate_frame_forward(gamestate,
+                                        traceExecution ? trace : NULL);
+            if(trace) {
+                printf("%s", trace);
+                string_free(trace);
+            }
+            gamestate_free(gamestate);
+            gamestate = next_gamestate;
+            NSLog(@"Advanced.");
+            [self setNeedsDisplay: YES];
+        }
         break;
     /*
+    case 1: // s
+        [self setNeedsDisplay: YES];
+        break;
     case 2: // d
-        w += 0.125f;
         [self setNeedsDisplay: YES];
         break;
     case 13: // w
-        h -= 0.125f;
         [self setNeedsDisplay: YES];
         break;
     */
@@ -236,8 +243,6 @@
         [self initOpenGL];
         [self initTextures];
         
-        currentTexture = 0;
-        
         initialized = YES;
     }
     
@@ -303,7 +308,7 @@
             int backgroundPixelBottom = backgroundPixelTop + 8;
             
             glStencilMask(0x01);
-            glBindTexture(GL_TEXTURE_2D, textures[currentTexture]);
+            glBindTexture(GL_TEXTURE_2D, textures[0]);
             glBegin(GL_QUADS);
             glTexCoord2f(patternTableTextureLeft, patternTableTextureTop);
             glVertex2s(backgroundPixelLeft, backgroundPixelTop);
@@ -316,7 +321,7 @@
             glEnd();
             
             glStencilMask(0x02);
-            glBindTexture(GL_TEXTURE_2D, textures[currentTexture+1]);
+            glBindTexture(GL_TEXTURE_2D, textures[0+1]);
             glBegin(GL_QUADS);
             glTexCoord2f(patternTableTextureLeft, patternTableTextureTop);
             glVertex2s(backgroundPixelLeft, backgroundPixelTop);

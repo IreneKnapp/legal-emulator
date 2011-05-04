@@ -368,23 +368,15 @@ cpuCallbacks = ((\state address ->
                                CPUDataBus
                                addressMapping
                                localAddress
-                   in {-trace ("Read $"
-                             ++ showHexWord8 value
-                             ++ " from $"
-                             ++ showHexWord16 address)-}
-                            (value, state')),
+                   in (value, state')),
                 (\state address value ->
                    let (addressMapping, localAddress) =
                          cpuDecodeAddress state address
-                   in {-trace ("Write $"
-                             ++ showHexWord8 value
-                             ++ " to $"
-                             ++ showHexWord16 address)
-                      $-} store state
-                              CPUDataBus
-                              addressMapping
-                              localAddress
-                              value),
+                   in store state
+                            CPUDataBus
+                            addressMapping
+                            localAddress
+                            value),
                 (\_ -> False),
                 (\state ->
                   let softwareState = stateSoftwareState state

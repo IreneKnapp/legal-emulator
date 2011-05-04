@@ -13,7 +13,6 @@
     BOOL initialized;
     uint32_t nTextures;
     GLuint *textures;
-    uint32_t currentTexture;
     GLuint temporaryTexture;
     GLuint shader;
     GLuint program;

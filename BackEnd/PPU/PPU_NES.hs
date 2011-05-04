@@ -27,6 +27,7 @@ data PPU_NES_State =
       ppuNESStateStillPoweringUp :: Bool,
       ppuNESStateWantsToAssertNMI :: Bool,
       ppuNESStateAllowedToAssertNMI :: Bool,
+      ppuNESStateWrittenOddNumberOfTimesToAddresses :: Bool,
       ppuNESStateIncompleteFrame :: IncompleteVideoFrame,
       ppuNESStateLatestCompleteFrame :: Maybe VideoFrame
       --ppuNESStateChanges :: [(Int, Int, PPUChange)]
@@ -65,6 +66,7 @@ powerOnState =
       ppuNESStateStillPoweringUp = True,
       ppuNESStateWantsToAssertNMI = True,
       ppuNESStateAllowedToAssertNMI = False,
+      ppuNESStateWrittenOddNumberOfTimesToAddresses = False,
       ppuNESStateIncompleteFrame = blankIncompleteVideoFrame,
       ppuNESStateLatestCompleteFrame = Nothing
     }
@@ -129,22 +131,16 @@ registerFetch (_, _, _, getState, putState) outerState register =
                                     else clearBit value bitIndex)
                               0x00
                               $ [(7, wantsToAssertNMI)]
-                ppuState' = ppuState {
-                                ppuNESStateWantsToAssertNMI = False
-                              }
-            in {-trace ("Read $"
-                      ++ (showHexWord8 value)
-                      ++ " from "
-                      ++ (show register))-}
-                     (ppuState', value)
+                ppuState' =
+                  ppuState {
+                      ppuNESStateWantsToAssertNMI = False,
+                      ppuNESStateWrittenOddNumberOfTimesToAddresses = False
+                    }
+            in (ppuState', value)
           Access ->
             let value = 0x00
                 ppuState' = ppuState
-            in {-trace ("Read $"
-                      ++ (showHexWord8 value)
-                      ++ " from "
-                      ++ (show register))-}
-                     (ppuState', value)
+            in (ppuState', value)
       outerState' = putState outerState ppuState'
   in (outerState', value)
 
@@ -170,70 +166,42 @@ registerStore (_, _, _, getState, putState) outerState register value =
                                   allowedToAssertNMI'
                               }
                 outerState' = outerState
-            in {-trace ("Write $"
-                      ++ (showHexWord8 value)
-                      ++ " to "
-                      ++ (show register))
-                     $-} if stillPoweringUp
-                         then (ppuState, outerState)
-                         else (ppuState', outerState')
+            in if stillPoweringUp
+                 then (ppuState, outerState)
+                 else (ppuState', outerState')
           Control2 ->
             let stillPoweringUp = ppuNESStateStillPoweringUp ppuState
                 ppuState' = ppuState
                 outerState' = outerState
-            in {-trace ("Write $"
-                      ++ (showHexWord8 value)
-                      ++ " to "
-                      ++ (show register))
-                     $-} if stillPoweringUp
-                         then (ppuState, outerState)
-                         else (ppuState', outerState')
+            in if stillPoweringUp
+                 then (ppuState, outerState)
+                 else (ppuState', outerState')
           SpriteAddress ->
             let ppuState' = ppuState
                 outerState' = outerState
-            in {-trace ("Write $"
-                      ++ (showHexWord8 value)
-                      ++ " to "
-                      ++ (show register))-}
-                     (ppuState', outerState')
+            in (ppuState', outerState')
           SpriteAccess ->
             let ppuState' = ppuState
                 outerState' = outerState
-            in {-trace ("Write $"
-                      ++ (showHexWord8 value)
-                      ++ " to "
-                      ++ (show register))-}
-                     (ppuState', outerState')
+            in (ppuState', outerState')
           PermanentAddress ->
             let stillPoweringUp = ppuNESStateStillPoweringUp ppuState
                 ppuState' = ppuState
                 outerState' = outerState
-            in {-trace ("Write $"
-                      ++ (showHexWord8 value)
-                      ++ " to "
-                      ++ (show register))
-                     $-} if stillPoweringUp
-                         then (ppuState, outerState)
-                         else (ppuState', outerState')
+            in if stillPoweringUp
+                 then (ppuState, outerState)
+                 else (ppuState', outerState')
           TemporaryAddress ->
             let stillPoweringUp = ppuNESStateStillPoweringUp ppuState
                 ppuState' = ppuState
                 outerState' = outerState
-            in {-trace ("Write $"
-                      ++ (showHexWord8 value)
-                      ++ " to "
-                      ++ (show register))
-                     $-} if stillPoweringUp
-                         then (ppuState, outerState)
-                         else (ppuState', outerState')
+            in if stillPoweringUp
+                 then (ppuState, outerState)
+                 else (ppuState', outerState')
           Access ->
             let ppuState' = ppuState
                 outerState' = outerState
-            in {-trace ("Write $"
-                      ++ (showHexWord8 value)
-                      ++ " to "
-                      ++ (show register))-}
-                     (ppuState', outerState')
+            in (ppuState', outerState')
       outerState'' = putState outerState' ppuState'
   in outerState''
 
