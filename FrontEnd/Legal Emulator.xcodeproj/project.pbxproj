@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 45;
+	objectVersion = 46;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -16,23 +16,7 @@
 		E23F8447136BDE66005F4E19 /* Legal-Emulator.icns in Resources */ = {isa = PBXBuildFile; fileRef = E23F8445136BDE66005F4E19 /* Legal-Emulator.icns */; };
 		E23F8487136BE2DF005F4E19 /* GameView.m in Sources */ = {isa = PBXBuildFile; fileRef = E23F8486136BE2DF005F4E19 /* GameView.m */; };
 		E23F849C136BE692005F4E19 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E23F849B136BE692005F4E19 /* OpenGL.framework */; };
-		E23F8504136BFCEB005F4E19 /* libHSlegal-emulator-1.0.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E23F8503136BFCEB005F4E19 /* libHSlegal-emulator-1.0.a */; };
-		E23F8520136C022D005F4E19 /* libHSrts_thr.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E23F851E136C022D005F4E19 /* libHSrts_thr.a */; };
-		E23F8521136C022D005F4E19 /* libHSffi.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E23F851F136C022D005F4E19 /* libHSffi.a */; };
-		E23F8525136C0241005F4E19 /* libHSbase-4.3.1.0.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E23F8524136C0241005F4E19 /* libHSbase-4.3.1.0.a */; };
-		E23F8529136C029F005F4E19 /* libHSghc-prim-0.2.0.0.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E23F8528136C029F005F4E19 /* libHSghc-prim-0.2.0.0.a */; };
-		E23F852D136C02BF005F4E19 /* libHSbytestring-0.9.1.10.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E23F852C136C02BF005F4E19 /* libHSbytestring-0.9.1.10.a */; };
-		E23F8531136C043D005F4E19 /* libHSinteger-gmp-0.2.0.2.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E23F8530136C043D005F4E19 /* libHSinteger-gmp-0.2.0.2.a */; };
 		E23F8535136C0450005F4E19 /* libiconv.2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E23F8534136C0450005F4E19 /* libiconv.2.dylib */; };
-		E23F8539136C046C005F4E19 /* libHSarray-0.3.0.2.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E23F8538136C046C005F4E19 /* libHSarray-0.3.0.2.a */; };
-		E23F890E136C3F7F005F4E19 /* Emulator.hs in Resources */ = {isa = PBXBuildFile; fileRef = E23F890A136C3F7F005F4E19 /* Emulator.hs */; };
-		E23F890F136C3F7F005F4E19 /* EmulatorExtras.c in Sources */ = {isa = PBXBuildFile; fileRef = E23F890B136C3F7F005F4E19 /* EmulatorExtras.c */; };
-		E23F8910136C3F7F005F4E19 /* legal-emulator.cabal in Resources */ = {isa = PBXBuildFile; fileRef = E23F890C136C3F7F005F4E19 /* legal-emulator.cabal */; };
-		E23F8913136C3F88005F4E19 /* PPU_NES.hs in Resources */ = {isa = PBXBuildFile; fileRef = E23F8912136C3F88005F4E19 /* PPU_NES.hs */; };
-		E23F8915136C3F8F005F4E19 /* NES.hs in Resources */ = {isa = PBXBuildFile; fileRef = E23F8914136C3F8F005F4E19 /* NES.hs */; };
-		E23F8917136C3FA2005F4E19 /* CPU_6502.hs in Resources */ = {isa = PBXBuildFile; fileRef = E23F8916136C3FA2005F4E19 /* CPU_6502.hs */; };
-		E23F8919136C3FAA005F4E19 /* INES.hs in Resources */ = {isa = PBXBuildFile; fileRef = E23F8918136C3FAA005F4E19 /* INES.hs */; };
-		E23F8D76136E1CC7005F4E19 /* libHSutf8-string-0.3.6.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E23F8D75136E1CC7005F4E19 /* libHSutf8-string-0.3.6.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -53,15 +37,7 @@
 		E23F8486136BE2DF005F4E19 /* GameView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GameView.m; sourceTree = "<group>"; };
 		E23F849B136BE692005F4E19 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
 		E23F8501136BFCA0005F4E19 /* Emulator_stub.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Emulator_stub.h; path = ../BackEnd/dist/build/Emulator_stub.h; sourceTree = SOURCE_ROOT; };
-		E23F8503136BFCEB005F4E19 /* libHSlegal-emulator-1.0.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libHSlegal-emulator-1.0.a"; path = "../BackEnd/dist/build/libHSlegal-emulator-1.0.a"; sourceTree = SOURCE_ROOT; };
-		E23F851E136C022D005F4E19 /* libHSrts_thr.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libHSrts_thr.a; path = "/Library/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/libHSrts_thr.a"; sourceTree = "<absolute>"; };
-		E23F851F136C022D005F4E19 /* libHSffi.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libHSffi.a; path = "/Library/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/libHSffi.a"; sourceTree = "<absolute>"; };
-		E23F8524136C0241005F4E19 /* libHSbase-4.3.1.0.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libHSbase-4.3.1.0.a"; path = "/Library/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/base-4.3.1.0/libHSbase-4.3.1.0.a"; sourceTree = "<absolute>"; };
-		E23F8528136C029F005F4E19 /* libHSghc-prim-0.2.0.0.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libHSghc-prim-0.2.0.0.a"; path = "/Library/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/ghc-prim-0.2.0.0/libHSghc-prim-0.2.0.0.a"; sourceTree = "<absolute>"; };
-		E23F852C136C02BF005F4E19 /* libHSbytestring-0.9.1.10.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libHSbytestring-0.9.1.10.a"; path = "/Library/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/bytestring-0.9.1.10/libHSbytestring-0.9.1.10.a"; sourceTree = "<absolute>"; };
-		E23F8530136C043D005F4E19 /* libHSinteger-gmp-0.2.0.2.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libHSinteger-gmp-0.2.0.2.a"; path = "/Library/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/integer-gmp-0.2.0.2/libHSinteger-gmp-0.2.0.2.a"; sourceTree = "<absolute>"; };
 		E23F8534136C0450005F4E19 /* libiconv.2.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libiconv.2.dylib; path = /usr/lib/libiconv.2.dylib; sourceTree = "<absolute>"; };
-		E23F8538136C046C005F4E19 /* libHSarray-0.3.0.2.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libHSarray-0.3.0.2.a"; path = "/Library/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/array-0.3.0.2/libHSarray-0.3.0.2.a"; sourceTree = "<absolute>"; };
 		E23F8589136C0B4C005F4E19 /* HsFFI.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = HsFFI.h; path = "/Library/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/include/HsFFI.h"; sourceTree = "<absolute>"; };
 		E23F859A136C0BC3005F4E19 /* Emulator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Emulator.h; path = ../BackEnd/Emulator.h; sourceTree = SOURCE_ROOT; };
 		E23F890A136C3F7F005F4E19 /* Emulator.hs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Emulator.hs; path = ../BackEnd/Emulator.hs; sourceTree = SOURCE_ROOT; };
@@ -71,7 +47,6 @@
 		E23F8914136C3F8F005F4E19 /* NES.hs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = NES.hs; path = ../BackEnd/Motherboard/NES.hs; sourceTree = SOURCE_ROOT; };
 		E23F8916136C3FA2005F4E19 /* CPU_6502.hs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = CPU_6502.hs; path = ../BackEnd/Processor/CPU_6502.hs; sourceTree = SOURCE_ROOT; };
 		E23F8918136C3FAA005F4E19 /* INES.hs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = INES.hs; path = ../BackEnd/FileFormat/INES.hs; sourceTree = SOURCE_ROOT; };
-		E23F8D75136E1CC7005F4E19 /* libHSutf8-string-0.3.6.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libHSutf8-string-0.3.6.a"; path = "/usr/local/cabal/ghc-7.1.20110125/lib/utf8-string-0.3.6/libHSutf8-string-0.3.6.a"; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -81,16 +56,7 @@
 			files = (
 				8D11072F0486CEB800E47090 /* Cocoa.framework in Frameworks */,
 				E23F849C136BE692005F4E19 /* OpenGL.framework in Frameworks */,
-				E23F8504136BFCEB005F4E19 /* libHSlegal-emulator-1.0.a in Frameworks */,
-				E23F8520136C022D005F4E19 /* libHSrts_thr.a in Frameworks */,
-				E23F8521136C022D005F4E19 /* libHSffi.a in Frameworks */,
-				E23F8525136C0241005F4E19 /* libHSbase-4.3.1.0.a in Frameworks */,
-				E23F8529136C029F005F4E19 /* libHSghc-prim-0.2.0.0.a in Frameworks */,
-				E23F852D136C02BF005F4E19 /* libHSbytestring-0.9.1.10.a in Frameworks */,
-				E23F8531136C043D005F4E19 /* libHSinteger-gmp-0.2.0.2.a in Frameworks */,
 				E23F8535136C0450005F4E19 /* libiconv.2.dylib in Frameworks */,
-				E23F8539136C046C005F4E19 /* libHSarray-0.3.0.2.a in Frameworks */,
-				E23F8D76136E1CC7005F4E19 /* libHSutf8-string-0.3.6.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -111,18 +77,9 @@
 		1058C7A0FEA54F0111CA2CBB /* Linked Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				E23F8D75136E1CC7005F4E19 /* libHSutf8-string-0.3.6.a */,
-				E23F8538136C046C005F4E19 /* libHSarray-0.3.0.2.a */,
-				E23F8534136C0450005F4E19 /* libiconv.2.dylib */,
-				E23F8530136C043D005F4E19 /* libHSinteger-gmp-0.2.0.2.a */,
-				E23F852C136C02BF005F4E19 /* libHSbytestring-0.9.1.10.a */,
-				E23F8528136C029F005F4E19 /* libHSghc-prim-0.2.0.0.a */,
-				E23F8524136C0241005F4E19 /* libHSbase-4.3.1.0.a */,
-				E23F851E136C022D005F4E19 /* libHSrts_thr.a */,
-				E23F851F136C022D005F4E19 /* libHSffi.a */,
-				E23F8503136BFCEB005F4E19 /* libHSlegal-emulator-1.0.a */,
 				1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */,
 				E23F849B136BE692005F4E19 /* OpenGL.framework */,
+				E23F8534136C0450005F4E19 /* libiconv.2.dylib */,
 			);
 			name = "Linked Frameworks";
 			sourceTree = "<group>";
@@ -211,7 +168,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = C01FCF4A08A954540054247B /* Build configuration list for PBXNativeTarget "Legal Emulator" */;
 			buildPhases = (
-				E23F87C3136C262C005F4E19 /* ShellScript */,
+				E29BE0E11372CB1500B9DD85 /* Run Script */,
 				8D1107290486CEB800E47090 /* Resources */,
 				8D11072C0486CEB800E47090 /* Sources */,
 				8D11072E0486CEB800E47090 /* Frameworks */,
@@ -235,8 +192,12 @@
 				ORGANIZATIONNAME = "Dan Knapp";
 			};
 			buildConfigurationList = C01FCF4E08A954540054247B /* Build configuration list for PBXProject "Legal Emulator" */;
-			compatibilityVersion = "Xcode 3.1";
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
 			hasScannedForEncodings = 1;
+			knownRegions = (
+				en,
+			);
 			mainGroup = 29B97314FDCFA39411CA2CEA /* Legal Emulator */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -255,39 +216,35 @@
 				1DDD58160DA1D0A300B32029 /* MainMenu.xib in Resources */,
 				E23F8446136BDE66005F4E19 /* Legal-Game.icns in Resources */,
 				E23F8447136BDE66005F4E19 /* Legal-Emulator.icns in Resources */,
-				E23F890E136C3F7F005F4E19 /* Emulator.hs in Resources */,
-				E23F8910136C3F7F005F4E19 /* legal-emulator.cabal in Resources */,
-				E23F8913136C3F88005F4E19 /* PPU_NES.hs in Resources */,
-				E23F8915136C3F8F005F4E19 /* NES.hs in Resources */,
-				E23F8917136C3FA2005F4E19 /* CPU_6502.hs in Resources */,
-				E23F8919136C3FAA005F4E19 /* INES.hs in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		E23F87C3136C262C005F4E19 /* ShellScript */ = {
+		E29BE0E11372CB1500B9DD85 /* Run Script */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputPaths = (
-				"$(PROJECT_DIR)/../BackEnd/Emulator.h",
 				"$(PROJECT_DIR)/../BackEnd/legal-emulator.cabal",
-				"$(PROJECT_DIR)/../BackEnd/EmulatorExtras.c",
+				"$(PROJECT_DIR)/../BackEnd/Assembly.hs",
 				"$(PROJECT_DIR)/../BackEnd/Emulator.hs",
 				"$(PROJECT_DIR)/../BackEnd/FileFormat/INES.hs",
 				"$(PROJECT_DIR)/../BackEnd/Motherboard/NES.hs",
 				"$(PROJECT_DIR)/../BackEnd/PPU/PPU_NES.hs",
 				"$(PROJECT_DIR)/../BackEnd/Processor/CPU_6502.hs",
+				"$(PROJECT_DIR)/../BackEnd/EmulatorExtras.c",
 			);
+			name = "Run Script";
 			outputPaths = (
 				"$(PROJECT_DIR)/../BackEnd/dist/build/libHSlegal-emulator-1.0.a",
+				"$(PROJECT_DIR)/../BackEnd/dist/build/libHSlegal-emulator-1.0_p.a",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "cd \"${PROJECT_DIR}/../BackEnd/\"\ncabal configure\ncabal build\n";
+			shellScript = "cd \"${PROJECT_DIR}/../BackEnd/\"\n\"${CABAL}\" configure\n\"${CABAL}\" build";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
@@ -300,7 +257,6 @@
 				8D11072D0486CEB800E47090 /* main.m in Sources */,
 				256AC3DA0F4B6AC300CF3369 /* AppDelegate.m in Sources */,
 				E23F8487136BE2DF005F4E19 /* GameView.m in Sources */,
-				E23F890F136C3F7F005F4E19 /* EmulatorExtras.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -329,26 +285,24 @@
 		C01FCF4B08A954540054247B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
 				COPY_PHASE_STRIP = NO;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_ENABLE_FIX_AND_CONTINUE = YES;
-				GCC_MODEL_TUNING = G5;
-				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = Prefix.pch;
+				HASKELL_LIBRARY_WAY = "";
 				INFOPLIST_FILE = Info.plist;
 				INSTALL_PATH = "$(HOME)/Applications";
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"\"$(SRCROOT)/../BackEnd/dist/build\"",
-					"\"$(LOCAL_LIBRARY_DIR)/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125\"",
-					"\"$(LOCAL_LIBRARY_DIR)/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/base-4.3.1.0\"",
-					"\"$(LOCAL_LIBRARY_DIR)/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/ghc-prim-0.2.0.0\"",
-					"\"$(LOCAL_LIBRARY_DIR)/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/bytestring-0.9.1.10\"",
-					"\"$(LOCAL_LIBRARY_DIR)/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/integer-gmp-0.2.0.2\"",
-					"\"$(LOCAL_LIBRARY_DIR)/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/array-0.3.0.2\"",
-					"\"/usr/local/cabal/ghc-7.1.20110125/lib/utf8-string-0.3.6\"",
+				OTHER_LDFLAGS = (
+					"$(PROJECT_DIR)/../BackEnd/dist/build/libHSlegal-emulator-1.0$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/libHSrts_thr$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/libHSffi$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/base-4.3.1.0/libHSbase-4.3.1.0$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/integer-gmp-0.2.0.2/libHSinteger-gmp-0.2.0.2$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/ghc-prim-0.2.0.0/libHSghc-prim-0.2.0.0$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/bytestring-0.9.1.10/libHSbytestring-0.9.1.10$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/array-0.3.0.2/libHSarray-0.3.0.2$(HASKELL_LIBRARY_WAY).a",
+					"$(CABAL_LIBRARY_PATH)/utf8-string-0.3.6/libHSutf8-string-0.3.6$(HASKELL_LIBRARY_WAY).a",
 				);
 				PRODUCT_NAME = "Legal Emulator";
 			};
@@ -357,23 +311,22 @@
 		C01FCF4C08A954540054247B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				GCC_MODEL_TUNING = G5;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = Prefix.pch;
+				HASKELL_LIBRARY_WAY = "";
 				INFOPLIST_FILE = Info.plist;
 				INSTALL_PATH = "$(HOME)/Applications";
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"\"$(SRCROOT)/../BackEnd/dist/build\"",
-					"\"$(LOCAL_LIBRARY_DIR)/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125\"",
-					"\"$(LOCAL_LIBRARY_DIR)/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/base-4.3.1.0\"",
-					"\"$(LOCAL_LIBRARY_DIR)/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/ghc-prim-0.2.0.0\"",
-					"\"$(LOCAL_LIBRARY_DIR)/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/bytestring-0.9.1.10\"",
-					"\"$(LOCAL_LIBRARY_DIR)/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/integer-gmp-0.2.0.2\"",
-					"\"$(LOCAL_LIBRARY_DIR)/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/array-0.3.0.2\"",
-					"\"/usr/local/cabal/ghc-7.1.20110125/lib/utf8-string-0.3.6\"",
+				OTHER_LDFLAGS = (
+					"$(PROJECT_DIR)/../BackEnd/dist/build/libHSlegal-emulator-1.0$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/libHSrts_thr$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/libHSffi$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/base-4.3.1.0/libHSbase-4.3.1.0$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/integer-gmp-0.2.0.2/libHSinteger-gmp-0.2.0.2$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/ghc-prim-0.2.0.0/libHSghc-prim-0.2.0.0$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/bytestring-0.9.1.10/libHSbytestring-0.9.1.10$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/array-0.3.0.2/libHSarray-0.3.0.2$(HASKELL_LIBRARY_WAY).a",
+					"$(CABAL_LIBRARY_PATH)/utf8-string-0.3.6/libHSutf8-string-0.3.6$(HASKELL_LIBRARY_WAY).a",
 				);
 				PRODUCT_NAME = "Legal Emulator";
 			};
@@ -382,30 +335,105 @@
 		C01FCF4F08A954540054247B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
-				GCC_C_LANGUAGE_STANDARD = gnu99;
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
+				CABAL = "$(CABAL_PREFIX)/bin/cabal";
+				CABAL_LIBRARY_PATH = "$(CABAL_PREFIX)/ghc-$(GHC_VERSION)/lib";
+				CABAL_PREFIX = /usr/local/cabal;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				GCC_C_LANGUAGE_STANDARD = c99;
 				GCC_ENABLE_OBJC_GC = required;
-				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				ONLY_ACTIVE_ARCH = YES;
-				PREBINDING = NO;
+				GENERATE_PROFILING_CODE = YES;
+				GHC_ARCHITECTURE = x86_64;
+				GHC_FRAMEWORK_PATH = "/Library/Frameworks/GHC.framework/Versions/$(GHC_VERSION)-$(GHC_ARCHITECTURE)";
+				GHC_LIBRARY_PATH = "$(GHC_PREFIX)/usr/lib/ghc-$(GHC_VERSION)";
+				GHC_PREFIX = "$(GHC_FRAMEWORK_PATH)";
+				GHC_VERSION = 7.1.20110504;
+				MACOSX_DEPLOYMENT_TARGET = 10.6;
 				SDKROOT = macosx10.6;
+				STRIP_INSTALLED_PRODUCT = NO;
 			};
 			name = Debug;
 		};
 		C01FCF5008A954540054247B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
-				GCC_C_LANGUAGE_STANDARD = gnu99;
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
+				CABAL = "$(CABAL_PREFIX)/bin/cabal";
+				CABAL_LIBRARY_PATH = "$(CABAL_PREFIX)/ghc-$(GHC_VERSION)/lib";
+				CABAL_PREFIX = /usr/local/cabal;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_C_LANGUAGE_STANDARD = c99;
 				GCC_ENABLE_OBJC_GC = required;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				PREBINDING = NO;
+				GHC_ARCHITECTURE = x86_64;
+				GHC_FRAMEWORK_PATH = "/Library/Frameworks/GHC.framework/Versions/$(GHC_VERSION)-$(GHC_ARCHITECTURE)";
+				GHC_LIBRARY_PATH = "$(GHC_PREFIX)/usr/lib/ghc-$(GHC_VERSION)";
+				GHC_PREFIX = "$(GHC_FRAMEWORK_PATH)";
+				GHC_VERSION = 7.1.20110504;
+				MACOSX_DEPLOYMENT_TARGET = 10.6;
 				SDKROOT = macosx10.6;
+				STRIP_INSTALLED_PRODUCT = YES;
 			};
 			name = Release;
+		};
+		E23F99C013723E52005F4E19 /* Profiling */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
+				CABAL = "$(CABAL_PREFIX)/bin/cabal";
+				CABAL_LIBRARY_PATH = "$(CABAL_PREFIX)/ghc-$(GHC_VERSION)/lib";
+				CABAL_PREFIX = /usr/local/cabal;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				GCC_C_LANGUAGE_STANDARD = c99;
+				GCC_ENABLE_OBJC_GC = required;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_PROFILING_CODE = YES;
+				GHC_ARCHITECTURE = x86_64;
+				GHC_FRAMEWORK_PATH = "/Library/Frameworks/GHC.framework/Versions/$(GHC_VERSION)-$(GHC_ARCHITECTURE)";
+				GHC_LIBRARY_PATH = "$(GHC_PREFIX)/usr/lib/ghc-$(GHC_VERSION)";
+				GHC_PREFIX = "$(GHC_FRAMEWORK_PATH)";
+				GHC_VERSION = 7.1.20110504;
+				MACOSX_DEPLOYMENT_TARGET = 10.6;
+				SDKROOT = macosx10.6;
+				STRIP_INSTALLED_PRODUCT = NO;
+			};
+			name = Profiling;
+		};
+		E23F99C113723E52005F4E19 /* Profiling */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = Prefix.pch;
+				HASKELL_LIBRARY_WAY = _p;
+				INFOPLIST_FILE = Info.plist;
+				INSTALL_PATH = "$(HOME)/Applications";
+				OTHER_LDFLAGS = (
+					"$(PROJECT_DIR)/../BackEnd/dist/build/libHSlegal-emulator-1.0$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/libHSrts_thr$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/libHSffi$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/base-4.3.1.0/libHSbase-4.3.1.0$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/integer-gmp-0.2.0.2/libHSinteger-gmp-0.2.0.2$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/ghc-prim-0.2.0.0/libHSghc-prim-0.2.0.0$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/bytestring-0.9.1.10/libHSbytestring-0.9.1.10$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/array-0.3.0.2/libHSarray-0.3.0.2$(HASKELL_LIBRARY_WAY).a",
+					"$(CABAL_LIBRARY_PATH)/utf8-string-0.3.6/libHSutf8-string-0.3.6$(HASKELL_LIBRARY_WAY).a",
+				);
+				PRODUCT_NAME = "Legal Emulator";
+			};
+			name = Profiling;
 		};
 /* End XCBuildConfiguration section */
 
@@ -414,6 +442,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C01FCF4B08A954540054247B /* Debug */,
+				E23F99C113723E52005F4E19 /* Profiling */,
 				C01FCF4C08A954540054247B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
@@ -423,6 +452,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C01FCF4F08A954540054247B /* Debug */,
+				E23F99C013723E52005F4E19 /* Profiling */,
 				C01FCF5008A954540054247B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;

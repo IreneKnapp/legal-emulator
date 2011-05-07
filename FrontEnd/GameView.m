@@ -14,7 +14,7 @@
 
 - (void) awakeFromNib {
     initialized = NO;
-    traceExecution = YES;
+    traceExecution = NO;
 }
 
 
@@ -23,7 +23,7 @@
     gamestate = game_power_on_state(game);
     char *trace = NULL;
     void *next_gamestate
-      = gamestate_frame_forward(gamestate, traceExecution ? trace : NULL);
+      = gamestate_frame_forward(gamestate, traceExecution ? &trace : NULL);
     if(trace) {
         printf("%s", trace);
         string_free(trace);
@@ -53,7 +53,7 @@
             char *trace = NULL;
             void *next_gamestate
               = gamestate_frame_forward(gamestate,
-                                        traceExecution ? trace : NULL);
+                                        traceExecution ? &trace : NULL);
             if(trace) {
                 printf("%s", trace);
                 string_free(trace);
