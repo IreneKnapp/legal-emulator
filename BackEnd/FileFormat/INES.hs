@@ -8,8 +8,10 @@ import Data.Char
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import Data.Word
+import Prelude hiding (Maybe(..))
 
 import Motherboard.NES
+import Data.Strict.Maybe
 
 
 data INESHeader =

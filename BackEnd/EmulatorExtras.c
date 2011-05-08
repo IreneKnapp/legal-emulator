@@ -1,4 +1,6 @@
 #include "HsFFI.h"
+#include "Rts.h"
+#include "RtsOpts.h"
 #include "Emulator_stub.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,25 +9,30 @@
 extern void __stginit_legalzmemulatorzm1zi0_Emulator();
 
 
+const RtsOptsEnabledEnum rtsOptsEnabled = RTS_OPTS_ENABLED;
+
+
+
 int emulator_init() {
   int profiling = 0;
   
   char *profiling_variable = getenv("LEGAL_EMULATOR_PROFILE");
   if(profiling_variable && !strcasecmp(profiling_variable, "yes")) {
-    printf("Profiling, hopefully.\n");
     profiling = 1;
   }
   
   if(profiling) {
-    int argc = 3;
+    int argc = 4;
     char *arg0 = "emulator";
     char *arg1 = "+RTS";
-    char *arg2 = "-hy";
-    char **argv = malloc(4 * sizeof(char *));
+    char *arg2 = "-P";
+    char *arg3 = "-hy";
+    char **argv = malloc(5 * sizeof(char *));
     argv[0] = arg0;
     argv[1] = arg1;
     argv[2] = arg2;
-    argv[3] = NULL;
+    argv[3] = arg3;
+    argv[4] = NULL;
     int argc_modified = argc;
     char **argv_modified = argv;
     
@@ -49,4 +56,9 @@ int emulator_init() {
   hs_add_root(__stginit_legalzmemulatorzm1zi0_Emulator);
   
   return 1;
+}
+
+
+void emulator_terminate() {
+  hs_exit();
 }

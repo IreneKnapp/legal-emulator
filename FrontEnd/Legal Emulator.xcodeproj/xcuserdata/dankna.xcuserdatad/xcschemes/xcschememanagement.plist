@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>SchemeUserState</key>
+	<dict>
+		<key>Legal Emulator - Heap Profiling.xcscheme</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>1</integer>
+		</dict>
+		<key>Legal Emulator.xcscheme</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>0</integer>
+		</dict>
+	</dict>
+	<key>SuppressBuildableAutocreation</key>
+	<dict>
+		<key>8D1107260486CEB800E47090</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>E23F9A11137243C5005F4E19</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>E29BE0B413726DE700B9DD85</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>E29BE0BD13726E8B00B9DD85</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>E29BE0C613726F7900B9DD85</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+	</dict>
+</dict>
+</plist>

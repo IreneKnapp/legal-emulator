@@ -18,6 +18,7 @@ description:
 Library
   exposed-modules: Emulator
   other-modules: Assembly,
+                 Data.Strict.Maybe,
                  FileFormat.INES,
                  Motherboard.NES,
                  PPU.PPU_NES,
@@ -27,3 +28,5 @@ Library
                  array >= 0.3.0.2 && < 1,
                  bytestring >= 0.9.1.10 && < 1,
                  utf8-string >= 0.3.6 && < 1
+  ghc-options: -O2
+  ghc-prof-options: -auto-all -caf-all

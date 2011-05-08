@@ -26,6 +26,11 @@
 }
 
 
+- (void) applicationWillTerminate: (NSNotification *) notification {
+    emulator_terminate();
+}
+
+
 - (NSSize) windowWillResize: (NSWindow *) window
                      toSize: (NSSize) proposedFrameSize
 {    

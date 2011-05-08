@@ -1,4 +1,4 @@
-{-# LANGUAGE ForeignFunctionInterface #-}
+{-# LANGUAGE ForeignFunctionInterface, BangPatterns #-}
 module Emulator () where
 
 import Data.Array.IArray
@@ -7,11 +7,12 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.UTF8 as UTF8
 import Data.Int
 import Data.List
-import Data.Maybe
 import Data.Word
 import Foreign
 import Foreign.C
+import Prelude hiding (Maybe(..))
 
+import Data.Strict.Maybe
 import qualified FileFormat.INES as INES
 import qualified Motherboard.NES as NES
 import qualified PPU.PPU_NES as PPU
@@ -167,7 +168,7 @@ gamestateFrameForward
     :: StablePtr NES.State -> Ptr CString -> IO (StablePtr NES.State)
 gamestateFrameForward state tracePointer = do
   state <- deRefStablePtr state
-  let loop vblankEnded traceLines state = do
+  let loop vblankEnded traceLines !state = do
         let traceLines' =
               if NES.aboutToBeginInstruction state
                 then traceLines ++ [NES.disassembleUpcomingInstruction state]

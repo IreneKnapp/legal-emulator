@@ -16,6 +16,7 @@
 }
 
 - (void) applicationDidFinishLaunching: (NSNotification *) notification;
+- (void) applicationWillTerminate: (NSNotification *) notification;
 - (NSSize) windowWillResize: (NSWindow *) window
                      toSize: (NSSize) proposedFrameSize;
 - (IBAction) addGames: (id) sender;

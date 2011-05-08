@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 module Motherboard.NES
   (
    Mirroring(..),
@@ -22,10 +23,12 @@ module Motherboard.NES
 
 import Data.Array.Unboxed
 import qualified Data.ByteString as BS
+import Data.List hiding (cycle)
 import Data.Word
-import Prelude hiding (cycle)
+import Prelude hiding (cycle, Maybe(..))
 
 import Assembly
+import Data.Strict.Maybe
 import qualified Processor.CPU_6502 as CPU
 import qualified PPU.PPU_NES as PPU
 
@@ -44,36 +47,36 @@ data System = PlainSystem
 
 data State =
   State {
-      stateHardwareState :: HardwareState,
-      stateSoftwareState :: SoftwareState
+      stateHardwareState :: ! HardwareState,
+      stateSoftwareState :: ! SoftwareState
       -- stateConsoleOutputBuffer :: ByteString
     }
 
 
 data HardwareState =
   HardwareState {
-      hardwareStateProgramReadOnlyMemory :: UArray Int Word8,
-      hardwareStateCharacterReadOnlyMemory :: UArray Int Word8,
-      hardwareStateTrainer :: Maybe (UArray Int Word8),
-      hardwareStatePlayChoice10HintScreen :: Maybe (UArray Int Word8),
-      hardwareStateMapperNumber :: Word8,
-      hardwareStateMirroringType :: Mirroring,
-      hardwareStateBatteryPresent :: Bool,
-      hardwareStateSystem :: System
+      hardwareStateProgramReadOnlyMemory :: ! (UArray Int Word8),
+      hardwareStateCharacterReadOnlyMemory :: ! (UArray Int Word8),
+      hardwareStateTrainer :: ! (Maybe (UArray Int Word8)),
+      hardwareStatePlayChoice10HintScreen :: ! (Maybe (UArray Int Word8)),
+      hardwareStateMapperNumber :: ! Word8,
+      hardwareStateMirroringType :: ! Mirroring,
+      hardwareStateBatteryPresent :: ! Bool,
+      hardwareStateSystem :: ! System
     }
 
 
 data SoftwareState =
   SoftwareState {
-      softwareStateMotherboardClockCount :: Int,
-      softwareStateLastCPUDataBusValue :: Word8,
-      softwareStateLastPPUDataBusValue :: Word8,
-      softwareStateCPUState :: CPU.CPU_6502_State,
-      softwareStatePPUState :: PPU.PPU_NES_State,
-      softwareStateMotherboardCPUMemory :: UArray Int Word8,
-      softwareStateMotherboardPPUTableMemory :: UArray Int Word8,
-      softwareStateMotherboardPPUPaletteMemory :: UArray Int Word8,
-      softwareStateMotherboardPPUSpriteMemory :: UArray Int Word8
+      softwareStateMotherboardClockCount :: ! Int,
+      softwareStateLastCPUDataBusValue :: ! Word8,
+      softwareStateLastPPUDataBusValue :: ! Word8,
+      softwareStateCPUState :: ! CPU.CPU_6502_State,
+      softwareStatePPUState :: ! PPU.PPU_NES_State,
+      softwareStateMotherboardCPUMemory :: ! (UArray Int Word8),
+      softwareStateMotherboardPPUTableMemory :: ! (UArray Int Word8),
+      softwareStateMotherboardPPUPaletteMemory :: ! (UArray Int Word8),
+      softwareStateMotherboardPPUSpriteMemory :: ! (UArray Int Word8)
     }
 
 
@@ -220,47 +223,47 @@ fetch :: State
       -> Int
       -> (State, Word8)
 fetch state dataBus addressMapping offset =
-  let (state', value) =
+  let (!state', !value) =
         case addressMapping of
           MotherboardCPUMemory ->
-            let softwareState = stateSoftwareState state
-                memory = softwareStateMotherboardCPUMemory softwareState
-                value = memory ! offset
+            let !softwareState = stateSoftwareState state
+                !memory = softwareStateMotherboardCPUMemory softwareState
+                !value = memory ! offset
             in (state, value)
           MotherboardPPUTableMemory ->
-            let softwareState = stateSoftwareState state
-                memory = softwareStateMotherboardPPUTableMemory softwareState
-                value = memory ! offset
+            let !softwareState = stateSoftwareState state
+                !memory = softwareStateMotherboardPPUTableMemory softwareState
+                !value = memory ! offset
             in (state, value)
           MotherboardPPUPaletteMemory ->
-            let softwareState = stateSoftwareState state
-                memory = softwareStateMotherboardPPUPaletteMemory softwareState
-                value = memory ! offset
+            let !softwareState = stateSoftwareState state
+                !memory = softwareStateMotherboardPPUPaletteMemory softwareState
+                !value = memory ! offset
             in (state, value)
           MotherboardPPUSpriteMemory ->
-            let softwareState = stateSoftwareState state
-                memory = softwareStateMotherboardPPUSpriteMemory softwareState
-                value = memory ! offset
+            let !softwareState = stateSoftwareState state
+                !memory = softwareStateMotherboardPPUSpriteMemory softwareState
+                !value = memory ! offset
             in (state, value)
           ProgramReadOnlyMemory ->
-            let hardwareState = stateHardwareState state
-                memory = hardwareStateProgramReadOnlyMemory hardwareState
-                value = memory ! offset
+            let !hardwareState = stateHardwareState state
+                !memory = hardwareStateProgramReadOnlyMemory hardwareState
+                !value = memory ! offset
             in (state, value)
           CharacterReadOnlyMemory ->
-            let hardwareState = stateHardwareState state
-                memory = hardwareStateCharacterReadOnlyMemory hardwareState
-                value = memory ! offset
+            let !hardwareState = stateHardwareState state
+                !memory = hardwareStateCharacterReadOnlyMemory hardwareState
+                !value = memory ! offset
             in (state, value)
           PPURegisters ->
-            let register = PPU.decodeRegister offset
-                readable = PPU.registerReadable register
+            let !register = PPU.decodeRegister offset
+                !readable = PPU.registerReadable register
             in if readable
                  then PPU.registerFetch ppuCallbacks state register
                  else let value = lastDataBusValue state dataBus
                       in (state, value)
           NoMemory ->
-            let value = lastDataBusValue state dataBus
+            let !value = lastDataBusValue state dataBus
             in (state, value)
   in (updateLastDataBusValue state' dataBus value, value)
 
@@ -272,15 +275,15 @@ store :: State
       -> Word8
       -> State
 store state dataBus addressMapping offset value =
-  let state' =
+  let !state' =
         case addressMapping of
           MotherboardCPUMemory ->
-             let softwareState = stateSoftwareState state
-                 memory =
+             let !softwareState = stateSoftwareState state
+                 !memory =
                    softwareStateMotherboardCPUMemory softwareState
-                 memory' =
+                 !memory' =
                    memory // [(offset, value)]
-                 softwareState' =
+                 !softwareState' =
                    softwareState {
                        softwareStateMotherboardCPUMemory = memory'
                      }
@@ -288,12 +291,12 @@ store state dataBus addressMapping offset value =
                     stateSoftwareState = softwareState'
                   }
           MotherboardPPUTableMemory ->
-             let softwareState = stateSoftwareState state
-                 memory =
+             let !softwareState = stateSoftwareState state
+                 !memory =
                    softwareStateMotherboardPPUTableMemory softwareState
-                 memory' =
+                 !memory' =
                    memory // [(offset, value)]
-                 softwareState' =
+                 !softwareState' =
                    softwareState {
                        softwareStateMotherboardPPUTableMemory = memory'
                      }
@@ -301,12 +304,12 @@ store state dataBus addressMapping offset value =
                     stateSoftwareState = softwareState'
                   }
           MotherboardPPUPaletteMemory ->
-             let softwareState = stateSoftwareState state
-                 memory =
+             let !softwareState = stateSoftwareState state
+                 !memory =
                    softwareStateMotherboardPPUPaletteMemory softwareState
-                 memory' =
+                 !memory' =
                    memory // [(offset, value)]
-                 softwareState' =
+                 !softwareState' =
                    softwareState {
                        softwareStateMotherboardPPUPaletteMemory = memory'
                      }
@@ -314,12 +317,12 @@ store state dataBus addressMapping offset value =
                     stateSoftwareState = softwareState'
                   }
           MotherboardPPUSpriteMemory ->
-             let softwareState = stateSoftwareState state
-                 memory =
+             let !softwareState = stateSoftwareState state
+                 !memory =
                    softwareStateMotherboardPPUSpriteMemory softwareState
-                 memory' =
+                 !memory' =
                    memory // [(offset, value)]
-                 softwareState' =
+                 !softwareState' =
                    softwareState {
                        softwareStateMotherboardPPUSpriteMemory = memory'
                      }
@@ -329,8 +332,8 @@ store state dataBus addressMapping offset value =
           ProgramReadOnlyMemory -> state
           CharacterReadOnlyMemory -> state
           PPURegisters ->
-            let register = PPU.decodeRegister offset
-                writeable = PPU.registerWriteable register
+            let !register = PPU.decodeRegister offset
+                !writeable = PPU.registerWriteable register
             in if writeable
                  then PPU.registerStore ppuCallbacks state register value
                  else state
@@ -371,16 +374,16 @@ cpuCallbacks :: ((State -> Word16 -> (Word8, State)),
                  (State -> CPU.CPU_6502_State),
                  (State -> CPU.CPU_6502_State -> State))
 cpuCallbacks = ((\state address ->
-                   let (addressMapping, localAddress) =
+                   let (!addressMapping, !localAddress) =
                          cpuDecodeAddress state address
-                       (state', value) =
+                       (!state', !value) =
                          fetch state
                                CPUDataBus
                                addressMapping
                                localAddress
                    in (value, state')),
                 (\state address value ->
-                   let (addressMapping, localAddress) =
+                   let (!addressMapping, !localAddress) =
                          cpuDecodeAddress state address
                    in store state
                             CPUDataBus
@@ -411,13 +414,13 @@ ppuCallbacks :: ((State -> Word16 -> (Word8, State)),
                  (State -> PPU.PPU_NES_State),
                  (State -> PPU.PPU_NES_State -> State))
 ppuCallbacks = ((\state address ->
-                   let (addressMapping, localAddress) =
+                   let (!addressMapping, !localAddress) =
                          ppuDecodeAddress state address
-                       (state', value) =
+                       (!state', !value) =
                          fetch state PPUDataBus addressMapping localAddress
                    in (value, state')),
                 (\state address value ->
-                   let (addressMapping, localAddress) =
+                   let (!addressMapping, !localAddress) =
                          ppuDecodeAddress state address
                    in store state
                             PPUDataBus
@@ -445,24 +448,34 @@ cycle :: State -> State
 cycle state =
   let clockCount =
         softwareStateMotherboardClockCount $ stateSoftwareState state
+      {-
       chipsToCycle = concat $ map (\(divisor, chip) ->
                                       if mod clockCount divisor == 0
                                         then [chip]
                                         else [])
                                   [(4, PPU_NES),
                                    (12, CPU_6502)]
-      state' = foldl (\state' chip ->
-                        case chip of
-                          CPU_6502 -> CPU.cycle cpuCallbacks state'
-                          PPU_NES -> PPU.cycle ppuCallbacks state')
-                     state
-                     chipsToCycle
+      state' = foldl' (\state' chip ->
+                         case chip of
+                           CPU_6502 -> CPU.cycle cpuCallbacks state'
+                           PPU_NES -> PPU.cycle ppuCallbacks state')
+                      state
+                      chipsToCycle
+      -}
+      cyclePPU = mod clockCount 4 == 0
+      cycleCPU = mod clockCount 12 == 0
+      state' = if cyclePPU
+                 then PPU.cycle ppuCallbacks state
+                 else state
+      state'' = if cycleCPU
+                  then CPU.cycle cpuCallbacks state'
+                  else state'
       clockCount' = mod (clockCount + 1) 12
-      softwareState' = stateSoftwareState state'
-      softwareState'' = softwareState' {
-                            softwareStateMotherboardClockCount = clockCount'
-                          }
-  in state {
+      softwareState' = stateSoftwareState state''
+      !softwareState'' = softwareState' {
+                             softwareStateMotherboardClockCount = clockCount'
+                           }
+  in state'' {
          stateSoftwareState = softwareState''
        }
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 module Processor.CPU_6502
   (
    CPU_6502_State(..),
@@ -20,29 +21,29 @@ module Processor.CPU_6502
 import Data.Bits
 import Data.Int
 import Data.List hiding (cycle)
-import Data.Maybe
 import Data.Word
-import Prelude hiding (cycle)
+import Prelude hiding (cycle, Maybe(..))
 
 import Assembly
+import Data.Strict.Maybe
 
 
 data CPU_6502_State =
   CPU_6502_State {
-      cpu6502StateProgramCounter :: Word16,
-      cpu6502StateStackPointer :: Word8,
-      cpu6502StateAccumulator :: Word8,
-      cpu6502StateXIndexRegister :: Word8,
-      cpu6502StateYIndexRegister :: Word8,
-      cpu6502StateStatusRegister :: Word8,
-      cpu6502StateInternalOverflow :: Bool,
-      cpu6502StateInternalNegative :: Bool,
-      cpu6502StateInternalStoredAddress :: Word16,
-      cpu6502StateInternalLatch :: Word8,
-      cpu6502StateMicrocodeInstructionQueue :: [MicrocodeInstruction],
-      cpu6502StateInterruptNoticed :: Maybe InterruptType,
-      cpu6502StateInterruptAlreadyProcessed :: Bool,
-      cpu6502StateNonMaskableInterruptAlreadyProcessed :: Bool
+      cpu6502StateProgramCounter :: ! Word16,
+      cpu6502StateStackPointer :: ! Word8,
+      cpu6502StateAccumulator :: ! Word8,
+      cpu6502StateXIndexRegister :: ! Word8,
+      cpu6502StateYIndexRegister :: ! Word8,
+      cpu6502StateStatusRegister :: ! Word8,
+      cpu6502StateInternalOverflow :: ! Bool,
+      cpu6502StateInternalNegative :: ! Bool,
+      cpu6502StateInternalStoredAddress :: ! Word16,
+      cpu6502StateInternalLatch :: ! Word8,
+      cpu6502StateMicrocodeInstructionQueue :: ! [MicrocodeInstruction],
+      cpu6502StateInterruptNoticed :: ! (Maybe InterruptType),
+      cpu6502StateInterruptAlreadyProcessed :: ! Bool,
+      cpu6502StateNonMaskableInterruptAlreadyProcessed :: ! Bool
     }
 
 
@@ -242,20 +243,20 @@ cycle (fetchByte,
       checkForAddLatch =
         microcodeInstructionAddLatchToProgramCounterLowByte
       cpuState = getState outerState
-      (maybeMicrocodeInstruction, microcodeInstructionQueue') =
+      (!maybeMicrocodeInstruction, !microcodeInstructionQueue') =
         case cpu6502StateMicrocodeInstructionQueue cpuState of
           (first:rest) -> (Just first, rest)
           _ -> (Nothing, [])
-      (cpuState', outerState') =
+      (!cpuState', !outerState') =
         case maybeMicrocodeInstruction of
           Nothing -> (cpuState, outerState)
           Just microcodeInstruction ->
             let effectiveAddress =
                   computeEffectiveAddress cpuState microcodeInstruction
-                (fetchedByte, cpuState', outerState') =
+                (!fetchedByte, !cpuState', !outerState') =
                   case microcodeInstructionReadWrite microcodeInstruction of
                     Read ->
-                      let (fetchedByte, outerState') =
+                      let (!fetchedByte, !outerState') =
                             fetchByte outerState effectiveAddress
                           fetchedByte' =
                             case checkForClearing microcodeInstruction of
@@ -274,7 +275,7 @@ cycle (fetchByte,
                                        internalRegister cpuState
                                     status =
                                       cpu6502StateStatusRegister cpuState
-                                    (status', newByte) =
+                                    (!status', !newByte) =
                                       case maybeArithmetic of
                                         Nothing -> (status, fetchedByte')
                                         Just arithmetic ->
@@ -304,7 +305,7 @@ cycle (fetchByte,
                                    case checkForSetting microcodeInstruction of
                                      Nothing -> storedByte'
                                      Just bits -> storedByte' .|. bits
-                                 outerState' =
+                                 !outerState' =
                                    storeByte outerState
                                              effectiveAddress
                                              storedByte
@@ -315,7 +316,7 @@ cycle (fetchByte,
                                     microcodeInstruction
                                  accumulator =
                                    cpu6502StateAccumulator cpuState
-                                 (status', accumulator') =
+                                 (!status', !accumulator') =
                                    case maybeArithmetic of
                                      Nothing -> (status, accumulator)
                                      Just arithmetic ->
@@ -350,10 +351,10 @@ cycle (fetchByte,
                   (programCounter + 0x0100, True, False, False)
                 decrementProgramCounterOnePage =
                   (programCounter - 0x0100, True, False, False)
-                (programCounter',
-                 programCounterHighByteWasWrong,
-                 internalOverflowA',
-                 internalNegativeA') =
+                (!programCounter',
+                 !programCounterHighByteWasWrong,
+                 !internalOverflowA',
+                 !internalNegativeA') =
                   if checkForInstead microcodeInstruction
                     then let internalOverflow =
                                cpu6502StateInternalOverflow cpuState
@@ -380,7 +381,7 @@ cycle (fetchByte,
                                            (fromIntegral latch :: Int8)
                                           :: Int
                                         programCounterHigh =
-                                           programCounter .&. 0xFF00
+                                          programCounter .&. 0xFF00
                                         programCounterLowByte =
                                           fromIntegral
                                            (programCounter .&. 0x00FF)
@@ -414,9 +415,9 @@ cycle (fetchByte,
                                else keepProgramCounter
                 storedAddress =
                   cpu6502StateInternalStoredAddress cpuState''
-                (storedAddress',
-                 internalOverflowB',
-                 internalNegativeB') =
+                (!storedAddress',
+                 !internalOverflowB',
+                 !internalNegativeB') =
                   if microcodeInstructionFixStoredAddressHighByte
                       microcodeInstruction
                     then if cpu6502StateInternalOverflow cpuState''
@@ -489,13 +490,13 @@ cycle (fetchByte,
                   cpu6502StateStatusRegister cpuState''
                 accumulator =
                   cpu6502StateAccumulator cpuState''
-                (accumulator', statusRegister') =
+                (!accumulator', !statusRegister') =
                   case microcodeInstructionAccumulatorOperation
                         microcodeInstruction of
                     Nothing -> (accumulator, statusRegister)
                     Just transformation ->
                       let oldCarry = statusTestCarry statusRegister
-                          (accumulator', newCarry) =
+                          (!accumulator', !newCarry) =
                             transformWord8 transformation
                                            (accumulator, oldCarry)
                           statusRegister' =
@@ -504,13 +505,13 @@ cycle (fetchByte,
                       in (accumulator', statusRegister')
                 latch =
                   cpu6502StateInternalLatch cpuState''
-                (latch', statusRegister'') =
+                (!latch', !statusRegister'') =
                   case microcodeInstructionLatchOperation
                         microcodeInstruction of
                     Nothing -> (latch, statusRegister')
                     Just transformation ->
                       let oldCarry = statusTestCarry statusRegister
-                          (latch', newCarry) =
+                          (!latch', !newCarry) =
                             transformWord8 transformation
                                            (latch, oldCarry)
                           statusRegister'' =
@@ -578,7 +579,7 @@ cycle (fetchByte,
                       cpu6502StateNonMaskableInterruptAlreadyProcessed =
                         nonMaskableInterruptAlreadyProcessed'
                     }
-                (microcodeInstructionQueue'', interruptNoticed'') =
+                (!microcodeInstructionQueue'', !interruptNoticed'') =
                   if microcodeInstructionDecodeOperation
                       microcodeInstruction
                     then if checkForInstead microcodeInstruction
@@ -626,11 +627,11 @@ cycle (fetchByte,
                        (cpu6502StateStatusRegister cpuState''''')
                        $ computeInternalRegister register cpuState'''''
                 cpuState'''''' = cpuState''''' {
-                                    cpu6502StateStatusRegister =
-                                      statusRegister''''
-                                  }
+                                     cpu6502StateStatusRegister =
+                                       statusRegister''''
+                                   }
             in (cpuState'''''', outerState')
-      outerState'' = putState outerState' cpuState'
+      !outerState'' = putState outerState' $! cpuState'
   in outerState''
 
 

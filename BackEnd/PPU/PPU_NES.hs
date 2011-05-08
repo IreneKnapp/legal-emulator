@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 module PPU.PPU_NES
   (
    PPU_NES_State(..),
@@ -17,7 +18,9 @@ module PPU.PPU_NES
 import Data.Array.Unboxed
 import Data.Bits
 import Data.Word
-import Prelude hiding (cycle)
+import Prelude hiding (cycle, Maybe(..))
+
+import Data.Strict.Maybe
 
 import Debug.Trace
 import Assembly
@@ -25,27 +28,27 @@ import Assembly
 
 data PPU_NES_State =
   PPU_NES_State {
-      ppuNESStateHorizontalClock :: Int,
-      ppuNESStateVerticalClock :: Int,
-      ppuNESStateStillPoweringUp :: Bool,
-      ppuNESStateWantsToAssertNMI :: Bool,
-      ppuNESStateAllowedToAssertNMI :: Bool,
-      ppuNESStateTallSprites :: Bool,
-      ppuNESStatePatternTableForBackground :: Int,
-      ppuNESStatePatternTableForSprites :: Int,
-      ppuNESStateAddressIncrementVertically :: Bool,
-      ppuNESStatePaletteMonochrome :: Bool,
-      ppuNESStateBackgroundClipped :: Bool,
-      ppuNESStateSpritesClipped :: Bool,
-      ppuNESStateBackgroundVisible :: Bool,
-      ppuNESStateSpritesVisible :: Bool,
-      ppuNESStateIntensifiedColor :: Maybe PrimaryColor,
-      ppuNESStateWrittenOddNumberOfTimesToAddresses :: Bool,
-      ppuNESStatePermanentAddress :: Word16,
-      ppuNESStateTemporaryAddress :: Word16,
-      ppuNESStateXOffset :: Word8,
-      ppuNESStateIncompleteFrame :: IncompleteVideoFrame,
-      ppuNESStateLatestCompleteFrame :: Maybe VideoFrame
+      ppuNESStateHorizontalClock :: ! Int,
+      ppuNESStateVerticalClock :: ! Int,
+      ppuNESStateStillPoweringUp :: ! Bool,
+      ppuNESStateWantsToAssertNMI :: ! Bool,
+      ppuNESStateAllowedToAssertNMI :: ! Bool,
+      ppuNESStateTallSprites :: ! Bool,
+      ppuNESStatePatternTableForBackground :: ! Int,
+      ppuNESStatePatternTableForSprites :: ! Int,
+      ppuNESStateAddressIncrementVertically :: ! Bool,
+      ppuNESStatePaletteMonochrome :: ! Bool,
+      ppuNESStateBackgroundClipped :: ! Bool,
+      ppuNESStateSpritesClipped :: ! Bool,
+      ppuNESStateBackgroundVisible :: ! Bool,
+      ppuNESStateSpritesVisible :: ! Bool,
+      ppuNESStateIntensifiedColor :: ! (Maybe PrimaryColor),
+      ppuNESStateWrittenOddNumberOfTimesToAddresses :: ! Bool,
+      ppuNESStatePermanentAddress :: ! Word16,
+      ppuNESStateTemporaryAddress :: ! Word16,
+      ppuNESStateXOffset :: ! Word8,
+      ppuNESStateIncompleteFrame :: ! IncompleteVideoFrame,
+      ppuNESStateLatestCompleteFrame :: ! (Maybe VideoFrame)
       --ppuNESStateChanges :: [(Int, Int, PPUChange)]
     }
 
@@ -68,13 +71,13 @@ data PrimaryColor = Red | Green | Blue
 
 data IncompleteVideoFrame =
   IncompleteVideoFrame {
-      incompleteVideoFrameNameTableMemory :: Word16 -> Word8
+      incompleteVideoFrameNameTableMemory :: ! (Word16 -> Word8)
     }
 
 
 data VideoFrame =
   VideoFrame {
-      videoFrameNameTable :: UArray (Int, Int) Word8
+      videoFrameNameTable :: ! (UArray (Int, Int) Word8)
     }
 
 
@@ -154,7 +157,7 @@ registerFetch :: ((outerState -> Word16 -> (Word8, outerState)),
               -> (outerState, Word8)
 registerFetch (_, _, _, getState, putState) outerState register =
   let ppuState = getState outerState
-      (ppuState', value) =
+      (ppuState', !value) =
         case register of
           Status ->
             -- TODO other bits
@@ -175,7 +178,7 @@ registerFetch (_, _, _, getState, putState) outerState register =
             let value = 0x00
                 ppuState' = ppuState
             in (ppuState', value)
-      outerState' = putState outerState ppuState'
+      !outerState' = putState outerState $! ppuState'
   in (outerState', value)
 
 
@@ -347,7 +350,7 @@ registerStore (_, storeByte, _, getState, putState)
                       ++ showHexWord16 permanentAddress
                       ++ ".")
                      (ppuState', outerState')
-      outerState'' = putState outerState' ppuState'
+      !outerState'' = putState outerState' $! ppuState'
   in outerState''
 
 
@@ -371,8 +374,8 @@ cycle (fetchByte, storeByte, getTableMemory, getState, putState) outerState =
       verticalClock = ppuNESStateVerticalClock ppuState
       horizontalClock' = mod (horizontalClock + 1) 341
       verticalClock' = if horizontalClock == 340
-                         then mod (verticalClock + 1) 262
-                         else verticalClock
+                          then mod (verticalClock + 1) 262
+                          else verticalClock
       stillPoweringUp = ppuNESStateStillPoweringUp ppuState
       stillPoweringUp' =
         case (stillPoweringUp, horizontalClock, verticalClock) of
@@ -423,7 +426,7 @@ cycle (fetchByte, storeByte, getTableMemory, getState, putState) outerState =
                       ppuNESStateIncompleteFrame = incompleteFrame,
                       ppuNESStateLatestCompleteFrame = completeFrame
                     }
-      outerState' = putState outerState ppuState''
+      !outerState' = putState outerState $! ppuState''
   in outerState'
 
 

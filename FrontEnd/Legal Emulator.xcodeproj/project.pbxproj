@@ -36,7 +36,7 @@
 		E23F8485136BE2DF005F4E19 /* GameView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GameView.h; sourceTree = "<group>"; };
 		E23F8486136BE2DF005F4E19 /* GameView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GameView.m; sourceTree = "<group>"; };
 		E23F849B136BE692005F4E19 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
-		E23F8501136BFCA0005F4E19 /* Emulator_stub.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Emulator_stub.h; path = ../BackEnd/dist/build/Emulator_stub.h; sourceTree = SOURCE_ROOT; };
+		E23F8501136BFCA0005F4E19 /* Emulator_stub.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Emulator_stub.h; sourceTree = BUILT_PRODUCTS_DIR; };
 		E23F8534136C0450005F4E19 /* libiconv.2.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libiconv.2.dylib; path = /usr/lib/libiconv.2.dylib; sourceTree = "<absolute>"; };
 		E23F8589136C0B4C005F4E19 /* HsFFI.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = HsFFI.h; path = "/Library/Frameworks/GHC.framework/Versions/7.1.20110125-x86_64/usr/lib/ghc-7.1.20110125/include/HsFFI.h"; sourceTree = "<absolute>"; };
 		E23F859A136C0BC3005F4E19 /* Emulator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Emulator.h; path = ../BackEnd/Emulator.h; sourceTree = SOURCE_ROOT; };
@@ -239,12 +239,12 @@
 			);
 			name = "Run Script";
 			outputPaths = (
-				"$(PROJECT_DIR)/../BackEnd/dist/build/libHSlegal-emulator-1.0.a",
-				"$(PROJECT_DIR)/../BackEnd/dist/build/libHSlegal-emulator-1.0_p.a",
+				"$(BUILT_PRODUCTS_DIR)/libHSlegal-emulator-1.0$(HASKELL_LIBRARY_WAY).a",
+				"$(BUILT_PRODUCTS_DIR)/Emulator_stub.h",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "cd \"${PROJECT_DIR}/../BackEnd/\"\n\"${CABAL}\" configure\n\"${CABAL}\" build";
+			shellScript = "cd \"${PROJECT_DIR}/../BackEnd/\"\n\"${CABAL}\" clean\n\"${CABAL}\" configure --enable-library-vanilla --disable-library-profiling --ghc-options=\"-optc=-DRTS_OPTS_ENABLED=RtsOptsNone\"\n\"${CABAL}\" build\ncp dist/build/libHSlegal-emulator-1.0.a dist/build/Emulator_stub.h \"${BUILT_PRODUCTS_DIR}\"\n\"${CABAL}\" clean\n\"${CABAL}\" configure --disable-library-vanilla --enable-library-profiling --ghc-options=\"-optc=-DRTS_OPTS_ENABLED=RtsOptsAll\"\n\"${CABAL}\" build\ncp dist/build/libHSlegal-emulator-1.0_p.a dist/build/Emulator_stub.h \"${BUILT_PRODUCTS_DIR}\"\n\"${CABAL}\" clean";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
@@ -294,7 +294,7 @@
 				INFOPLIST_FILE = Info.plist;
 				INSTALL_PATH = "$(HOME)/Applications";
 				OTHER_LDFLAGS = (
-					"$(PROJECT_DIR)/../BackEnd/dist/build/libHSlegal-emulator-1.0$(HASKELL_LIBRARY_WAY).a",
+					"$(BUILT_PRODUCTS_DIR)/libHSlegal-emulator-1.0$(HASKELL_LIBRARY_WAY).a",
 					"$(GHC_LIBRARY_PATH)/libHSrts_thr$(HASKELL_LIBRARY_WAY).a",
 					"$(GHC_LIBRARY_PATH)/libHSffi$(HASKELL_LIBRARY_WAY).a",
 					"$(GHC_LIBRARY_PATH)/base-4.3.1.0/libHSbase-4.3.1.0$(HASKELL_LIBRARY_WAY).a",
@@ -318,7 +318,7 @@
 				INFOPLIST_FILE = Info.plist;
 				INSTALL_PATH = "$(HOME)/Applications";
 				OTHER_LDFLAGS = (
-					"$(PROJECT_DIR)/../BackEnd/dist/build/libHSlegal-emulator-1.0$(HASKELL_LIBRARY_WAY).a",
+					"$(BUILT_PRODUCTS_DIR)/libHSlegal-emulator-1.0$(HASKELL_LIBRARY_WAY).a",
 					"$(GHC_LIBRARY_PATH)/libHSrts_thr$(HASKELL_LIBRARY_WAY).a",
 					"$(GHC_LIBRARY_PATH)/libHSffi$(HASKELL_LIBRARY_WAY).a",
 					"$(GHC_LIBRARY_PATH)/base-4.3.1.0/libHSbase-4.3.1.0$(HASKELL_LIBRARY_WAY).a",
@@ -421,7 +421,7 @@
 				INFOPLIST_FILE = Info.plist;
 				INSTALL_PATH = "$(HOME)/Applications";
 				OTHER_LDFLAGS = (
-					"$(PROJECT_DIR)/../BackEnd/dist/build/libHSlegal-emulator-1.0$(HASKELL_LIBRARY_WAY).a",
+					"$(BUILT_PRODUCTS_DIR)/libHSlegal-emulator-1.0$(HASKELL_LIBRARY_WAY).a",
 					"$(GHC_LIBRARY_PATH)/libHSrts_thr$(HASKELL_LIBRARY_WAY).a",
 					"$(GHC_LIBRARY_PATH)/libHSffi$(HASKELL_LIBRARY_WAY).a",
 					"$(GHC_LIBRARY_PATH)/base-4.3.1.0/libHSbase-4.3.1.0$(HASKELL_LIBRARY_WAY).a",
