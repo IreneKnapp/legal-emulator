@@ -18,6 +18,7 @@ module Processor.CPU_6502
   )
   where
 
+import Data.Array.IArray
 import Data.Bits
 import Data.Int
 import Data.List hiding (cycle)
@@ -973,9 +974,27 @@ statusTestOverflow :: Word8 -> Bool
 statusTestOverflow status = testBit status 6
 
 
+
+
 decodeInstructionMnemonicAndAddressingMode
     :: Word8 -> Maybe (InstructionMnemonic, AddressingMode, Bool)
-decodeInstructionMnemonicAndAddressingMode opcode =
+decodeInstructionMnemonicAndAddressingMode !opcode =
+  instructionMnemonicAndAddressingModeLookupTable ! opcode
+
+
+instructionMnemonicAndAddressingModeLookupTable
+    :: Array Word8 (Maybe (InstructionMnemonic, AddressingMode, Bool))
+instructionMnemonicAndAddressingModeLookupTable =
+  array (0x00, 0xFF)
+        $ map (\opcode ->
+                 (opcode,
+                  decodeInstructionMnemonicAndAddressingMode' opcode))
+              [0x00 .. 0xFF]
+
+
+decodeInstructionMnemonicAndAddressingMode'
+    :: Word8 -> Maybe (InstructionMnemonic, AddressingMode, Bool)
+decodeInstructionMnemonicAndAddressingMode' !opcode =
   case opcode of
     0x00 -> Just (BRK, ImpliedAddressing, False)
     0x01 -> Just (ORA, XIndexedIndirectAddressing, False)
@@ -1236,7 +1255,19 @@ decodeInstructionMnemonicAndAddressingMode opcode =
 
 
 decodeOperation :: Word8 -> [MicrocodeInstruction]
-decodeOperation opcode =
+decodeOperation opcode = operationLookupTable ! opcode
+
+
+operationLookupTable :: Array Word8 [MicrocodeInstruction]
+operationLookupTable = array (0x00, 0xFF)
+                             $ map (\opcode ->
+                                      (opcode,
+                                       decodeOperation' opcode))
+                                   [0x00 .. 0xFF]
+
+
+decodeOperation' :: Word8 -> [MicrocodeInstruction]
+decodeOperation' opcode =
   case decodeInstructionMnemonicAndAddressingMode opcode of
     Nothing -> []
     Just (mnemonic, addressing, _) ->
