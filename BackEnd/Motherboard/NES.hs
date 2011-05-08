@@ -448,22 +448,18 @@ cycle :: State -> State
 cycle !state =
   let clockCount =
         softwareStateMotherboardClockCount $ stateSoftwareState state
-      {- This version allocates nearly twice as much space, somehow.
-         I'd rather use it for clarity, but that's obviously not
-         acceptable performance.
-      chipsToCycle = concat $ map (\(divisor, chip) ->
-                                      if mod clockCount divisor == 0
-                                        then [chip]
-                                        else [])
-                                  [(4, PPU_NES),
-                                   (12, CPU_6502)]
-      state' = foldl' (\state' chip ->
-                         case chip of
-                           CPU_6502 -> CPU.cycle cpuCallbacks state'
-                           PPU_NES -> PPU.cycle ppuCallbacks state')
+      state' = foldl' (\state' (divisor, chip) ->
+                         if mod clockCount divisor == 0
+                           then case chip of
+                                  CPU_6502 -> CPU.cycle cpuCallbacks state'
+                                  PPU_NES -> PPU.cycle ppuCallbacks state'
+                           else state')
                       state
-                      chipsToCycle
-      -}
+                      [(4, PPU_NES),
+                       (12, CPU_6502)]
+      {- This version below has the best space-performance, but is
+         aesthetically displeasing. -}
+      {-
       cyclePPU = mod clockCount 4 == 0
       cycleCPU = mod clockCount 12 == 0
       state' = if cyclePPU
@@ -472,12 +468,13 @@ cycle !state =
       state'' = if cycleCPU
                   then CPU.cycle cpuCallbacks state'
                   else state'
+      -}
       clockCount' = mod (clockCount + 1) 12
-      softwareState' = stateSoftwareState state''
+      softwareState' = stateSoftwareState state'
       !softwareState'' = softwareState' {
                              softwareStateMotherboardClockCount = clockCount'
                            }
-  in state'' {
+  in state' {
          stateSoftwareState = softwareState''
        }
 
