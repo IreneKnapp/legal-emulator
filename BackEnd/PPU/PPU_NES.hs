@@ -368,7 +368,7 @@ cycle :: ((outerState -> Word16 -> (Word8, outerState)),
           (outerState -> PPU_NES_State -> outerState))
       -> outerState
       -> outerState
-cycle (fetchByte, storeByte, getTableMemory, getState, putState) outerState =
+cycle (fetchByte, storeByte, getTableMemory, getState, putState) !outerState =
   let ppuState = getState outerState
       horizontalClock = ppuNESStateHorizontalClock ppuState
       verticalClock = ppuNESStateVerticalClock ppuState

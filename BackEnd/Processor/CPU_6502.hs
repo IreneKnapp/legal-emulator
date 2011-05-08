@@ -233,7 +233,7 @@ cycle (fetchByte,
        getNMIAsserted,
        getState,
        putState)
-      outerState =
+      !outerState =
   let checkForSetting =
         microcodeInstructionSettingStoredValueBits
       checkForClearing =

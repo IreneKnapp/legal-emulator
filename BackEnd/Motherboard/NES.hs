@@ -445,10 +445,12 @@ ppuCallbacks = ((\state address ->
 
 
 cycle :: State -> State
-cycle state =
+cycle !state =
   let clockCount =
         softwareStateMotherboardClockCount $ stateSoftwareState state
-      {-
+      {- This version allocates nearly twice as much space, somehow.
+         I'd rather use it for clarity, but that's obviously not
+         acceptable performance.
       chipsToCycle = concat $ map (\(divisor, chip) ->
                                       if mod clockCount divisor == 0
                                         then [chip]
