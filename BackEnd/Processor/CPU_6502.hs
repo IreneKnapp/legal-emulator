@@ -14,7 +14,17 @@ module Processor.CPU_6502
    mnemonicRegister,
    addressingModeNBytes,
    atInstructionStart,
-   disassembleInstruction
+   disassembleInstruction,
+
+   MicrocodeInstruction(..),
+   InterruptType(..),
+   Condition(..),
+   AddressSource(..),
+   ReadWrite(..),
+   ArithmeticOperation(..),
+   IncrementDecrement(..),
+   SetClear(..),
+   Transformation(..)
   )
   where
 
@@ -228,6 +238,7 @@ cycle :: ((outerState -> Word16 -> (Word8, outerState)),
           (outerState -> CPU_6502_State -> outerState))
       -> outerState
       -> outerState
+{-# INLINE cycle #-}
 cycle (fetchByte,
        storeByte,
        getIRQAsserted,

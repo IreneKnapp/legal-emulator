@@ -303,6 +303,8 @@
 					"$(GHC_LIBRARY_PATH)/bytestring-0.9.1.10/libHSbytestring-0.9.1.10$(HASKELL_LIBRARY_WAY).a",
 					"$(GHC_LIBRARY_PATH)/array-0.3.0.2/libHSarray-0.3.0.2$(HASKELL_LIBRARY_WAY).a",
 					"$(CABAL_LIBRARY_PATH)/utf8-string-0.3.6/libHSutf8-string-0.3.6$(HASKELL_LIBRARY_WAY).a",
+					"$(CABAL_LIBRARY_PATH)/deepseq-1.1.0.2/libHSdeepseq-1.1.0.2$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/containers-0.4.0.0/libHScontainers-0.4.0.0$(HASKELL_LIBRARY_WAY).a",
 				);
 				PRODUCT_NAME = "Legal Emulator";
 			};
@@ -327,6 +329,8 @@
 					"$(GHC_LIBRARY_PATH)/bytestring-0.9.1.10/libHSbytestring-0.9.1.10$(HASKELL_LIBRARY_WAY).a",
 					"$(GHC_LIBRARY_PATH)/array-0.3.0.2/libHSarray-0.3.0.2$(HASKELL_LIBRARY_WAY).a",
 					"$(CABAL_LIBRARY_PATH)/utf8-string-0.3.6/libHSutf8-string-0.3.6$(HASKELL_LIBRARY_WAY).a",
+					"$(CABAL_LIBRARY_PATH)/deepseq-1.1.0.2/libHSdeepseq-1.1.0.2$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/containers-0.4.0.0/libHScontainers-0.4.0.0$(HASKELL_LIBRARY_WAY).a",
 				);
 				PRODUCT_NAME = "Legal Emulator";
 			};
@@ -430,6 +434,8 @@
 					"$(GHC_LIBRARY_PATH)/bytestring-0.9.1.10/libHSbytestring-0.9.1.10$(HASKELL_LIBRARY_WAY).a",
 					"$(GHC_LIBRARY_PATH)/array-0.3.0.2/libHSarray-0.3.0.2$(HASKELL_LIBRARY_WAY).a",
 					"$(CABAL_LIBRARY_PATH)/utf8-string-0.3.6/libHSutf8-string-0.3.6$(HASKELL_LIBRARY_WAY).a",
+					"$(CABAL_LIBRARY_PATH)/deepseq-1.1.0.2/libHSdeepseq-1.1.0.2$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/containers-0.4.0.0/libHScontainers-0.4.0.0$(HASKELL_LIBRARY_WAY).a",
 				);
 				PRODUCT_NAME = "Legal Emulator";
 			};

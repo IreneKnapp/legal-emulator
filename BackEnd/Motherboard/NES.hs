@@ -410,7 +410,7 @@ cpuCallbacks = ((\state address ->
 
 ppuCallbacks :: ((State -> Word16 -> (Word8, State)),
                  (State -> Word16 -> Word8 -> State),
-                 (State -> (Word16 -> Word8)),
+                 {-(State -> (Word16 -> Word8)),-}
                  (State -> PPU.PPU_NES_State),
                  (State -> PPU.PPU_NES_State -> State))
 ppuCallbacks = ((\state address ->
@@ -427,11 +427,13 @@ ppuCallbacks = ((\state address ->
                             addressMapping
                             localAddress
                             value),
+                {-
                 (\state ->
                    let softwareState = stateSoftwareState state
                        memory =
                          softwareStateMotherboardPPUTableMemory softwareState
                    in (\offset -> memory ! fromIntegral offset)),
+                -}
                 (\state -> softwareStatePPUState $ stateSoftwareState state),
                 (\state ppuState ->
                    let softwareState = stateSoftwareState state
@@ -445,6 +447,7 @@ ppuCallbacks = ((\state address ->
 
 
 cycle :: State -> State
+{-# INLINE cycle #-}
 cycle !state =
   let clockCount =
         softwareStateMotherboardClockCount $ stateSoftwareState state
