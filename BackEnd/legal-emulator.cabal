@@ -18,6 +18,7 @@ description:
 Library
   exposed-modules: Emulator
   other-modules: Assembly,
+                 Data.Instances,
                  Data.Strict.Maybe,
                  FileFormat.INES,
                  Motherboard.NES,

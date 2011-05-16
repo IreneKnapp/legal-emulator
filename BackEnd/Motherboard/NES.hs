@@ -6,8 +6,6 @@ module Motherboard.NES
    State(..),
    HardwareState(..),
    SoftwareState(..),
-   AddressMapping(..),
-   Processor(..),
    powerOnSoftwareState,
    cpuDecodeAddress,
    ppuDecodeAddress,
@@ -21,6 +19,7 @@ module Motherboard.NES
   )
   where
 
+import Control.DeepSeq
 import Data.Array.Unboxed
 import qualified Data.ByteString as BS
 import Data.List hiding (cycle)
@@ -99,6 +98,43 @@ data AddressMapping = MotherboardCPUMemory
 data Processor = CPU_6502
                | PPU_NES
                deriving (Eq, Show)
+
+
+instance NFData State where
+  rnf state =
+    (rnf $ stateHardwareState state)
+    `seq` (rnf $ stateSoftwareState state)
+
+
+instance NFData HardwareState where
+  rnf hardwareState =
+    (rnf $ hardwareStateProgramReadOnlyMemory hardwareState)
+    `seq` (rnf $ hardwareStateCharacterReadOnlyMemory hardwareState)
+    `seq` (rnf $ hardwareStateTrainer hardwareState)
+    `seq` (rnf $ hardwareStatePlayChoice10HintScreen hardwareState)
+    `seq` (rnf $ hardwareStateMapperNumber hardwareState)
+    `seq` (rnf $ hardwareStateMirroringType hardwareState)
+    `seq` (rnf $ hardwareStateBatteryPresent hardwareState)
+    `seq` (rnf $ hardwareStateSystem hardwareState)
+
+
+instance NFData SoftwareState where
+  rnf softwareState =
+    (rnf $ softwareStateMotherboardClockCount softwareState)
+    `seq` (rnf $ softwareStateLastCPUDataBusValue softwareState)
+    `seq` (rnf $ softwareStateLastPPUDataBusValue softwareState)
+    `seq` (rnf $ softwareStateCPUState softwareState)
+    `seq` (rnf $ softwareStatePPUState softwareState)
+    `seq` (rnf $ softwareStateMotherboardCPUMemory softwareState)
+    `seq` (rnf $ softwareStateMotherboardPPUTableMemory softwareState)
+    `seq` (rnf $ softwareStateMotherboardPPUPaletteMemory softwareState)
+    `seq` (rnf $ softwareStateMotherboardPPUSpriteMemory softwareState)
+
+
+instance NFData Mirroring where
+
+
+instance NFData System where
 
 
 powerOnSoftwareState :: SoftwareState

@@ -14,20 +14,11 @@ module Processor.CPU_6502
    mnemonicRegister,
    addressingModeNBytes,
    atInstructionStart,
-   disassembleInstruction,
-
-   MicrocodeInstruction(..),
-   InterruptType(..),
-   Condition(..),
-   AddressSource(..),
-   ReadWrite(..),
-   ArithmeticOperation(..),
-   IncrementDecrement(..),
-   SetClear(..),
-   Transformation(..)
+   disassembleInstruction
   )
   where
 
+import Control.DeepSeq
 import Data.Array.IArray
 import Data.Bits
 import Data.Int
@@ -208,6 +199,102 @@ data InterruptType
   = Interrupt
   | NonMaskableInterrupt
   deriving (Eq, Show)
+
+
+instance NFData CPU_6502_State where
+  rnf cpuState =
+    (rnf $ cpu6502StateProgramCounter cpuState)
+    `seq` (rnf $ cpu6502StateStackPointer cpuState)
+    `seq` (rnf $ cpu6502StateAccumulator cpuState)
+    `seq` (rnf $ cpu6502StateXIndexRegister cpuState)
+    `seq` (rnf $ cpu6502StateYIndexRegister cpuState)
+    `seq` (rnf $ cpu6502StateStatusRegister cpuState)
+    `seq` (rnf $ cpu6502StateInternalOverflow cpuState)
+    `seq` (rnf $ cpu6502StateInternalNegative cpuState)
+    `seq` (rnf $ cpu6502StateInternalStoredAddress cpuState)
+    `seq` (rnf $ cpu6502StateInternalLatch cpuState)
+    `seq` (rnf $ cpu6502StateMicrocodeInstructionQueue cpuState)
+    `seq` (rnf $ cpu6502StateInterruptNoticed cpuState)
+    `seq` (rnf $ cpu6502StateInterruptAlreadyProcessed cpuState)
+    `seq` (rnf $ cpu6502StateNonMaskableInterruptAlreadyProcessed cpuState)
+
+
+instance NFData MicrocodeInstruction where
+  rnf microcodeInstruction =
+    (rnf $ microcodeInstructionConditional microcodeInstruction)
+    `seq` (rnf
+            $ microcodeInstructionInsteadFixProgramCounterHighByteIfNecessary
+               microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionRegister microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionRegisterFromLatch microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionAddLatchToProgramCounterLowByte
+                  microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionAddressSource microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionAddressOffset microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionAddressAddOne microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionSettingStoredValueBits
+                  microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionClearingFetchedValueBits
+                  microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionReadWrite microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionArithmeticOperation microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionDecodeOperation microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionIncrementProgramCounter
+                  microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionZeroStoredAddressHighByte
+                  microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionAddRegisterToStoredAddress
+                  microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionFixStoredAddressHighByte
+                  microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionStackPointerOperation microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionXIndexRegisterOperation
+                  microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionYIndexRegisterOperation
+                  microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionStatusRegisterOperation
+                  microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionAccumulatorOperation microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionLatchOperation microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionRegisterRegisterCopy microcodeInstruction)
+    `seq` (rnf $ microcodeInstructionUpdateStatusForRegister
+                  microcodeInstruction)
+
+
+instance NFData InternalRegister where
+
+
+instance NFData InterruptType where
+
+
+instance NFData Condition where
+
+
+instance NFData ReadWrite where
+
+
+instance NFData ArithmeticOperation where
+
+
+instance NFData IncrementDecrement where
+
+
+instance NFData SetClear where
+
+
+instance NFData Transformation where
+  rnf ArithmeticShiftLeft = ()
+  rnf LogicalShiftRight = ()
+  rnf RotateLeft = ()
+  rnf RotateRight = ()
+  rnf (IncrementDecrement incrementDecrement) =
+    rnf incrementDecrement
+
+
+instance NFData AddressSource where
+  rnf ProgramCounterAddressSource = ()
+  rnf (FixedAddressSource word) = rnf word
+  rnf StoredAddressSource = ()
 
 
 powerOnState :: CPU_6502_State

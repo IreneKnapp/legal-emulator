@@ -1,7 +1,7 @@
 {-# LANGUAGE ForeignFunctionInterface, BangPatterns #-}
-{-# LANGUAGE FlexibleContexts #-}
 module Emulator () where
 
+import Control.DeepSeq
 import Data.Array.IArray
 import Data.Bits
 import qualified Data.ByteString as BS
@@ -18,10 +18,6 @@ import qualified FileFormat.INES as INES
 import qualified Motherboard.NES as NES
 import qualified PPU.PPU_NES as PPU
 import qualified Processor.CPU_6502 as CPU
-
-import Control.DeepSeq
-import Data.Array.Unboxed
-
 
 
 foreign export ccall "string_free" stringFree
@@ -213,180 +209,6 @@ gamestateFrameForward state tracePointer = do
             newStablePtr state
           else deepseq state $ loop vblankEnded' traceLines' $ NES.cycle state
   loop False [] state
-
-
-instance NFData NES.State where
-  rnf state =
-    (rnf $ NES.stateHardwareState state)
-    `seq` (rnf $ NES.stateSoftwareState state)
-
-
-instance NFData NES.HardwareState where
-  rnf hardwareState =
-    (rnf $ NES.hardwareStateProgramReadOnlyMemory hardwareState)
-    `seq` (rnf $ NES.hardwareStateCharacterReadOnlyMemory hardwareState)
-    `seq` (rnf $ NES.hardwareStateTrainer hardwareState)
-    `seq` (rnf $ NES.hardwareStatePlayChoice10HintScreen hardwareState)
-    `seq` (rnf $ NES.hardwareStateMapperNumber hardwareState)
-    `seq` (rnf $ NES.hardwareStateMirroringType hardwareState)
-    `seq` (rnf $ NES.hardwareStateBatteryPresent hardwareState)
-    `seq` (rnf $ NES.hardwareStateSystem hardwareState)
-
-
-instance NFData NES.SoftwareState where
-  rnf softwareState =
-    (rnf $ NES.softwareStateMotherboardClockCount softwareState)
-    `seq` (rnf $ NES.softwareStateLastCPUDataBusValue softwareState)
-    `seq` (rnf $ NES.softwareStateLastPPUDataBusValue softwareState)
-    `seq` (rnf $ NES.softwareStateCPUState softwareState)
-    `seq` (rnf $ NES.softwareStatePPUState softwareState)
-    `seq` (rnf $ NES.softwareStateMotherboardCPUMemory softwareState)
-    `seq` (rnf $ NES.softwareStateMotherboardPPUTableMemory softwareState)
-    `seq` (rnf $ NES.softwareStateMotherboardPPUPaletteMemory softwareState)
-    `seq` (rnf $ NES.softwareStateMotherboardPPUSpriteMemory softwareState)
-
-
-instance NFData NES.Mirroring where
-
-
-instance NFData NES.System where
-
-
-instance NFData CPU.CPU_6502_State where
-  rnf cpuState =
-    (rnf $ CPU.cpu6502StateProgramCounter cpuState)
-    `seq` (rnf $ CPU.cpu6502StateStackPointer cpuState)
-    `seq` (rnf $ CPU.cpu6502StateAccumulator cpuState)
-    `seq` (rnf $ CPU.cpu6502StateXIndexRegister cpuState)
-    `seq` (rnf $ CPU.cpu6502StateYIndexRegister cpuState)
-    `seq` (rnf $ CPU.cpu6502StateStatusRegister cpuState)
-    `seq` (rnf $ CPU.cpu6502StateInternalOverflow cpuState)
-    `seq` (rnf $ CPU.cpu6502StateInternalNegative cpuState)
-    `seq` (rnf $ CPU.cpu6502StateInternalStoredAddress cpuState)
-    `seq` (rnf $ CPU.cpu6502StateInternalLatch cpuState)
-    `seq` (rnf $ CPU.cpu6502StateMicrocodeInstructionQueue cpuState)
-    `seq` (rnf $ CPU.cpu6502StateInterruptNoticed cpuState)
-    `seq` (rnf $ CPU.cpu6502StateInterruptAlreadyProcessed cpuState)
-    `seq` (rnf $ CPU.cpu6502StateNonMaskableInterruptAlreadyProcessed cpuState)
-
-
-instance NFData CPU.MicrocodeInstruction where
-  rnf microcodeInstruction =
-    (rnf $ CPU.microcodeInstructionConditional microcodeInstruction)
-    `seq`
-      (rnf $ CPU.microcodeInstructionInsteadFixProgramCounterHighByteIfNecessary
-       microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionRegister microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionRegisterFromLatch microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionAddLatchToProgramCounterLowByte
-           microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionAddressSource microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionAddressOffset microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionAddressAddOne microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionSettingStoredValueBits microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionClearingFetchedValueBits microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionReadWrite microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionArithmeticOperation microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionDecodeOperation microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionIncrementProgramCounter microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionZeroStoredAddressHighByte microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionAddRegisterToStoredAddress
-           microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionFixStoredAddressHighByte microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionStackPointerOperation microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionXIndexRegisterOperation microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionYIndexRegisterOperation microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionStatusRegisterOperation microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionAccumulatorOperation microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionLatchOperation microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionRegisterRegisterCopy microcodeInstruction)
-    `seq` (rnf $ CPU.microcodeInstructionUpdateStatusForRegister microcodeInstruction)
-
-
-instance NFData CPU.InternalRegister where
-
-
-instance NFData CPU.InterruptType where
-
-
-instance NFData CPU.Condition where
-
-
-instance NFData CPU.ReadWrite where
-
-
-instance NFData CPU.ArithmeticOperation where
-
-
-instance NFData CPU.IncrementDecrement where
-
-
-instance NFData CPU.SetClear where
-
-
-instance NFData CPU.Transformation where
-  rnf CPU.ArithmeticShiftLeft = ()
-  rnf CPU.LogicalShiftRight = ()
-  rnf CPU.RotateLeft = ()
-  rnf CPU.RotateRight = ()
-  rnf (CPU.IncrementDecrement incrementDecrement) =
-    rnf incrementDecrement
-
-
-instance NFData CPU.AddressSource where
-  rnf CPU.ProgramCounterAddressSource = ()
-  rnf (CPU.FixedAddressSource word) = rnf word
-  rnf CPU.StoredAddressSource = ()
-
-
-
-instance NFData PPU.PPU_NES_State where
-  rnf ppuState =
-    (rnf $ PPU.ppuNESStateHorizontalClock ppuState)
-    `seq` (rnf $ PPU.ppuNESStateVerticalClock ppuState)
-    `seq` (rnf $ PPU.ppuNESStateStillPoweringUp ppuState)
-    `seq` (rnf $ PPU.ppuNESStateWantsToAssertNMI ppuState)
-    `seq` (rnf $ PPU.ppuNESStateAllowedToAssertNMI ppuState)
-    `seq` (rnf $ PPU.ppuNESStateTallSprites ppuState)
-    `seq` (rnf $ PPU.ppuNESStatePatternTableForBackground ppuState)
-    `seq` (rnf $ PPU.ppuNESStatePatternTableForSprites ppuState)
-    `seq` (rnf $ PPU.ppuNESStateAddressIncrementVertically ppuState)
-    `seq` (rnf $ PPU.ppuNESStatePaletteMonochrome ppuState)
-    `seq` (rnf $ PPU.ppuNESStateBackgroundClipped ppuState)
-    `seq` (rnf $ PPU.ppuNESStateSpritesClipped ppuState)
-    `seq` (rnf $ PPU.ppuNESStateBackgroundVisible ppuState)
-    `seq` (rnf $ PPU.ppuNESStateSpritesVisible ppuState)
-    `seq` (rnf $ PPU.ppuNESStateIntensifiedColor ppuState)
-    `seq` (rnf $ PPU.ppuNESStateWrittenOddNumberOfTimesToAddresses ppuState)
-    `seq` (rnf $ PPU.ppuNESStatePermanentAddress ppuState)
-    `seq` (rnf $ PPU.ppuNESStateTemporaryAddress ppuState)
-    `seq` (rnf $ PPU.ppuNESStateXOffset ppuState)
-    `seq` (rnf $ PPU.ppuNESStateIncompleteFrame ppuState)
-    `seq` (rnf $ PPU.ppuNESStateLatestCompleteFrame ppuState)
-
-
-instance NFData PPU.PrimaryColor where
-
-
-instance NFData PPU.IncompleteVideoFrame where
-  rnf incompleteVideoFrame =
-    seq (PPU.incompleteVideoFrameNameTableMemory incompleteVideoFrame) ()
-    -- TODO this is not a deepseq and does not have the desired effect!
-
-
-instance NFData PPU.VideoFrame where
-  rnf videoFrame = rnf $ PPU.videoFrameNameTable videoFrame
-
-
-instance (NFData i, NFData v, Ix i, IArray UArray v)
-         => NFData (UArray i v) where
-         {-
-  rnf a = rnf $ elems a-}
-
-
-instance (NFData a) => NFData (Maybe a) where
-  rnf Nothing = ()
-  rnf (Just something) = rnf something
 
 
 gamestateGetVideoFrame :: StablePtr NES.State -> IO (StablePtr PPU.VideoFrame)

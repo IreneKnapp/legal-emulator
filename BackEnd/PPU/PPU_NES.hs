@@ -11,18 +11,17 @@ module PPU.PPU_NES
    registerFetch,
    registerStore,
    assertingNMI,
-   cycle,
-   
-   PrimaryColor(..),
-   IncompleteVideoFrame(..)
+   cycle
   )
   where
 
+import Control.DeepSeq
 import Data.Array.Unboxed
 import Data.Bits
 import Data.Word
 import Prelude hiding (cycle, Maybe(..))
 
+import Data.Instances
 import Data.Strict.Maybe
 
 import Debug.Trace
@@ -82,6 +81,44 @@ data VideoFrame =
   VideoFrame {
       videoFrameNameTable :: ! (UArray (Int, Int) Word8)
     }
+
+
+instance NFData PPU_NES_State where
+  rnf ppuState =
+    (rnf $ ppuNESStateHorizontalClock ppuState)
+    `seq` (rnf $ ppuNESStateVerticalClock ppuState)
+    `seq` (rnf $ ppuNESStateStillPoweringUp ppuState)
+    `seq` (rnf $ ppuNESStateWantsToAssertNMI ppuState)
+    `seq` (rnf $ ppuNESStateAllowedToAssertNMI ppuState)
+    `seq` (rnf $ ppuNESStateTallSprites ppuState)
+    `seq` (rnf $ ppuNESStatePatternTableForBackground ppuState)
+    `seq` (rnf $ ppuNESStatePatternTableForSprites ppuState)
+    `seq` (rnf $ ppuNESStateAddressIncrementVertically ppuState)
+    `seq` (rnf $ ppuNESStatePaletteMonochrome ppuState)
+    `seq` (rnf $ ppuNESStateBackgroundClipped ppuState)
+    `seq` (rnf $ ppuNESStateSpritesClipped ppuState)
+    `seq` (rnf $ ppuNESStateBackgroundVisible ppuState)
+    `seq` (rnf $ ppuNESStateSpritesVisible ppuState)
+    `seq` (rnf $ ppuNESStateIntensifiedColor ppuState)
+    `seq` (rnf $ ppuNESStateWrittenOddNumberOfTimesToAddresses ppuState)
+    `seq` (rnf $ ppuNESStatePermanentAddress ppuState)
+    `seq` (rnf $ ppuNESStateTemporaryAddress ppuState)
+    `seq` (rnf $ ppuNESStateXOffset ppuState)
+    `seq` (rnf $ ppuNESStateIncompleteFrame ppuState)
+    `seq` (rnf $ ppuNESStateLatestCompleteFrame ppuState)
+
+
+instance NFData PrimaryColor where
+
+
+instance NFData IncompleteVideoFrame where
+  rnf incompleteVideoFrame =
+    seq (incompleteVideoFrameNameTableMemory incompleteVideoFrame) ()
+    -- TODO this is not a deepseq and does not have the desired effect!
+
+
+instance NFData VideoFrame where
+  rnf videoFrame = rnf $ videoFrameNameTable videoFrame
 
 
 powerOnState :: PPU_NES_State

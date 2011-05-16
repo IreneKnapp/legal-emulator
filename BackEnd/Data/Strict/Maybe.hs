@@ -10,12 +10,18 @@ module Data.Strict.Maybe (Maybe(..),
                           mapMaybe)
   where
 
+import Control.DeepSeq
 import Prelude hiding (Maybe(..), maybe)
 
 
 data Maybe a = Nothing
              | Just !a
              deriving (Eq, Show)
+
+
+instance (NFData a) => NFData (Maybe a) where
+  rnf Nothing = ()
+  rnf (Just something) = rnf something
 
 
 instance Monad Maybe where
