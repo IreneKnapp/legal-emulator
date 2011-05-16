@@ -81,7 +81,7 @@ emulatorLoadGame filename = do
     INES.readINESFile filename
   case maybeHardwareState of
     Nothing -> return $ castPtrToStablePtr nullPtr
-    Just hardwareState -> newStablePtr hardwareState
+    Just hardwareState -> deepseq hardwareState $ newStablePtr hardwareState
 
 
 gameFree :: StablePtr NES.HardwareState -> IO ()
@@ -147,7 +147,7 @@ gamePowerOnState hardwareState = do
                   NES.stateHardwareState = hardwareState,
                   NES.stateSoftwareState = softwareState
                 }
-  newStablePtr state
+  deepseq state $ newStablePtr state
 
 
 gamestateFree :: StablePtr NES.State -> IO ()
@@ -173,11 +173,14 @@ gamestateFrameForward
     :: StablePtr NES.State -> Ptr CString -> IO (StablePtr NES.State)
 gamestateFrameForward state tracePointer = do
   state <- deRefStablePtr state
-  let loop vblankEnded {-traceLines-} !state = do
-        let {-traceLines' =
-              if NES.aboutToBeginInstruction state
-                then traceLines ++ [NES.disassembleUpcomingInstruction state]
-                else traceLines-}
+  let loop vblankEnded !traceLines !state = do
+        let !traceLines' =
+              if tracePointer /= nullPtr
+                then if NES.aboutToBeginInstruction state
+                       then traceLines
+                            ++ [NES.disassembleUpcomingInstruction state]
+                       else traceLines
+                else []
             softwareState = NES.stateSoftwareState state
             motherboardClock =
               NES.softwareStateMotherboardClockCount softwareState
@@ -201,17 +204,15 @@ gamestateFrameForward state tracePointer = do
               && motherboardEligibleToEnd
         if shouldEnd
           then do
-          {-
             if tracePointer /= nullPtr
               then do
                 let trace = concat $ map (\line -> line ++ "\n") traceLines
                 traceCString <- stringNew trace
                 poke tracePointer traceCString
               else return ()
-              -}
             newStablePtr state
-          else deepseq state $ loop vblankEnded' {-traceLines'-} $ NES.cycle state
-  loop False {-[]-} state
+          else deepseq state $ loop vblankEnded' traceLines' $ NES.cycle state
+  loop False [] state
 
 
 instance NFData NES.State where
