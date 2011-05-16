@@ -410,7 +410,7 @@ cpuCallbacks = ((\state address ->
 
 ppuCallbacks :: ((State -> Word16 -> (Word8, State)),
                  (State -> Word16 -> Word8 -> State),
-                 {-(State -> (Word16 -> Word8)),-}
+                 (State -> (Word16 -> Word8)),
                  (State -> PPU.PPU_NES_State),
                  (State -> PPU.PPU_NES_State -> State))
 ppuCallbacks = ((\state address ->
@@ -427,13 +427,11 @@ ppuCallbacks = ((\state address ->
                             addressMapping
                             localAddress
                             value),
-                {-
                 (\state ->
                    let softwareState = stateSoftwareState state
                        memory =
                          softwareStateMotherboardPPUTableMemory softwareState
                    in (\offset -> memory ! fromIntegral offset)),
-                -}
                 (\state -> softwareStatePPUState $ stateSoftwareState state),
                 (\state ppuState ->
                    let softwareState = stateSoftwareState state
@@ -460,18 +458,6 @@ cycle !state =
                       state
                       [(4, PPU_NES),
                        (12, CPU_6502)]
-      {- This version below has the best space-performance, but is
-         aesthetically displeasing. -}
-      {-
-      cyclePPU = mod clockCount 4 == 0
-      cycleCPU = mod clockCount 12 == 0
-      state' = if cyclePPU
-                 then PPU.cycle ppuCallbacks state
-                 else state
-      state'' = if cycleCPU
-                  then CPU.cycle cpuCallbacks state'
-                  else state'
-      -}
       clockCount' = mod (clockCount + 1) 12
       softwareState' = stateSoftwareState state'
       !softwareState'' = softwareState' {

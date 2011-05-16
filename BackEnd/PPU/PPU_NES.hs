@@ -152,13 +152,13 @@ registerWriteable register =
 
 registerFetch :: ((outerState -> Word16 -> (Word8, outerState)),
                   (outerState -> Word16 -> Word8 -> outerState),
-                  {-(outerState -> (Word16 -> Word8)),-}
+                  (outerState -> (Word16 -> Word8)),
                   (outerState -> PPU_NES_State),
                   (outerState -> PPU_NES_State -> outerState))
               -> outerState
               -> Register
               -> (outerState, Word8)
-registerFetch (_, _, {-_,-} getState, putState) outerState register =
+registerFetch (_, _, _, getState, putState) outerState register =
   let ppuState = getState outerState
       (ppuState', !value) =
         case register of
@@ -187,14 +187,14 @@ registerFetch (_, _, {-_,-} getState, putState) outerState register =
 
 registerStore :: ((outerState -> Word16 -> (Word8, outerState)),
                   (outerState -> Word16 -> Word8 -> outerState),
-                  {-(outerState -> (Word16 -> Word8)),-}
+                  (outerState -> (Word16 -> Word8)),
                   (outerState -> PPU_NES_State),
                   (outerState -> PPU_NES_State -> outerState))
               -> outerState
               -> Register
               -> Word8
               -> outerState
-registerStore (_, storeByte, {-_,-} getState, putState)
+registerStore (_, storeByte, _, getState, putState)
               outerState register value =
   let ppuState = getState outerState
       (ppuState', outerState') =
@@ -366,13 +366,13 @@ assertingNMI ppuState =
 
 cycle :: ((outerState -> Word16 -> (Word8, outerState)),
           (outerState -> Word16 -> Word8 -> outerState),
-          {-(outerState -> (Word16 -> Word8)),-}
+          (outerState -> (Word16 -> Word8)),
           (outerState -> PPU_NES_State),
           (outerState -> PPU_NES_State -> outerState))
       -> outerState
       -> outerState
 {-# INLINE cycle #-}
-cycle (fetchByte, storeByte, {-getTableMemory,-} getState, putState) !outerState =
+cycle (fetchByte, storeByte, getTableMemory, getState, putState) !outerState =
   let ppuState = getState outerState
       horizontalClock = ppuNESStateHorizontalClock ppuState
       verticalClock = ppuNESStateVerticalClock ppuState
@@ -418,8 +418,8 @@ cycle (fetchByte, storeByte, {-getTableMemory,-} getState, putState) !outerState
           (0, 0) ->
             let incompleteFrame = ppuNESStateIncompleteFrame ppuState'
             in incompleteFrame {
-                   incompleteVideoFrameNameTableMemory = (\_ -> 0x00)
-                     {-getTableMemory outerState-}
+                   incompleteVideoFrameNameTableMemory =
+                     getTableMemory outerState
                  }
           _ -> ppuNESStateIncompleteFrame ppuState'
       completeFrame =
