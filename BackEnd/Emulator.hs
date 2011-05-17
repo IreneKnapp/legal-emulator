@@ -169,7 +169,8 @@ gamestateFrameForward
     :: StablePtr NES.State -> Ptr CString -> IO (StablePtr NES.State)
 gamestateFrameForward state tracePointer = do
   state <- deRefStablePtr state
-  let loop vblankEnded !traceLines !state = do
+  let loop vblankEnded !traceLines = do
+        state <- NES.getState
         let !traceLines' =
               if tracePointer /= nullPtr
                 then if NES.aboutToBeginInstruction state
@@ -199,16 +200,18 @@ gamestateFrameForward state tracePointer = do
               && cpuEligibleToEnd
               && motherboardEligibleToEnd
         if shouldEnd
-          then do
-            if tracePointer /= nullPtr
-              then do
-                let trace = concat $ map (\line -> line ++ "\n") traceLines
-                traceCString <- stringNew trace
-                poke tracePointer traceCString
-              else return ()
-            newStablePtr state
-          else deepseq state $ loop vblankEnded' traceLines' $ NES.cycle state
-  loop False [] state
+          then return traceLines
+          else do
+            NES.cycle
+            loop vblankEnded' traceLines'
+  (traceLines, state) <- return $ NES.runMonadicState (loop False []) state
+  if tracePointer /= nullPtr
+    then do
+      let trace = concat $ map (\line -> line ++ "\n") traceLines
+      traceCString <- stringNew trace
+      poke tracePointer traceCString
+    else return ()
+  newStablePtr state
 
 
 gamestateGetVideoFrame :: StablePtr NES.State -> IO (StablePtr PPU.VideoFrame)
