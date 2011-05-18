@@ -153,7 +153,8 @@ gamestateFree state = freeStablePtr state
 gamestateAboutToBeginInstruction :: StablePtr NES.State -> IO CInt
 gamestateAboutToBeginInstruction state = do
   state <- deRefStablePtr state
-  return $ if NES.aboutToBeginInstruction state
+  let (result, _) = NES.runMonadicState NES.getAboutToBeginInstruction state
+  return $ if result
              then 1
              else 0
 
@@ -161,7 +162,8 @@ gamestateAboutToBeginInstruction state = do
 gamestateDisassembleUpcomingInstruction :: StablePtr NES.State -> IO CString
 gamestateDisassembleUpcomingInstruction state = do
   state <- deRefStablePtr state
-  let disassembly = NES.disassembleUpcomingInstruction state
+  let (disassembly, _) =
+        NES.runMonadicState NES.disassembleUpcomingInstruction state
   stringNew disassembly
 
 
@@ -170,16 +172,10 @@ gamestateFrameForward
 gamestateFrameForward state tracePointer = do
   state <- deRefStablePtr state
   let loop vblankEnded !traceLines = do
-        state <- NES.getState
-        let !traceLines' =
-              if tracePointer /= nullPtr
-                then if NES.aboutToBeginInstruction state
-                       then traceLines
-                            ++ [NES.disassembleUpcomingInstruction state]
-                       else traceLines
-                else []
-            softwareState = NES.stateSoftwareState state
-            motherboardClock =
+        softwareState <- NES.getSoftwareState
+        aboutToBeginInstruction <- NES.getAboutToBeginInstruction
+        atCPUCycle <- NES.getAtCPUCycle
+        let motherboardClock =
               NES.softwareStateMotherboardClockCount softwareState
             ppuState = NES.softwareStatePPUState softwareState
             horizontalClock = PPU.ppuNESStateHorizontalClock ppuState
@@ -194,7 +190,7 @@ gamestateFrameForward state tracePointer = do
               && (isJust $ PPU.ppuNESStateLatestCompleteFrame ppuState)
             cpuState = NES.softwareStateCPUState softwareState
             cpuEligibleToEnd = CPU.atInstructionStart cpuState
-            motherboardEligibleToEnd = NES.atCPUCycle state
+            motherboardEligibleToEnd = atCPUCycle
             shouldEnd =
               ppuEligibleToEnd
               && cpuEligibleToEnd
@@ -202,16 +198,24 @@ gamestateFrameForward state tracePointer = do
         if shouldEnd
           then return traceLines
           else do
+            traceLines <-
+              if tracePointer /= nullPtr
+                then if aboutToBeginInstruction
+                       then do
+                         thisLine <- NES.disassembleUpcomingInstruction
+                         return $ traceLines ++ [thisLine]
+                       else return traceLines
+                else return []
             NES.cycle
-            loop vblankEnded' traceLines'
-  (traceLines, state) <- return $ NES.runMonadicState (loop False []) state
+            loop vblankEnded' traceLines
+  let (traceLines, state') = NES.runMonadicState (loop False []) state
   if tracePointer /= nullPtr
     then do
       let trace = concat $ map (\line -> line ++ "\n") traceLines
       traceCString <- stringNew trace
       poke tracePointer traceCString
     else return ()
-  newStablePtr state
+  deepseq state' $ newStablePtr state'
 
 
 gamestateGetVideoFrame :: StablePtr NES.State -> IO (StablePtr PPU.VideoFrame)

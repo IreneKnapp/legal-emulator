@@ -22,21 +22,23 @@ int emulator_init() {
   }
   
   if(profiling) {
-    int argc = 6;
+    int argc = 7;
     char *arg0 = "emulator";
     char *arg1 = "+RTS";
-    char *arg2 = "-pa";
-    char *arg3 = "-hc";
-    char *arg4 = "-sprofile.txt";
-    char *arg5 = "-i0.01";
-    char **argv = malloc(7 * sizeof(char *));
+    char *arg2 = "-xc";
+    char *arg3 = "-pa";
+    char *arg4 = "-hc";
+    char *arg5 = "-sprofile.txt";
+    char *arg6 = "-i0.01";
+    char **argv = malloc(8 * sizeof(char *));
     argv[0] = arg0;
     argv[1] = arg1;
     argv[2] = arg2;
     argv[3] = arg3;
     argv[4] = arg4;
     argv[5] = arg5;
-    argv[6] = NULL;
+    argv[6] = arg6;
+    argv[7] = NULL;
     int argc_modified = argc;
     char **argv_modified = argv;
     
