@@ -1,4 +1,5 @@
-{-# LANGUAGE BangPatterns, Rank2Types, TypeSynonymInstances #-}
+{-# LANGUAGE BangPatterns, Rank2Types, TypeSynonymInstances,
+             TemplateHaskell #-}
 module Motherboard.NES
   (
    Mirroring(..),
@@ -30,6 +31,7 @@ import Data.Word
 import Prelude hiding (cycle, Maybe(..))
 
 import Assembly
+import Data.FlattenedRecords
 import Data.Strict.Maybe
 import qualified Processor.CPU_6502 as CPU
 import qualified PPU.PPU_NES as PPU
@@ -140,34 +142,7 @@ instance NFData Mirroring where
 instance NFData System where
 
 
-newtype MonadicState a =
-  MonadicState (forall r . (a -> State -> r) -> State -> r)
-
-
-instance Monad MonadicState where
-  return value = MonadicState (\continuation state -> continuation value state)
-  (MonadicState a) >>= b =
-    MonadicState (\continuation state ->
-                    a (\intermediate state' ->
-                         let MonadicState b' = b intermediate
-                         in b' continuation state')
-                      state)
-
-
-runMonadicState :: MonadicState a -> State -> (a, State)
-runMonadicState (MonadicState action) state =
-  action (\result state' -> (result, state')) state
-
-
-getState :: MonadicState State
-getState = MonadicState
-            (\continuation state -> continuation state state)
-
-
-putState :: State -> MonadicState ()
-putState state' =
-  deepseq state'
-          $ MonadicState (\continuation state -> continuation () state')
+$(defineFlattenedRecord ''State)
 
 
 powerOnSoftwareState :: SoftwareState

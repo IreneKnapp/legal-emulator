@@ -18,6 +18,7 @@ description:
 Library
   exposed-modules: Emulator
   other-modules: Assembly,
+                 Data.FlattenedRecords,
                  Data.Instances,
                  Data.Strict.Maybe,
                  FileFormat.INES,
@@ -26,6 +27,7 @@ Library
                  Processor.CPU_6502
   c-sources: EmulatorExtras.c
   build-depends: base >= 4.1 && < 5,
+                 template-haskell >= 2.5.0.0 && < 3,
                  array >= 0.3.0.2 && < 1,
                  bytestring >= 0.9.1.10 && < 1,
                  utf8-string >= 0.3.6 && < 1,

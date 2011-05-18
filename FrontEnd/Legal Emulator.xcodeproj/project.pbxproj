@@ -244,7 +244,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "cd \"${PROJECT_DIR}/../BackEnd/\"\n\"${CABAL}\" clean\n\"${CABAL}\" configure --enable-library-vanilla --disable-library-profiling --ghc-options=\"-optc=-DRTS_OPTS_ENABLED=RtsOptsNone\"\n\"${CABAL}\" build\ncp dist/build/libHSlegal-emulator-1.0.a dist/build/Emulator_stub.h \"${BUILT_PRODUCTS_DIR}\"\n\"${CABAL}\" clean\n\"${CABAL}\" configure --disable-library-vanilla --enable-library-profiling --ghc-options=\"-optc=-DRTS_OPTS_ENABLED=RtsOptsAll\"\n\"${CABAL}\" build\ncp dist/build/libHSlegal-emulator-1.0_p.a dist/build/Emulator_stub.h \"${BUILT_PRODUCTS_DIR}\"\n\"${CABAL}\" clean";
+			shellScript = "cd \"${PROJECT_DIR}/../BackEnd/\"\n\"${CABAL}\" clean\n\"${CABAL}\" configure --enable-library-vanilla --disable-library-profiling --ghc-options=\"-optc=-DRTS_OPTS_ENABLED=RtsOptsNone\"\n\"${CABAL}\" build\ncp dist/build/libHSlegal-emulator-1.0.a dist/build/Emulator_stub.h \"${BUILT_PRODUCTS_DIR}\"\n\"${CABAL}\" clean\n\"${CABAL}\" configure --enable-library-vanilla --enable-library-profiling --ghc-options=\"-optc=-DRTS_OPTS_ENABLED=RtsOptsAll\"\n\"${CABAL}\" build\ncp dist/build/libHSlegal-emulator-1.0_p.a dist/build/Emulator_stub.h \"${BUILT_PRODUCTS_DIR}\"\n\"${CABAL}\" clean";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
