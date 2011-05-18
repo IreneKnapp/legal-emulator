@@ -165,8 +165,9 @@ getState = MonadicState
 
 
 putState :: State -> MonadicState ()
-putState state' = MonadicState
-                   (\continuation state -> continuation () state')
+putState state' =
+  deepseq state'
+          $ MonadicState (\continuation state -> continuation () state')
 
 
 powerOnSoftwareState :: SoftwareState

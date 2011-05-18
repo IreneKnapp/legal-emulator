@@ -417,7 +417,9 @@ cycle (fetchByte, storeByte, getTableMemory, getState, putState) = do
              }
   incompleteFrame <- do
     case (horizontalClock, verticalClock) of
-      (0, 240) -> return blankIncompleteVideoFrame
+      (0, 240) -> do
+        let videoFrame = blankIncompleteVideoFrame
+        deepseq videoFrame $ return videoFrame
       (0, 0) -> do
         tableMemory <- getTableMemory
         let incompleteFrame = ppuNESStateIncompleteFrame ppuState
@@ -427,8 +429,12 @@ cycle (fetchByte, storeByte, getTableMemory, getState, putState) = do
       _ -> return $ ppuNESStateIncompleteFrame ppuState
   completeFrame <- do
     case (horizontalClock, verticalClock) of
-      (0, 240) -> return $ Just $ computeVideoFrame ppuState
-      _ -> return $ ppuNESStateLatestCompleteFrame ppuState
+      (0, 240) -> do
+        let videoFrame = computeVideoFrame ppuState
+        deepseq videoFrame $ return $ Just videoFrame
+      _ -> do
+        let maybeVideoFrame = ppuNESStateLatestCompleteFrame ppuState
+        deepseq maybeVideoFrame $ return maybeVideoFrame
   putState ppuState {
                ppuNESStateIncompleteFrame = incompleteFrame,
                ppuNESStateLatestCompleteFrame = completeFrame
