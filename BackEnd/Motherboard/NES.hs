@@ -8,6 +8,8 @@ module Motherboard.NES
    HardwareState(..),
    SoftwareState(..),
    runMonadicState,
+   getState,
+   putState,
    getSoftwareState,
    putSoftwareState,
    getHardwareState,

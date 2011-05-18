@@ -27,7 +27,7 @@ int emulator_init() {
     char *arg1 = "+RTS";
     char *arg2 = "-xc";
     char *arg3 = "-pa";
-    char *arg4 = "-hc";
+    char *arg4 = "-hr";
     char *arg5 = "-sprofile.txt";
     char *arg6 = "-i0.01";
     char **argv = malloc(8 * sizeof(char *));

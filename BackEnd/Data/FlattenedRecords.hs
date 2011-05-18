@@ -147,9 +147,6 @@ defineFlattenedRecord recordTypeConstructorName = do
 
 getFlattenedRecordFields :: Name -> Name -> Q (Name, [Name], [Type], [Dec])
 getFlattenedRecordFields monadicRecordName recordTypeConstructorName = do
-  let continuationName = mkName "continuation"
-      recordName = mkName "record"
-      valueName = mkName "value"
   maybeRecordInformation <- getRecordInformation recordTypeConstructorName
   case maybeRecordInformation of
     Nothing -> error $ "Not defined appropriately: "
@@ -171,104 +168,53 @@ getFlattenedRecordFields monadicRecordName recordTypeConstructorName = do
             computeGetterSignatureDeclaration monadicRecordName
                                               overallGetterName
                                               overallType
-          overallGetterDeclaration =
-            let lambdaExpression =
-                  LamE ([VarP continuationName]
-                        ++ map VarP flattenedFieldTemporaryNames)
-                       $ functionCallExpression
-                          $ [VarE continuationName,
-                             RecConE
-                              recordDataConstructorName
-                              $ map (\(fieldName, fieldTemporaryName) ->
-                                        (fieldName,
-                                         VarE fieldTemporaryName))
-                                    $ zip flattenedFieldNames
-                                          flattenedFieldTemporaryNames]
-                            ++ map VarE flattenedFieldTemporaryNames
-            in FunD overallGetterName
-                    [Clause []
-                            (NormalB
-                              $ AppE (ConE monadicRecordName)
-                                     lambdaExpression)
-                            []]
           overallSetterSignatureDeclaration =
             computeSetterSignatureDeclaration monadicRecordName
                                               overallSetterName
                                               overallType
+          allFieldIndices =
+            map (\(_, _, fieldIndex) -> fieldIndex)
+                immediateFields
+          overallGetterDeclaration =
+            computeMultipleFieldGetterDeclaration monadicRecordName
+                                                  overallGetterName
+                                                  recordDataConstructorName
+                                                  allFieldIndices
+                                                  flattenedFieldNames
+                                                  flattenedFieldTemporaryNames
           overallSetterDeclaration =
-            let lambdaExpression =
-                  LamE ([VarP continuationName]
-                        ++ map VarP flattenedFieldTemporaryNames)
-                       $ functionCallExpression
-                          $ [VarE continuationName,
-                             nullExpression]
-                            ++ map (\fieldName ->
-                                      AppE (VarE fieldName)
-                                           (VarE recordName))
-                                   flattenedFieldNames
-            in FunD overallSetterName
-                    [Clause [VarP recordName]
-                            (NormalB
-                              $ functionCallExpression
-                                 [VarE $ mkName "deepseq",
-                                  VarE recordName,
-                                  AppE (ConE monadicRecordName)
-                                       lambdaExpression])
-                            []]
+            computeMultipleFieldSetterDeclaration monadicRecordName
+                                                  overallSetterName
+                                                  allFieldIndices
+                                                  flattenedFieldNames
+                                                  flattenedFieldTemporaryNames
       accessorDeclarationLists <-
         mapM (\(fieldName, fieldType, fieldIndex) -> do
                  let fixedFieldName =
                        removePrefix (nameBase recordTypeConstructorName)
                                     (fixCase $ nameBase fieldName)
                      getterName = mkName $ "get" ++ fixedFieldName
+                     setterName = mkName $ "put" ++ fixedFieldName
                      getterSignatureDeclaration =
                        computeGetterSignatureDeclaration monadicRecordName
                                                          getterName
                                                          fieldType
-                     getterDeclaration =
-                       let lambdaExpression =
-                             LamE ([VarP continuationName]
-                                   ++ map VarP flattenedFieldTemporaryNames)
-                                  $ functionCallExpression
-                                     $ [VarE continuationName,
-                                        VarE
-                                         $ flattenedFieldTemporaryNames
-                                            !! fieldIndex]
-                                       ++ map VarE flattenedFieldTemporaryNames
-                       in FunD getterName
-                               [Clause []
-                                       (NormalB
-                                         $ AppE (ConE monadicRecordName)
-                                                lambdaExpression)
-                                       []]
-                     setterName = mkName $ "put" ++ fixedFieldName
                      setterSignatureDeclaration =
                        computeSetterSignatureDeclaration monadicRecordName
                                                          setterName
                                                          fieldType
+                     getterDeclaration =
+                       computeSingleFieldGetterDeclaration
+                        monadicRecordName
+                        getterName
+                        fieldIndex
+                        flattenedFieldTemporaryNames
                      setterDeclaration =
-                       let replacedNames =
-                             take fieldIndex
-                                  flattenedFieldTemporaryNames
-                             ++ [valueName]
-                             ++ drop (fieldIndex + 1)
-                                     flattenedFieldTemporaryNames
-                           lambdaExpression =
-                             LamE ([VarP continuationName]
-                                   ++ map VarP flattenedFieldTemporaryNames)
-                                  $ functionCallExpression
-                                     $ [VarE continuationName,
-                                        nullExpression]
-                                       ++ map VarE replacedNames
-                       in FunD setterName
-                               [Clause [VarP valueName]
-                                       (NormalB
-                                         $ functionCallExpression
-                                            [VarE $ mkName "deepseq",
-                                             VarE valueName,
-                                             AppE (ConE monadicRecordName)
-                                                  lambdaExpression])
-                                       []]
+                       computeSingleFieldSetterDeclaration
+                        monadicRecordName
+                        setterName
+                        fieldIndex
+                        flattenedFieldTemporaryNames
                  return [getterSignatureDeclaration,
                          getterDeclaration,
                          setterSignatureDeclaration,
@@ -299,6 +245,131 @@ computeSetterSignatureDeclaration monadicRecordName setterName typeToSet =
        $ functionType [typeToSet,
                        AppT (ConT monadicRecordName)
                             nullType]
+
+
+computeSingleFieldGetterDeclaration :: Name -> Name -> Int -> [Name] -> Dec
+computeSingleFieldGetterDeclaration
+    monadicRecordName getterName fieldIndex flattenedFieldTemporaryNames =
+  let continuationName = mkName "continuation"
+      lambdaExpression =
+        LamE ([VarP continuationName]
+              ++ map VarP flattenedFieldTemporaryNames)
+             $ functionCallExpression $ [VarE continuationName,
+                                         VarE $ flattenedFieldTemporaryNames
+                                                !! fieldIndex]
+                                        ++ map VarE
+                                               flattenedFieldTemporaryNames
+  in FunD getterName
+          [Clause []
+                  (NormalB
+                    $ AppE (ConE monadicRecordName)
+                           lambdaExpression)
+                  []]
+
+
+computeSingleFieldSetterDeclaration :: Name -> Name -> Int -> [Name] -> Dec
+computeSingleFieldSetterDeclaration
+    monadicRecordName setterName fieldIndex flattenedFieldTemporaryNames =
+  let continuationName = mkName "continuation"
+      valueName = mkName "value"
+      replacedNamesForPattern =
+        (map VarP $ take fieldIndex flattenedFieldTemporaryNames)
+        ++ [WildP]
+        ++ (map VarP $ drop (fieldIndex + 1) flattenedFieldTemporaryNames)
+      replacedNamesForExpression =
+        map VarE
+            $ take fieldIndex flattenedFieldTemporaryNames
+              ++ [valueName]
+              ++ drop (fieldIndex + 1) flattenedFieldTemporaryNames
+      lambdaExpression =
+        LamE ([VarP continuationName]
+              ++ replacedNamesForPattern)
+             $ functionCallExpression $ [VarE continuationName,
+                                         nullExpression]
+                                        ++ replacedNamesForExpression
+  in FunD setterName
+          [Clause [VarP valueName]
+                  (NormalB
+                    $ functionCallExpression [VarE $ mkName "deepseq",
+                                              VarE valueName,
+                                              AppE (ConE monadicRecordName)
+                                                   lambdaExpression])
+                  []]
+
+
+computeMultipleFieldGetterDeclaration
+    :: Name -> Name -> Name -> [Int] -> [Name] -> [Name] -> Dec
+computeMultipleFieldGetterDeclaration
+    monadicRecordName
+    getterName
+    recordDataConstructorName
+    relevantFieldIndices
+    flattenedFieldNames
+    flattenedFieldTemporaryNames =
+  let continuationName = mkName "continuation"
+      relevantFieldNames =
+        map (\fieldIndex -> flattenedFieldNames !! fieldIndex)
+            relevantFieldIndices
+      relevantFieldTemporaryNames =
+        map (\fieldIndex -> flattenedFieldTemporaryNames !! fieldIndex)
+            relevantFieldIndices
+      lambdaExpression =
+        LamE ([VarP continuationName]
+              ++ map VarP flattenedFieldTemporaryNames)
+             $ functionCallExpression
+                $ [VarE continuationName,
+                   RecConE recordDataConstructorName
+                           $ map (\(fieldName, fieldTemporaryName) ->
+                                      (fieldName,
+                                       VarE fieldTemporaryName))
+                                 $ zip relevantFieldNames
+                                       relevantFieldTemporaryNames]
+                  ++ map VarE flattenedFieldTemporaryNames
+  in FunD getterName
+          [Clause []
+                  (NormalB
+                    $ AppE (ConE monadicRecordName)
+                           lambdaExpression)
+                  []]
+
+
+computeMultipleFieldSetterDeclaration
+    :: Name -> Name -> [Int] -> [Name] -> [Name] -> Dec
+computeMultipleFieldSetterDeclaration
+    monadicRecordName
+    overallSetterName
+    relevantFieldIndices
+    flattenedFieldNames
+    flattenedFieldTemporaryNames =
+  let continuationName = mkName "continuation"
+      recordName = mkName "record"
+      lambdaExpression =
+        LamE ([VarP continuationName]
+              ++ (map (\(fieldTemporaryName, fieldIndex) ->
+                          if elem fieldIndex relevantFieldIndices
+                            then WildP
+                            else VarP fieldTemporaryName)
+                      $ zip flattenedFieldTemporaryNames
+                            [0..]))
+             $ functionCallExpression
+                $ [VarE continuationName,
+                   nullExpression]
+                  ++ (map (\(fieldName, fieldTemporaryName, fieldIndex) ->
+                              if elem fieldIndex relevantFieldIndices
+                                then AppE (VarE fieldName)
+                                          (VarE recordName)
+                                else VarE fieldTemporaryName)
+                          $ zip3 flattenedFieldNames
+                                 flattenedFieldTemporaryNames
+                                 [0..])
+  in FunD overallSetterName
+          [Clause [VarP recordName]
+                  (NormalB
+                    $ functionCallExpression [VarE $ mkName "deepseq",
+                                              VarE recordName,
+                                              AppE (ConE monadicRecordName)
+                                                   lambdaExpression])
+                  []]
 
 
 getRecordInformation :: Name -> Q (Maybe (Name, [(Name, Type, Int)]))
