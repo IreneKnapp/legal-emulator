@@ -19,6 +19,8 @@ import qualified Motherboard.NES as NES
 import qualified PPU.PPU_NES as PPU
 import qualified Processor.CPU_6502 as CPU
 
+import Debug.Trace
+
 
 foreign export ccall "string_free" stringFree
     :: CString -> IO ()
@@ -172,24 +174,22 @@ gamestateFrameForward
 gamestateFrameForward state tracePointer = do
   state <- deRefStablePtr state
   let loop vblankEnded !traceLines = do
-        softwareState <- NES.getSoftwareState
         aboutToBeginInstruction <- NES.getAboutToBeginInstruction
         atCPUCycle <- NES.getAtCPUCycle
-        let motherboardClock =
-              NES.softwareStateMotherboardClockCount softwareState
-            ppuState = NES.softwareStatePPUState softwareState
-            horizontalClock = PPU.ppuNESStateHorizontalClock ppuState
-            verticalClock = PPU.ppuNESStateVerticalClock ppuState
-            vblankEnded' =
+        motherboardClock <- NES.getSoftwareStateMotherboardClockCount
+        horizontalClock <- NES.getSoftwareStatePPUStateHorizontalClock
+        verticalClock <- NES.getSoftwareStatePPUStateVerticalClock
+        maybeCompleteFrame <- NES.getSoftwareStatePPUStateLatestCompleteFrame
+        atInstructionStart <- NES.runCPU CPU.getAtInstructionStart
+        let vblankEnded' =
               vblankEnded
               || ((horizontalClock == 0) && (verticalClock == 261))
             ppuEligibleToEnd =
               vblankEnded
               && (verticalClock >= 240)
               && (verticalClock < 261)
-              && (isJust $ PPU.ppuNESStateLatestCompleteFrame ppuState)
-            cpuState = NES.softwareStateCPUState softwareState
-            cpuEligibleToEnd = CPU.atInstructionStart cpuState
+              && (isJust maybeCompleteFrame)
+            cpuEligibleToEnd = atInstructionStart
             motherboardEligibleToEnd = atCPUCycle
             shouldEnd =
               ppuEligibleToEnd
@@ -206,6 +206,11 @@ gamestateFrameForward state tracePointer = do
                          return $ traceLines ++ [thisLine]
                        else return traceLines
                 else return []
+            if atCPUCycle && atInstructionStart
+              then do
+                line <- NES.disassembleUpcomingInstruction
+                trace (line ++ "\n") $ return ()
+              else return ()
             NES.cycle
             loop vblankEnded' traceLines
   let (traceLines, state') = NES.runMonadicState (loop False []) state

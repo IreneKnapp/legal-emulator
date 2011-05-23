@@ -2,18 +2,10 @@
 module Processor.CPU_6502
   (
    CPU_6502_State(..),
-   InstructionMnemonic(..),
-   AddressingMode(..),
-   InternalRegister(..),
-   InstructionCharacter(..),
+   MonadChip(..),
    powerOnState,
    cycle,
-   computeInternalRegister,
-   decodeInstructionMnemonicAndAddressingMode,
-   characterizeMnemonic,
-   mnemonicRegister,
-   addressingModeNBytes,
-   atInstructionStart,
+   getAtInstructionStart,
    disassembleInstruction
   )
   where
@@ -28,6 +20,8 @@ import Prelude hiding (cycle, Maybe(..))
 
 import Assembly
 import Data.Strict.Maybe
+
+import Debug.Trace
 
 
 data CPU_6502_State =
@@ -201,6 +195,42 @@ data InterruptType
   deriving (Eq, Show)
 
 
+class (Monad m) => MonadChip m where
+  debugFetchByte :: Word16 -> m Word8
+  fetchByte :: Word16 -> m Word8
+  storeByte :: Word16 -> Word8 -> m ()
+  getIRQAsserted :: m Bool
+  getNMIAsserted :: m Bool
+  getProgramCounter :: m Word16
+  putProgramCounter :: Word16 -> m ()
+  getStackPointer :: m Word8
+  putStackPointer :: Word8 -> m ()
+  getAccumulator :: m Word8
+  putAccumulator :: Word8 -> m ()
+  getXIndexRegister :: m Word8
+  putXIndexRegister :: Word8 -> m ()
+  getYIndexRegister :: m Word8
+  putYIndexRegister :: Word8 -> m ()
+  getStatusRegister :: m Word8
+  putStatusRegister :: Word8 -> m ()
+  getInternalOverflow :: m Bool
+  putInternalOverflow :: Bool -> m ()
+  getInternalNegative :: m Bool
+  putInternalNegative :: Bool -> m ()
+  getInternalStoredAddress :: m Word16
+  putInternalStoredAddress :: Word16 -> m ()
+  getInternalLatch :: m Word8
+  putInternalLatch :: Word8 -> m ()
+  getMicrocodeInstructionQueue :: m [MicrocodeInstruction]
+  putMicrocodeInstructionQueue :: [MicrocodeInstruction] -> m ()
+  getInterruptNoticed :: m (Maybe InterruptType)
+  putInterruptNoticed :: (Maybe InterruptType) -> m ()
+  getInterruptAlreadyProcessed :: m Bool
+  putInterruptAlreadyProcessed :: Bool -> m ()
+  getNonMaskableInterruptAlreadyProcessed :: m Bool
+  putNonMaskableInterruptAlreadyProcessed :: Bool -> m ()
+
+
 instance NFData CPU_6502_State where
   rnf cpuState =
     (rnf $ cpu6502StateProgramCounter cpuState)
@@ -300,7 +330,7 @@ instance NFData AddressSource where
 powerOnState :: CPU_6502_State
 powerOnState =
   CPU_6502_State {
-      cpu6502StateProgramCounter = 0xC000,
+      cpu6502StateProgramCounter = 0xFFFF,
       cpu6502StateStackPointer = 0xFD,
       cpu6502StateAccumulator = 0x00,
       cpu6502StateXIndexRegister = 0x00,
@@ -317,23 +347,10 @@ powerOnState =
     }
 
 
-cycle :: (Monad m)
-      => ((Word16 -> m Word8),
-          (Word16 -> Word8 -> m ()),
-          (m Bool),
-          (m Bool),
-          (m CPU_6502_State),
-          (CPU_6502_State -> m ()))
-      -> m ()
+cycle :: (MonadChip m) => m ()
 {-# INLINE cycle #-}
-cycle (fetchByte,
-       storeByte,
-       getIRQAsserted,
-       getNMIAsserted,
-       getState,
-       putState)
-      = do
-  cpuState <- getState
+cycle = do
+  microcodeInstructionQueue <- getMicrocodeInstructionQueue
   let checkForSetting =
         microcodeInstructionSettingStoredValueBits
       checkForClearing =
@@ -343,90 +360,73 @@ cycle (fetchByte,
       checkForAddLatch =
         microcodeInstructionAddLatchToProgramCounterLowByte
       (!maybeMicrocodeInstruction, !microcodeInstructionQueue') =
-        case cpu6502StateMicrocodeInstructionQueue cpuState of
+        case microcodeInstructionQueue of
           (first:rest) -> (Just first, rest)
           _ -> (Nothing, [])
   case maybeMicrocodeInstruction of
     Nothing -> return ()
     Just microcodeInstruction -> do
-      let effectiveAddress =
-            computeEffectiveAddress cpuState microcodeInstruction
-      (!fetchedByte, !cpuState) <-
-         case microcodeInstructionReadWrite microcodeInstruction of
-           Read -> do
-             fetchedByte <- fetchByte effectiveAddress
-             let fetchedByte' =
-                   case checkForClearing microcodeInstruction of
-                     Nothing -> fetchedByte
-                     Just bits -> fetchedByte .&. complement bits
-                 cpuState' =
-                   case microcodeInstructionRegister
-                         microcodeInstruction of
-                     Nothing -> cpuState
-                     Just internalRegister ->
-                       let maybeArithmetic =
-                             microcodeInstructionArithmeticOperation
-                              microcodeInstruction
-                           registerByte =
-                             computeInternalRegister internalRegister
-                                                     cpuState
-                           status = cpu6502StateStatusRegister cpuState
-                           (!status', !newByte) =
-                              case maybeArithmetic of
-                                Nothing -> (status, fetchedByte')
-                                Just arithmetic ->
-                                  performArithmetic arithmetic
-                                                    status
-                                                    registerByte
-                                                    fetchedByte'
-                           statusPostprocessor cpuState' =
-                             if internalRegister == StatusRegister
-                               then cpuState'
-                               else cpuState' {
-                                        cpu6502StateStatusRegister = status'
-                                      }
-                       in statusPostprocessor
-                           $ computeStoreInternalRegister
-                              internalRegister cpuState newByte
-             return (fetchedByte', cpuState')
-           Write -> do
-             let storedByte' =
-                   case microcodeInstructionRegister microcodeInstruction of
-                     Nothing -> 0x00
-                     Just internalRegister ->
-                       computeInternalRegister internalRegister cpuState
-                 storedByte =
-                   case checkForSetting microcodeInstruction of
-                     Nothing -> storedByte'
-                     Just bits -> storedByte' .|. bits
-             storeByte effectiveAddress storedByte
-             let status = cpu6502StateStatusRegister cpuState
-                 maybeArithmetic = microcodeInstructionArithmeticOperation
-                                    microcodeInstruction
-                 accumulator = cpu6502StateAccumulator cpuState
-                 (!status', !accumulator') =
-                    case maybeArithmetic of
-                      Nothing -> (status, accumulator)
-                      Just arithmetic ->
-                        performArithmetic arithmetic
-                                          status
-                                          accumulator
-                                          storedByte
-                 cpuState' = cpuState {
-                                 cpu6502StateStatusRegister = status',
-                                 cpu6502StateAccumulator = accumulator'
-                               }
-             return (0x00, cpuState')
-      cpuState <- return $ case microcodeInstructionRegisterFromLatch
-                                 microcodeInstruction of
-                             Nothing -> cpuState
-                             Just internalRegister ->
-                               computeStoreInternalRegister
-                                internalRegister
-                                cpuState
-                                $ cpu6502StateInternalLatch cpuState
-      let programCounter = cpu6502StateProgramCounter cpuState
-          keepProgramCounter =
+      effectiveAddress <- getEffectiveAddress microcodeInstruction
+      fetchedByte <-
+        case microcodeInstructionReadWrite microcodeInstruction of
+          Read -> do
+            fetchedByte <- fetchByte effectiveAddress
+            let fetchedByte' =
+                  case checkForClearing microcodeInstruction of
+                    Nothing -> fetchedByte
+                    Just bits -> fetchedByte .&. complement bits
+            case microcodeInstructionRegister microcodeInstruction of
+              Nothing -> return ()
+              Just internalRegister -> do
+                let maybeArithmetic =
+                      microcodeInstructionArithmeticOperation
+                       microcodeInstruction
+                registerByte <- getInternalRegister internalRegister
+                status <- getStatusRegister
+                let (!status', !newByte) =
+                       case maybeArithmetic of
+                         Nothing -> (status, fetchedByte')
+                         Just arithmetic ->
+                           performArithmetic arithmetic
+                                             status
+                                             registerByte
+                                             fetchedByte'
+                putInternalRegister internalRegister newByte
+                if internalRegister == StatusRegister
+                  then return ()
+                  else putStatusRegister status'
+            return fetchedByte'
+          Write -> do
+            storedByte' <-
+              case microcodeInstructionRegister microcodeInstruction of
+                Nothing -> return 0x00
+                Just internalRegister -> getInternalRegister internalRegister
+            let storedByte =
+                  case checkForSetting microcodeInstruction of
+                    Nothing -> storedByte'
+                    Just bits -> storedByte' .|. bits
+            storeByte effectiveAddress storedByte
+            status <- getStatusRegister
+            accumulator <- getAccumulator
+            let maybeArithmetic = microcodeInstructionArithmeticOperation
+                                   microcodeInstruction
+            case maybeArithmetic of
+              Nothing -> return ()
+              Just arithmetic -> do
+                let (status', accumulator') = performArithmetic arithmetic
+                                                                status
+                                                                accumulator
+                                                                storedByte
+                putStatusRegister status'
+                putAccumulator accumulator'
+            return 0x00
+      case microcodeInstructionRegisterFromLatch microcodeInstruction of
+        Nothing -> return ()
+        Just internalRegister -> do
+          value <- getInternalLatch
+          putInternalRegister internalRegister value
+      programCounter <- getProgramCounter
+      let keepProgramCounter =
             (programCounter, False, False, False)
           incrementProgramCounter =
             (programCounter + 1, False, False, False)
@@ -434,128 +434,121 @@ cycle (fetchByte,
             (programCounter + 0x0100, True, False, False)
           decrementProgramCounterOnePage =
             (programCounter - 0x0100, True, False, False)
-          (!programCounter',
-           !programCounterHighByteWasWrong,
-           !internalOverflowA',
-           !internalNegativeA') =
-             if checkForInstead microcodeInstruction
-               then let internalOverflow =
-                          cpu6502StateInternalOverflow cpuState
-                        internalNegative =
-                          cpu6502StateInternalNegative cpuState
-                    in if internalOverflow
-                         then if internalNegative
-                                then decrementProgramCounterOnePage
-                                else incrementProgramCounterOnePage
-                         else if microcodeInstructionIncrementProgramCounter
-                                  microcodeInstruction
-                                then incrementProgramCounter
-                                else keepProgramCounter
+      (!programCounter',
+       !programCounterHighByteWasWrong,
+       !internalOverflowA',
+       !internalNegativeA') <- do
+         if checkForInstead microcodeInstruction
+           then do
+             internalOverflow <- getInternalOverflow
+             internalNegative <- getInternalNegative
+             if internalOverflow
+               then if internalNegative
+                      then return decrementProgramCounterOnePage
+                      else return incrementProgramCounterOnePage
                else if microcodeInstructionIncrementProgramCounter
                         microcodeInstruction
-                      then incrementProgramCounter
-                      else if checkForAddLatch microcodeInstruction
-                             then let latch =
-                                        cpu6502StateInternalLatch cpuState
-                                      latchInt =
-                                        fromIntegral
-                                         (fromIntegral latch :: Int8)
-                                        :: Int
-                                      programCounterHigh =
-                                        programCounter .&. 0xFF00
-                                      programCounterLowByte =
-                                        fromIntegral
-                                         (programCounter .&. 0x00FF)
-                                        :: Word8
-                                      programCounterLowByteInt =
-                                        fromIntegral
-                                         (programCounter .&. 0x00FF)
-                                        :: Int
-                                      programCounterLowByteInt' =
-                                        programCounterLowByteInt + latchInt
-                                      programCounterLowByte' =
-                                        fromIntegral programCounterLowByteInt'
-                                        :: Word8
-                                      programCounter' =
-                                        fromIntegral programCounterLowByte'
-                                        .|. programCounterHigh
-                                      internalNegative =
-                                        (latchInt < 0x00)
-                                      internalOverflow =
-                                        (internalNegative
-                                         && (programCounterLowByte
-                                             < programCounterLowByte'))
-                                        || (not internalNegative
-                                            && (programCounterLowByte'
-                                                < programCounterLowByte))
-                                  in (programCounter',
-                                      False,
-                                      internalOverflow,
-                                      internalNegative)
-                             else keepProgramCounter
-          storedAddress = cpu6502StateInternalStoredAddress cpuState
-          (!storedAddress',
-           !internalOverflowB',
-           !internalNegativeB') =
-             if microcodeInstructionFixStoredAddressHighByte
-                 microcodeInstruction
-               then if cpu6502StateInternalOverflow cpuState
-                      then (storedAddress + 0x0100, False, False)
-                      else (storedAddress, False, False)
-               else case microcodeInstructionAddRegisterToStoredAddress
-                          microcodeInstruction of
-                      Nothing -> (storedAddress, False, False)
-                      Just register ->
-                        let addend = computeInternalRegister register cpuState
-                            addendInt8 = fromIntegral addend :: Int8
-                            addendInt = fromIntegral addend :: Int
-                            storedAddressHighByte = storedAddress .&. 0xFF00
-                            storedAddressLowByte =
-                              fromIntegral (storedAddress .&. 0x00FF) :: Int
-                            storedAddressLowByteInt' =
-                              storedAddressLowByte + addendInt
-                            internalNegative =
-                              (storedAddressLowByteInt' < 0x00)
-                            internalOverflow =
-                              internalNegative
-                              || (storedAddressLowByteInt' > 0xFF)
-                            storedAddressLowByte' =
-                              fromIntegral storedAddressLowByteInt' :: Word8
-                            storedAddress' =
-                              fromIntegral storedAddressLowByte'
-                              .|. storedAddressHighByte
-                        in (storedAddress',
-                            internalOverflow,
-                            internalNegative)
-          storedAddress'' =
+                      then return incrementProgramCounter
+                      else return keepProgramCounter
+           else if microcodeInstructionIncrementProgramCounter
+                    microcodeInstruction
+                  then return incrementProgramCounter
+                  else if checkForAddLatch microcodeInstruction
+                         then do
+                           latch <- getInternalLatch
+                           let latchInt =
+                                 fromIntegral (fromIntegral latch :: Int8)
+                                 :: Int
+                               programCounterHigh =
+                                 programCounter .&. 0xFF00
+                               programCounterLowByte =
+                                 fromIntegral (programCounter .&. 0x00FF)
+                                 :: Word8
+                               programCounterLowByteInt =
+                                 fromIntegral (programCounter .&. 0x00FF)
+                                 :: Int
+                               programCounterLowByteInt' =
+                                 programCounterLowByteInt + latchInt
+                               programCounterLowByte' =
+                                 fromIntegral programCounterLowByteInt'
+                                 :: Word8
+                               programCounter' =
+                                 fromIntegral programCounterLowByte'
+                                 .|. programCounterHigh
+                               internalNegative =
+                                 (latchInt < 0x00)
+                               internalOverflow =
+                                 (internalNegative
+                                  && (programCounterLowByte
+                                      < programCounterLowByte'))
+                                 || (not internalNegative
+                                     && (programCounterLowByte'
+                                         < programCounterLowByte))
+                           return (programCounter',
+                                   False,
+                                   internalOverflow,
+                                   internalNegative)
+                         else return keepProgramCounter
+      storedAddress <- getInternalStoredAddress
+      (!storedAddress',
+       !internalOverflowB',
+       !internalNegativeB') <- do
+         if microcodeInstructionFixStoredAddressHighByte microcodeInstruction
+           then do
+             internalOverflow <- getInternalOverflow
+             if internalOverflow
+               then return (storedAddress + 0x0100, False, False)
+               else return (storedAddress, False, False)
+           else case microcodeInstructionAddRegisterToStoredAddress
+                      microcodeInstruction of
+                  Nothing -> return (storedAddress, False, False)
+                  Just register -> do
+                    addend <- getInternalRegister register
+                    let addendInt8 = fromIntegral addend :: Int8
+                        addendInt = fromIntegral addend :: Int
+                        storedAddressHighByte = storedAddress .&. 0xFF00
+                        storedAddressLowByte =
+                          fromIntegral (storedAddress .&. 0x00FF) :: Int
+                        storedAddressLowByteInt' =
+                          storedAddressLowByte + addendInt
+                        internalNegative = (storedAddressLowByteInt' < 0x00)
+                        internalOverflow =
+                          internalNegative || (storedAddressLowByteInt' > 0xFF)
+                        storedAddressLowByte' =
+                          fromIntegral storedAddressLowByteInt' :: Word8
+                        storedAddress' =
+                          fromIntegral storedAddressLowByte'
+                          .|. storedAddressHighByte
+                    return (storedAddress', internalOverflow, internalNegative)
+      let storedAddress'' =
             if microcodeInstructionZeroStoredAddressHighByte
                 microcodeInstruction
               then storedAddress' .&. 0x00FF
               else storedAddress'
-          stackPointer = cpu6502StateStackPointer cpuState
-          stackPointer' =
+      stackPointer <- getStackPointer
+      let stackPointer' =
             case microcodeInstructionStackPointerOperation
                   microcodeInstruction of
               Nothing -> stackPointer
               Just Increment -> stackPointer + 1
               Just Decrement -> stackPointer - 1
-          xIndexRegister = cpu6502StateXIndexRegister cpuState
-          xIndexRegister' =
+      xIndexRegister <- getXIndexRegister
+      let xIndexRegister' =
             case microcodeInstructionXIndexRegisterOperation
                   microcodeInstruction of
               Nothing -> xIndexRegister
               Just Increment -> xIndexRegister + 1
               Just Decrement -> xIndexRegister - 1
-          yIndexRegister = cpu6502StateYIndexRegister cpuState
-          yIndexRegister' =
+      yIndexRegister <- getYIndexRegister
+      let yIndexRegister' =
             case microcodeInstructionYIndexRegisterOperation
                   microcodeInstruction of
               Nothing -> yIndexRegister
               Just Increment -> yIndexRegister + 1
               Just Decrement -> yIndexRegister - 1
-          statusRegister = cpu6502StateStatusRegister cpuState
-          accumulator = cpu6502StateAccumulator cpuState
-          (!accumulator', !statusRegister') =
+      statusRegister <- getStatusRegister
+      accumulator <- getAccumulator
+      let (!accumulator', !statusRegister') =
              case microcodeInstructionAccumulatorOperation
                    microcodeInstruction of
                Nothing -> (accumulator, statusRegister)
@@ -568,8 +561,8 @@ cycle (fetchByte,
                                                             accumulator'
                                                             newCarry
                  in (accumulator', statusRegister')
-          latch = cpu6502StateInternalLatch cpuState
-          (!latch', !statusRegister'') =
+      latch <- getInternalLatch
+      let (!latch', !statusRegister'') =
              case microcodeInstructionLatchOperation microcodeInstruction of
                Nothing -> (latch, statusRegister')
                Just transformation ->
@@ -589,18 +582,17 @@ cycle (fetchByte,
               Just (Clear, bits) -> statusRegister'' .&. complement bits
           internalOverflow' = internalOverflowA' || internalOverflowB'
           internalNegative' = internalNegativeA' || internalNegativeB'
-          interruptAlreadyProcessed =
-            cpu6502StateInterruptAlreadyProcessed cpuState
-          nonMaskableInterruptAlreadyProcessed =
-            cpu6502StateNonMaskableInterruptAlreadyProcessed cpuState
+      interruptAlreadyProcessed <- getInterruptAlreadyProcessed
+      nonMaskableInterruptAlreadyProcessed <-
+        getNonMaskableInterruptAlreadyProcessed
       irqAsserted <- getIRQAsserted
       nmiAsserted <- getNMIAsserted
       let interruptAlreadyProcessed' =
             interruptAlreadyProcessed && irqAsserted
           nonMaskableInterruptAlreadyProcessed' =
             nonMaskableInterruptAlreadyProcessed && nmiAsserted
-          interruptNoticed = cpu6502StateInterruptNoticed cpuState
-          interruptNoticed' =
+      interruptNoticed <- getInterruptNoticed
+      let interruptNoticed' =
             case (interruptNoticed,
                   irqAsserted && not interruptAlreadyProcessed,
                   nmiAsserted && not nonMaskableInterruptAlreadyProcessed) of
@@ -614,90 +606,74 @@ cycle (fetchByte,
                 Just Interrupt
               (_, False, False) ->
                 interruptNoticed
-      cpuState <-
-        return cpuState {
-                   cpu6502StateProgramCounter = programCounter',
-                   cpu6502StateInternalStoredAddress = storedAddress'',
-                   cpu6502StateStackPointer = stackPointer',
-                   cpu6502StateXIndexRegister = xIndexRegister',
-                   cpu6502StateYIndexRegister = yIndexRegister',
-                   cpu6502StateAccumulator = accumulator',
-                   cpu6502StateInternalLatch = latch',
-                   cpu6502StateStatusRegister = statusRegister''',
-                   cpu6502StateInternalOverflow = internalOverflow',
-                   cpu6502StateInternalNegative = internalNegative',
-                   cpu6502StateInterruptNoticed = interruptNoticed',
-                   cpu6502StateInterruptAlreadyProcessed =
-                    interruptAlreadyProcessed',
-                   cpu6502StateNonMaskableInterruptAlreadyProcessed =
-                    nonMaskableInterruptAlreadyProcessed'
-                 }
-      let (!microcodeInstructionQueue'', !interruptNoticed'') =
-             if microcodeInstructionDecodeOperation microcodeInstruction
-               then if checkForInstead microcodeInstruction
-                       && programCounterHighByteWasWrong
-                      then (microcodeInstructionQueue',
-                            interruptNoticed')
-                      else (case interruptNoticed' of
-                              Nothing -> decodeOperation fetchedByte
-                              Just Interrupt -> interruptMicrocode
-                              Just NonMaskableInterrupt ->
-                                nonMaskableInterruptMicrocode,
-                            Nothing)
-               else case microcodeInstructionConditional
-                          microcodeInstruction of
-                      Nothing -> (microcodeInstructionQueue', interruptNoticed')
-                      Just (condition, ifTrue, ifFalse) ->
-                        if testCondition condition cpuState
-                          then (ifTrue, interruptNoticed')
-                          else (ifFalse, interruptNoticed')
-      cpuState <- return cpuState {
-                             cpu6502StateMicrocodeInstructionQueue =
-                              microcodeInstructionQueue'',
-                             cpu6502StateInterruptNoticed =
-                              interruptNoticed''
-                           }
-      cpuState <-
-        return $ case microcodeInstructionRegisterRegisterCopy
-                       microcodeInstruction of
-                   Nothing -> cpuState
-                   Just (source, destination) ->
-                     computeStoreInternalRegister destination
-                                                  cpuState
-                                                  $ computeInternalRegister
-                                                     source
-                                                     cpuState
-      let statusRegister'''' =
-            case microcodeInstructionUpdateStatusForRegister
-                  microcodeInstruction of
-              Nothing -> cpu6502StateStatusRegister cpuState
-              Just register -> updateStatusRegisterForValue
-                                (cpu6502StateStatusRegister cpuState)
-                                $ computeInternalRegister register cpuState
-      cpuState <- return cpuState {
-                             cpu6502StateStatusRegister = statusRegister
-                           }
-      putState cpuState
+      putProgramCounter programCounter'
+      putInternalStoredAddress storedAddress''
+      putStackPointer stackPointer'
+      putXIndexRegister xIndexRegister'
+      putYIndexRegister yIndexRegister'
+      putAccumulator accumulator'
+      putInternalLatch latch'
+      putStatusRegister statusRegister'''
+      putInternalOverflow internalOverflow'
+      putInternalNegative internalNegative'
+      putInterruptNoticed interruptNoticed'
+      putInterruptAlreadyProcessed interruptAlreadyProcessed'
+      putNonMaskableInterruptAlreadyProcessed
+       nonMaskableInterruptAlreadyProcessed'
+      if microcodeInstructionDecodeOperation microcodeInstruction
+        then if checkForInstead microcodeInstruction
+                && programCounterHighByteWasWrong
+               then do
+                 trace "Case A" $ return ()
+                 putMicrocodeInstructionQueue microcodeInstructionQueue'
+               else do
+                 trace "Case B" $ return ()
+                 putMicrocodeInstructionQueue
+                  $ case interruptNoticed' of
+                      Nothing -> decodeOperation fetchedByte
+                      Just Interrupt -> interruptMicrocode
+                      Just NonMaskableInterrupt ->
+                       nonMaskableInterruptMicrocode
+                 putInterruptNoticed Nothing
+        else case microcodeInstructionConditional microcodeInstruction of
+               Nothing -> do
+                 trace "Case C" $ return ()
+                 putMicrocodeInstructionQueue microcodeInstructionQueue'
+               Just (condition, ifTrue, ifFalse) -> do
+                 trace "Case D" $ return ()
+                 testResult <- testCondition condition
+                 if testResult
+                   then putMicrocodeInstructionQueue ifTrue
+                   else putMicrocodeInstructionQueue ifFalse
+      case microcodeInstructionRegisterRegisterCopy microcodeInstruction of
+        Nothing -> return ()
+        Just (source, destination) -> do
+          value <- getInternalRegister source
+          putInternalRegister destination value
+      case microcodeInstructionUpdateStatusForRegister microcodeInstruction of
+        Nothing -> return ()
+        Just register -> do
+          statusRegister <- getStatusRegister
+          value <- getInternalRegister register
+          let statusRegister' =
+                updateStatusRegisterForValue statusRegister value
+          putStatusRegister statusRegister'
 
 
-computeEffectiveAddress :: CPU_6502_State -> MicrocodeInstruction -> Word16
-computeEffectiveAddress cpuState microcodeInstruction =
-  let baseAddress =
-        case microcodeInstructionAddressSource
-              microcodeInstruction of
-          ProgramCounterAddressSource ->
-            cpu6502StateProgramCounter cpuState
-          FixedAddressSource address ->
-            address
-          StoredAddressSource ->
-            cpu6502StateInternalStoredAddress cpuState
-      addressOffset =
-        case microcodeInstructionAddressOffset
-              microcodeInstruction of
-          Nothing -> 0
-          Just internalRegister ->
-            fromIntegral $ computeInternalRegister internalRegister cpuState
-      addressBeforePossibleIncrement = baseAddress + addressOffset
+getEffectiveAddress :: (MonadChip m) => MicrocodeInstruction -> m Word16
+getEffectiveAddress microcodeInstruction = do
+  baseAddress <-
+    case microcodeInstructionAddressSource microcodeInstruction of
+      ProgramCounterAddressSource -> getProgramCounter
+      FixedAddressSource address -> return address
+      StoredAddressSource -> getInternalStoredAddress
+  addressOffset <-
+    case microcodeInstructionAddressOffset microcodeInstruction of
+      Nothing -> return 0
+      Just internalRegister -> do
+        value <- getInternalRegister internalRegister
+        return $ fromIntegral value
+  let addressBeforePossibleIncrement = baseAddress + addressOffset
       addressHighByte =
         fromIntegral (shiftR addressBeforePossibleIncrement 8 .&. 0xFF)
         :: Word8
@@ -713,116 +689,91 @@ computeEffectiveAddress cpuState microcodeInstruction =
       addressAfterPossibleIncrement =
         shiftL (fromIntegral addressHighByte) 8
         .|. fromIntegral addressAfterPossibleIncrementLowByte
-  in addressAfterPossibleIncrement
+  return addressAfterPossibleIncrement
 
 
-computeInternalRegister :: InternalRegister -> CPU_6502_State -> Word8
-computeInternalRegister internalRegister cpuState =
+getInternalRegister :: (MonadChip m) => InternalRegister -> m Word8
+getInternalRegister internalRegister = do
+  trace (show internalRegister) $ return ()
   case internalRegister of
-    ProgramCounterHighByte ->
-      fromIntegral
-      $ shiftR (cpu6502StateProgramCounter cpuState) 8 .&. 0xFF
-    ProgramCounterLowByte ->
-      fromIntegral
-      $ shiftR (cpu6502StateProgramCounter cpuState) 0 .&. 0xFF
-    StackPointer ->
-      cpu6502StateStackPointer cpuState
-    Accumulator ->
-      cpu6502StateAccumulator cpuState
-    XIndexRegister ->
-      cpu6502StateXIndexRegister cpuState
-    YIndexRegister ->
-      cpu6502StateYIndexRegister cpuState
-    StatusRegister ->
-      cpu6502StateStatusRegister cpuState
-    StoredAddressHighByte ->
-      fromIntegral
-      $ shiftR (cpu6502StateInternalStoredAddress cpuState) 8 .&. 0xFF
-    StoredAddressLowByte ->
-      fromIntegral
-      $ shiftR (cpu6502StateInternalStoredAddress cpuState) 0 .&. 0xFF
-    Latch ->
-      cpu6502StateInternalLatch cpuState
-    AccumulatorAndXIndexRegister ->
-      cpu6502StateAccumulator cpuState
-      .&. cpu6502StateXIndexRegister cpuState
+    ProgramCounterHighByte -> do
+      programCounter <- getProgramCounter
+      return $ fromIntegral $ shiftR programCounter 8 .&. 0xFF
+    ProgramCounterLowByte -> do
+      programCounter <- getProgramCounter
+      return $ fromIntegral $ shiftR programCounter 0 .&. 0xFF
+    StackPointer -> do
+      getStackPointer
+    Accumulator -> do
+      getAccumulator
+    XIndexRegister -> do
+      getXIndexRegister
+    YIndexRegister -> do
+      getYIndexRegister
+    StatusRegister -> do
+      getStatusRegister
+    StoredAddressHighByte -> do
+      storedAddress <- getInternalStoredAddress
+      return $ fromIntegral $ shiftR storedAddress 8 .&. 0xFF
+    StoredAddressLowByte -> do
+      storedAddress <- getInternalStoredAddress
+      return $ fromIntegral $ shiftR storedAddress 0 .&. 0xFF
+    Latch -> do
+      getInternalLatch
+    AccumulatorAndXIndexRegister -> do
+      accumulator <- getAccumulator
+      xIndexRegister <- getXIndexRegister
+      return $ accumulator .&. xIndexRegister
 
 
-computeStoreInternalRegister
-    :: InternalRegister -> CPU_6502_State -> Word8 -> CPU_6502_State
-computeStoreInternalRegister internalRegister cpuState byte =
+putInternalRegister :: (MonadChip m) => InternalRegister -> Word8 -> m ()
+putInternalRegister internalRegister byte = do
   case internalRegister of
-    ProgramCounterHighByte ->
-      let otherByte =
-            fromIntegral
-            $ shiftR (cpu6502StateProgramCounter cpuState) 0 .&. 0xFF
+    ProgramCounterHighByte -> do
+      programCounter <- getProgramCounter
+      let otherByte = fromIntegral $ shiftR programCounter 0 .&. 0xFF
           programCounter' =
             (shiftL (fromIntegral byte) 8)
             .|. (shiftL (fromIntegral otherByte) 0)
-      in cpuState {
-             cpu6502StateProgramCounter = programCounter'
-           }
-    ProgramCounterLowByte ->
-      let otherByte =
-            fromIntegral
-            $ shiftR (cpu6502StateProgramCounter cpuState) 8 .&. 0xFF
+      putProgramCounter programCounter'
+    ProgramCounterLowByte -> do
+      programCounter <- getProgramCounter
+      let otherByte = fromIntegral $ shiftR programCounter 8 .&. 0xFF
           programCounter' =
             (shiftL (fromIntegral otherByte) 8)
             .|. (shiftL (fromIntegral byte) 0)
-      in cpuState {
-             cpu6502StateProgramCounter = programCounter'
-           }
-    StackPointer ->
-      cpuState {
-          cpu6502StateStackPointer = byte
-        }
-    Accumulator ->
-      cpuState {
-          cpu6502StateAccumulator = byte
-        }
-    XIndexRegister ->
-      cpuState {
-          cpu6502StateXIndexRegister = byte
-        }
-    YIndexRegister ->
-      cpuState {
-          cpu6502StateYIndexRegister = byte
-        }
-    StatusRegister ->
-      cpuState {
-          cpu6502StateStatusRegister = byte
-        }
-    StoredAddressHighByte ->
-      let otherByte =
-            fromIntegral
-            $ shiftR (cpu6502StateInternalStoredAddress cpuState) 0 .&. 0xFF
+      putProgramCounter programCounter'
+    StackPointer -> do
+      putStackPointer byte
+    Accumulator -> do
+      putAccumulator byte
+    XIndexRegister -> do
+      putXIndexRegister byte
+    YIndexRegister -> do
+      putYIndexRegister byte
+    StatusRegister -> do
+      putStatusRegister byte
+    StoredAddressHighByte -> do
+      storedAddress <- getInternalStoredAddress
+      let otherByte = fromIntegral $ shiftR storedAddress 0 .&. 0xFF
           storedAddress' =
             (shiftL (fromIntegral byte) 8)
             .|. (shiftL (fromIntegral otherByte) 0)
-      in cpuState {
-             cpu6502StateInternalStoredAddress = storedAddress'
-           }
-    StoredAddressLowByte ->
-      let otherByte =
-            fromIntegral
-            $ shiftR (cpu6502StateInternalStoredAddress cpuState) 8 .&. 0xFF
+      putInternalStoredAddress storedAddress'
+    StoredAddressLowByte -> do
+      storedAddress <- getInternalStoredAddress
+      let otherByte = fromIntegral $ shiftR storedAddress 8 .&. 0xFF
           storedAddress' =
             (shiftL (fromIntegral otherByte) 8)
             .|. (shiftL (fromIntegral byte) 0)
-      in cpuState {
-             cpu6502StateInternalStoredAddress = storedAddress'
-           }
-    Latch ->
-      cpuState {
-          cpu6502StateInternalLatch = byte
-        }
-    NoRegister ->
-      cpuState
-    AccumulatorAndXIndexRegister ->
-      cpuState {
-          cpu6502StateAccumulator = byte,
-          cpu6502StateXIndexRegister = byte
-        }
+      putInternalStoredAddress storedAddress'
+    Latch -> do
+      putInternalLatch byte
+    NoRegister -> do
+      return ()
+    AccumulatorAndXIndexRegister -> do
+      putAccumulator byte
+      putXIndexRegister byte
 
 
 performArithmetic :: ArithmeticOperation
@@ -987,19 +938,19 @@ updateStatusRegisterForValueAndCarry oldStatus value carry =
            (1, zero)]
 
 
-testCondition :: Condition -> CPU_6502_State -> Bool
-testCondition condition cpuState =
-  let status = cpu6502StateStatusRegister cpuState
-  in case condition of
-       CarryClear -> not $ statusTestCarry status
-       CarrySet -> statusTestCarry status
-       NotEqual -> not $ statusTestZero status
-       Equal -> statusTestZero status
-       Plus -> not $ statusTestNegative status
-       Minus -> statusTestNegative status
-       OverflowClear -> not $ statusTestOverflow status
-       OverflowSet -> statusTestOverflow status
-       InternalOverflowSet -> cpu6502StateInternalOverflow cpuState
+testCondition :: (MonadChip m) => Condition -> m Bool
+testCondition condition = do
+  status <- getStatusRegister
+  case condition of
+    CarryClear -> return $ not $ statusTestCarry status
+    CarrySet -> return $ statusTestCarry status
+    NotEqual -> return $ not $ statusTestZero status
+    Equal -> return $ statusTestZero status
+    Plus -> return $ not $ statusTestNegative status
+    Minus -> return $ statusTestNegative status
+    OverflowClear -> return $ not $ statusTestOverflow status
+    OverflowSet -> return $ statusTestOverflow status
+    InternalOverflowSet -> getInternalOverflow
 
 
 statusTestCarry :: Word8 -> Bool
@@ -1016,8 +967,6 @@ statusTestNegative status = testBit status 7
 
 statusTestOverflow :: Word8 -> Bool
 statusTestOverflow status = testBit status 6
-
-
 
 
 decodeInstructionMnemonicAndAddressingMode
@@ -2605,193 +2554,185 @@ addressingModeNBytes addressingMode =
      AbsoluteIndirectAddressing -> 3
 
 
-atInstructionStart :: CPU_6502_State -> Bool
-atInstructionStart cpuState =
-  case cpu6502StateMicrocodeInstructionQueue cpuState of
-    [] -> False
+getAtInstructionStart :: (MonadChip m) => m Bool
+getAtInstructionStart = do
+  microcodeInstructionQueue <- getMicrocodeInstructionQueue
+  case microcodeInstructionQueue of
+    [] -> return False
     (microcodeInstruction : _) ->
       if microcodeInstructionDecodeOperation microcodeInstruction
-        then if microcodeInstructionInsteadFixProgramCounterHighByteIfNecessary
+        then do
+          internalOverflow <- getInternalOverflow
+          if microcodeInstructionInsteadFixProgramCounterHighByteIfNecessary
                  microcodeInstruction
-                && cpu6502StateInternalOverflow cpuState
-              then False
-              else True
-        else False
+             && internalOverflow
+            then return False
+            else return True
+        else return False
 
 
-disassembleInstruction
-    :: CPU_6502_State -> (Word16 -> Word8) -> [(String, String)] -> String
-disassembleInstruction cpuState debugFetch extraFields =
-  let programCounter = cpu6502StateProgramCounter cpuState
-      opcode = debugFetch programCounter
-  in case decodeInstructionMnemonicAndAddressingMode opcode of
-       Nothing -> (showHexWord16 programCounter) ++ "  Invalid instruction."
-       Just (instructionMnemonic, addressingMode, extended) ->
-         let nBytes = addressingModeNBytes addressingMode
-             byte2 = debugFetch $ programCounter + 1
-             byte3 = debugFetch $ programCounter + 2
-             bytes = case nBytes of
-                       1 -> [opcode]
-                       2 -> [opcode, byte2]
-                       3 -> [opcode, byte2, byte3]
-             instructionCharacter = characterizeMnemonic instructionMnemonic
-             addressReport = showHexWord16 programCounter
-             byteReport = rightPad (intercalate " " $ map showHexWord8 bytes)
-                                   8
-             (lValueSubreport, maybeRValueAddress) =
-               case addressingMode of
-                 AccumulatorAddressing ->
-                   ("A", Nothing)
-                 ImmediateAddressing ->
-                   ("#$"
+disassembleInstruction :: (MonadChip m) => [(String, String)] -> m String
+disassembleInstruction extraFields = do
+  programCounter <- getProgramCounter
+  opcode <- debugFetchByte programCounter
+  case decodeInstructionMnemonicAndAddressingMode opcode of
+    Nothing -> do
+      return $ (showHexWord16 programCounter) ++ "  Invalid instruction."
+    Just (instructionMnemonic, addressingMode, extended) -> do
+      let nBytes = addressingModeNBytes addressingMode
+      byte2 <- debugFetchByte $ programCounter + 1
+      byte3 <- debugFetchByte $ programCounter + 2
+      let bytes = case nBytes of
+                    1 -> [opcode]
+                    2 -> [opcode, byte2]
+                    3 -> [opcode, byte2, byte3]
+          instructionCharacter = characterizeMnemonic instructionMnemonic
+          addressReport = showHexWord16 programCounter
+          byteReport = rightPad (intercalate " " $ map showHexWord8 bytes)
+                                8
+      (lValueSubreport, maybeRValueAddress) <-
+        case addressingMode of
+          AccumulatorAddressing -> do
+            return ("A", Nothing)
+          ImmediateAddressing -> do
+            return ("#$"
                     ++ showHexWord8 byte2,
                     Nothing)
-                 AbsoluteAddressing ->
-                   ("$"
+          AbsoluteAddressing -> do
+            return ("$"
                     ++ showHexWord8 byte3
                     ++ showHexWord8 byte2,
                     Just $ shiftL (fromIntegral byte3) 8
                            .|. fromIntegral byte2)
-                 ZeroPageAddressing ->
-                   ("$"
+          ZeroPageAddressing -> do
+            return ("$"
                     ++ showHexWord8 byte2,
                     Just $ fromIntegral byte2)
-                 ZeroPageXIndexedAddressing ->
-                   let x = cpu6502StateXIndexRegister cpuState
-                   in ("$"
-                       ++ showHexWord8 byte2
-                       ++ ",X @ "
-                       ++ showHexWord8 (byte2 + x),
-                       Just $ fromIntegral $ byte2 + x)
-                 ZeroPageYIndexedAddressing ->
-                   let y = cpu6502StateYIndexRegister cpuState
-                   in ("$"
-                       ++ showHexWord8 byte2
-                       ++ ",Y @ "
-                       ++ showHexWord8 (byte2 + y),
-                       Just $ fromIntegral $ byte2 + y)
-                 AbsoluteXIndexedAddressing ->
-                   let x = cpu6502StateXIndexRegister cpuState
-                       indexed = fromIntegral byte2
-                                 + shiftL (fromIntegral byte3) 8
-                       effective = indexed + fromIntegral x
-                   in ("$"
-                       ++ showHexWord16 indexed
-                       ++ ",X @ "
-                       ++ showHexWord16 effective,
-                       Just effective)
-                 AbsoluteYIndexedAddressing ->
-                   let y = cpu6502StateYIndexRegister cpuState
-                       indexed = fromIntegral byte2
-                                 + shiftL (fromIntegral byte3) 8
-                       effective = indexed + fromIntegral y
-                   in ("$"
-                       ++ showHexWord16 indexed
-                       ++ ",Y @ "
-                       ++ showHexWord16 effective,
-                       Just effective)
-                 ImpliedAddressing ->
-                   ("",
+          ZeroPageXIndexedAddressing -> do
+            x <- getXIndexRegister
+            return ("$"
+                    ++ showHexWord8 byte2
+                    ++ ",X @ "
+                    ++ showHexWord8 (byte2 + x),
+                    Just $ fromIntegral $ byte2 + x)
+          ZeroPageYIndexedAddressing -> do
+            y <- getYIndexRegister
+            return ("$"
+                    ++ showHexWord8 byte2
+                    ++ ",Y @ "
+                    ++ showHexWord8 (byte2 + y),
+                    Just $ fromIntegral $ byte2 + y)
+          AbsoluteXIndexedAddressing -> do
+            x <- getXIndexRegister
+            let indexed = fromIntegral byte2
+                          + shiftL (fromIntegral byte3) 8
+                effective = indexed + fromIntegral x
+            return ("$"
+                    ++ showHexWord16 indexed
+                    ++ ",X @ "
+                    ++ showHexWord16 effective,
+                    Just effective)
+          AbsoluteYIndexedAddressing -> do
+            y <- getYIndexRegister
+            let indexed = fromIntegral byte2
+                          + shiftL (fromIntegral byte3) 8
+                effective = indexed + fromIntegral y
+            return ("$"
+                    ++ showHexWord16 indexed
+                    ++ ",Y @ "
+                    ++ showHexWord16 effective,
+                    Just effective)
+          ImpliedAddressing -> do
+            return ("",
                     Nothing)
-                 RelativeAddressing ->
-                   let programCounterInt =
-                         fromIntegral programCounter + nBytes :: Int
-                       offsetInt =
-                         fromIntegral $ (fromIntegral byte2 :: Int8) :: Int
-                       effectiveAddress
-                         = fromIntegral $ programCounterInt + offsetInt
-                   in ("$" ++ showHexWord16 effectiveAddress,
-                       Nothing)
-                 XIndexedIndirectAddressing ->
-                   let x = cpu6502StateXIndexRegister cpuState
-                       effective = (fromIntegral
-                                     $ debugFetch
-                                        $ fromIntegral
-                                           $ byte2 + x)
-                                   + shiftL (fromIntegral
-                                              $ debugFetch
-                                                 $ fromIntegral
-                                                    $ byte2 + x + 1)
-                                            8
-                   in ("($"
-                       ++ showHexWord8 byte2
-                       ++ ",X) @ "
-                       ++ showHexWord8 (byte2 + x)
-                       ++ " = "
-                       ++ showHexWord16 effective,
-                       Just effective)
-                 IndirectYIndexedAddressing ->
-                   let y = cpu6502StateYIndexRegister cpuState
-                       indirectLow = debugFetch $ fromIntegral $ byte2
-                       indirectHigh = debugFetch $ fromIntegral $ byte2 + 1
-                       indirect = fromIntegral indirectLow
-                                  + shiftL (fromIntegral indirectHigh) 8
-                       effective = indirect + fromIntegral y
-                   in ("($"
-                       ++ showHexWord8 byte2
-                       ++ "),Y = "
-                       ++ showHexWord16 indirect
-                       ++ " @ "
-                       ++ showHexWord16 effective,
-                       Just effective)
-                 AbsoluteIndirectAddressing ->
-                   let indirect = fromIntegral byte2
-                                  + shiftL (fromIntegral byte3) 8
-                       effective = (fromIntegral $ debugFetch indirect)
-                                   + shiftL (fromIntegral
-                                              $ debugFetch $ indirect + 1)
-                                            8
-                   in ("($"
-                       ++ showHexWord16 indirect
-                       ++ ") = "
-                       ++ showHexWord16 effective,
-                       Just effective)
-             showRValueSubreport =
-               isJust maybeRValueAddress
-               && (((elem instructionCharacter [ReadCharacter,
-                                                ReadWriteCharacter,
-                                                WriteCharacter])
-                    && (mnemonicRegister instructionMnemonic /= NoRegister))
-                   || (extended && (instructionMnemonic == NOP)))
-             rValue = case maybeRValueAddress of
-                        Nothing -> 0x00
-                        Just rValueAddress -> debugFetch rValueAddress
-             rValueSubreport = " = " ++ showHexWord8 rValue
-             disassemblyReport =
-               rightPad (show instructionMnemonic
-                         ++ " "
-                         ++ lValueSubreport
-                         ++ if showRValueSubreport
-                              then rValueSubreport
-                              else "")
-                        30
-             stateReport =
-               intercalate " "
-                           $ map (\(label, value) -> label ++ ":" ++ value)
-                                 $ [("A",
-                                     showHexWord8
-                                      $ cpu6502StateAccumulator cpuState),
-                                    ("X",
-                                     showHexWord8
-                                      $ cpu6502StateXIndexRegister cpuState),
-                                    ("Y",
-                                     showHexWord8
-                                      $ cpu6502StateYIndexRegister cpuState),
-                                    ("P",
-                                     showHexWord8
-                                      $ cpu6502StateStatusRegister cpuState
-                                        .|. 0x20),
-                                    ("SP",
-                                     showHexWord8
-                                      $ cpu6502StateStackPointer cpuState)]
-                                   ++ extraFields
-             report = addressReport
-                      ++ "  "
-                      ++ byteReport
-                      ++ (if extended
-                            then " *"
-                            else "  ")
-                      ++ disassemblyReport
-                      ++ "  "
-                      ++ stateReport
-         in report
+          RelativeAddressing -> do
+            let programCounterInt =
+                  fromIntegral programCounter + nBytes :: Int
+                offsetInt =
+                  fromIntegral $ (fromIntegral byte2 :: Int8) :: Int
+                effectiveAddress
+                  = fromIntegral $ programCounterInt + offsetInt
+            return ("$" ++ showHexWord16 effectiveAddress,
+                    Nothing)
+          XIndexedIndirectAddressing -> do
+            x <- getXIndexRegister
+            effectiveLow <- debugFetchByte $ fromIntegral $ byte2 + x
+            effectiveHigh <- debugFetchByte $ fromIntegral $ byte2 + x + 1
+            let effective = (fromIntegral effectiveLow)
+                            + shiftL (fromIntegral effectiveHigh) 8
+            return ("($"
+                    ++ showHexWord8 byte2
+                    ++ ",X) @ "
+                    ++ showHexWord8 (byte2 + x)
+                    ++ " = "
+                    ++ showHexWord16 effective,
+                    Just effective)
+          IndirectYIndexedAddressing -> do
+            y <- getYIndexRegister
+            indirectLow <- debugFetchByte $ fromIntegral $ byte2
+            indirectHigh <- debugFetchByte $ fromIntegral $ byte2 + 1
+            let indirect = fromIntegral indirectLow
+                           + shiftL (fromIntegral indirectHigh) 8
+                effective = indirect + fromIntegral y
+            return ("($"
+                    ++ showHexWord8 byte2
+                    ++ "),Y = "
+                    ++ showHexWord16 indirect
+                    ++ " @ "
+                    ++ showHexWord16 effective,
+                    Just effective)
+          AbsoluteIndirectAddressing -> do
+            let indirect = fromIntegral byte2
+                           + shiftL (fromIntegral byte3) 8
+            effectiveLow <- debugFetchByte $ indirect
+            effectiveHigh <- debugFetchByte $ indirect + 1
+            let effective = (fromIntegral effectiveLow)
+                            + shiftL (fromIntegral effectiveHigh) 8
+            return ("($"
+                    ++ showHexWord16 indirect
+                    ++ ") = "
+                    ++ showHexWord16 effective,
+                    Just effective)
+      let showRValueSubreport =
+            isJust maybeRValueAddress
+            && (((elem instructionCharacter [ReadCharacter,
+                                             ReadWriteCharacter,
+                                             WriteCharacter])
+                 && (mnemonicRegister instructionMnemonic /= NoRegister))
+                || (extended && (instructionMnemonic == NOP)))
+      rValue <- case maybeRValueAddress of
+                  Nothing -> return 0x00
+                  Just rValueAddress -> debugFetchByte rValueAddress
+      let rValueSubreport = " = " ++ showHexWord8 rValue
+          disassemblyReport =
+            rightPad (show instructionMnemonic
+                      ++ " "
+                      ++ lValueSubreport
+                      ++ if showRValueSubreport
+                           then rValueSubreport
+                           else "")
+                     30
+      accumulator <- getAccumulator
+      xIndexRegister <- getXIndexRegister
+      yIndexRegister <- getYIndexRegister
+      statusRegister <- getStatusRegister
+      stackPointer <- getStackPointer
+      let stateReport =
+            intercalate " "
+                        $ map (\(label, value) -> label ++ ":" ++ value)
+                              $ [("A", showHexWord8 accumulator),
+                                 ("X", showHexWord8 xIndexRegister),
+                                 ("Y", showHexWord8 yIndexRegister),
+                                 ("P", showHexWord8 $ statusRegister .|. 0x20),
+                                 ("SP", showHexWord8 stackPointer)]
+                                ++ extraFields
+          report = addressReport
+                   ++ "  "
+                   ++ byteReport
+                   ++ (if extended
+                         then " *"
+                         else "  ")
+                   ++ disassemblyReport
+                   ++ "  "
+                   ++ stateReport
+      return report

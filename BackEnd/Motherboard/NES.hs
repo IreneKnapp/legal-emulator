@@ -8,12 +8,9 @@ module Motherboard.NES
    HardwareState(..),
    SoftwareState(..),
    runMonadicState,
+   runCPU,
+   runPPU,
    powerOnSoftwareState,
-   cpuDecodeAddress,
-   ppuDecodeAddress,
-   debugFetch,
-   fetch,
-   store,
    cycle,
    getAtCPUCycle,
    getAboutToBeginInstruction,
@@ -256,6 +253,151 @@ instance NFData System where
 $(defineFlattenedRecord ''State)
 
 
+newtype CPUMonad a = CPUMonad (MonadicState a)
+
+
+instance Monad CPUMonad where
+  return = CPUMonad . return
+  a >>= b = CPUMonad ((runCPU a) >>= (runCPU . b))
+
+
+instance CPU.MonadChip CPUMonad where
+  debugFetchByte address = CPUMonad $ do
+    (addressMapping, localAddress) <- cpuDecodeAddress address
+    debugFetch CPUDataBus addressMapping localAddress
+  fetchByte address = CPUMonad $ do
+    (addressMapping, localAddress) <- cpuDecodeAddress address
+    fetch CPUDataBus addressMapping localAddress
+  storeByte address value = CPUMonad $ do
+    (addressMapping, localAddress) <- cpuDecodeAddress address
+    store CPUDataBus addressMapping localAddress value
+  getIRQAsserted = CPUMonad $ do
+    return False
+  getNMIAsserted = CPUMonad $ do
+    runPPU PPU.assertingNMI
+  getProgramCounter = CPUMonad $ getSoftwareStateCPUStateProgramCounter
+  putProgramCounter = CPUMonad . putSoftwareStateCPUStateProgramCounter
+  getStackPointer = CPUMonad $ getSoftwareStateCPUStateStackPointer
+  putStackPointer = CPUMonad . putSoftwareStateCPUStateStackPointer
+  getAccumulator = CPUMonad $ getSoftwareStateCPUStateAccumulator
+  putAccumulator = CPUMonad . putSoftwareStateCPUStateAccumulator
+  getXIndexRegister = CPUMonad $ getSoftwareStateCPUStateXIndexRegister
+  putXIndexRegister = CPUMonad . putSoftwareStateCPUStateXIndexRegister
+  getYIndexRegister = CPUMonad $ getSoftwareStateCPUStateYIndexRegister
+  putYIndexRegister = CPUMonad . putSoftwareStateCPUStateYIndexRegister
+  getStatusRegister = CPUMonad $ getSoftwareStateCPUStateStatusRegister
+  putStatusRegister = CPUMonad . putSoftwareStateCPUStateStatusRegister
+  getInternalOverflow = CPUMonad $ getSoftwareStateCPUStateInternalOverflow
+  putInternalOverflow = CPUMonad . putSoftwareStateCPUStateInternalOverflow
+  getInternalNegative = CPUMonad $ getSoftwareStateCPUStateInternalNegative
+  putInternalNegative = CPUMonad . putSoftwareStateCPUStateInternalNegative
+  getInternalStoredAddress =
+    CPUMonad $ getSoftwareStateCPUStateInternalStoredAddress
+  putInternalStoredAddress =
+    CPUMonad . putSoftwareStateCPUStateInternalStoredAddress
+  getInternalLatch = CPUMonad $ getSoftwareStateCPUStateInternalLatch
+  putInternalLatch = CPUMonad . putSoftwareStateCPUStateInternalLatch
+  getMicrocodeInstructionQueue =
+   CPUMonad $ getSoftwareStateCPUStateMicrocodeInstructionQueue
+  putMicrocodeInstructionQueue =
+   CPUMonad . putSoftwareStateCPUStateMicrocodeInstructionQueue
+  getInterruptNoticed = CPUMonad $ getSoftwareStateCPUStateInterruptNoticed
+  putInterruptNoticed = CPUMonad . putSoftwareStateCPUStateInterruptNoticed
+  getInterruptAlreadyProcessed =
+   CPUMonad $ getSoftwareStateCPUStateInterruptAlreadyProcessed
+  putInterruptAlreadyProcessed =
+   CPUMonad . putSoftwareStateCPUStateInterruptAlreadyProcessed
+  getNonMaskableInterruptAlreadyProcessed =
+   CPUMonad $ getSoftwareStateCPUStateNonMaskableInterruptAlreadyProcessed
+  putNonMaskableInterruptAlreadyProcessed =
+   CPUMonad . putSoftwareStateCPUStateNonMaskableInterruptAlreadyProcessed
+
+
+newtype PPUMonad a = PPUMonad (MonadicState a)
+
+
+instance PPU.MonadChip PPUMonad where
+  debugFetchByte address = PPUMonad $ do
+    (addressMapping, localAddress) <- cpuDecodeAddress address
+    debugFetch PPUDataBus addressMapping localAddress
+  fetchByte address = PPUMonad $ do
+    (addressMapping, localAddress) <- ppuDecodeAddress address
+    fetch PPUDataBus addressMapping localAddress
+  storeByte address value = PPUMonad $ do
+    (addressMapping, localAddress) <- ppuDecodeAddress address
+    store PPUDataBus addressMapping localAddress value
+  getTableMemory = PPUMonad $ do
+    memory <- getSoftwareStateMotherboardPPUTableMemory
+    return (\offset -> memory ! fromIntegral offset)
+  getHorizontalClock = PPUMonad $ getSoftwareStatePPUStateHorizontalClock
+  putHorizontalClock = PPUMonad . putSoftwareStatePPUStateHorizontalClock
+  getVerticalClock = PPUMonad $ getSoftwareStatePPUStateVerticalClock
+  putVerticalClock = PPUMonad . putSoftwareStatePPUStateVerticalClock
+  getStillPoweringUp = PPUMonad $ getSoftwareStatePPUStateStillPoweringUp
+  putStillPoweringUp = PPUMonad . putSoftwareStatePPUStateStillPoweringUp
+  getWantsToAssertNMI = PPUMonad $ getSoftwareStatePPUStateWantsToAssertNMI
+  putWantsToAssertNMI = PPUMonad . putSoftwareStatePPUStateWantsToAssertNMI
+  getAllowedToAssertNMI = PPUMonad $ getSoftwareStatePPUStateAllowedToAssertNMI
+  putAllowedToAssertNMI = PPUMonad . putSoftwareStatePPUStateAllowedToAssertNMI
+  getTallSprites = PPUMonad $ getSoftwareStatePPUStateTallSprites
+  putTallSprites = PPUMonad . putSoftwareStatePPUStateTallSprites
+  getPatternTableForBackground =
+    PPUMonad $ getSoftwareStatePPUStatePatternTableForBackground
+  putPatternTableForBackground =
+    PPUMonad . putSoftwareStatePPUStatePatternTableForBackground
+  getPatternTableForSprites =
+    PPUMonad $ getSoftwareStatePPUStatePatternTableForSprites
+  putPatternTableForSprites =
+    PPUMonad . putSoftwareStatePPUStatePatternTableForSprites
+  getAddressIncrementVertically =
+    PPUMonad $ getSoftwareStatePPUStateAddressIncrementVertically
+  putAddressIncrementVertically =
+    PPUMonad . putSoftwareStatePPUStateAddressIncrementVertically
+  getPaletteMonochrome = PPUMonad $ getSoftwareStatePPUStatePaletteMonochrome
+  putPaletteMonochrome = PPUMonad . putSoftwareStatePPUStatePaletteMonochrome
+  getBackgroundClipped = PPUMonad $ getSoftwareStatePPUStateBackgroundClipped
+  putBackgroundClipped = PPUMonad . putSoftwareStatePPUStateBackgroundClipped
+  getSpritesClipped = PPUMonad $ getSoftwareStatePPUStateSpritesClipped
+  putSpritesClipped = PPUMonad . putSoftwareStatePPUStateSpritesClipped
+  getBackgroundVisible = PPUMonad $ getSoftwareStatePPUStateBackgroundVisible
+  putBackgroundVisible = PPUMonad . putSoftwareStatePPUStateBackgroundVisible
+  getSpritesVisible = PPUMonad $ getSoftwareStatePPUStateSpritesVisible
+  putSpritesVisible = PPUMonad . putSoftwareStatePPUStateSpritesVisible
+  getIntensifiedColor = PPUMonad $ getSoftwareStatePPUStateIntensifiedColor
+  putIntensifiedColor = PPUMonad . putSoftwareStatePPUStateIntensifiedColor
+  getWrittenOddNumberOfTimesToAddresses =
+    PPUMonad $ getSoftwareStatePPUStateWrittenOddNumberOfTimesToAddresses
+  putWrittenOddNumberOfTimesToAddresses =
+    PPUMonad . putSoftwareStatePPUStateWrittenOddNumberOfTimesToAddresses
+  getPermanentAddress = PPUMonad $ getSoftwareStatePPUStatePermanentAddress
+  putPermanentAddress = PPUMonad . putSoftwareStatePPUStatePermanentAddress
+  getTemporaryAddress = PPUMonad $ getSoftwareStatePPUStateTemporaryAddress
+  putTemporaryAddress = PPUMonad . putSoftwareStatePPUStateTemporaryAddress
+  getXOffset = PPUMonad $ getSoftwareStatePPUStateXOffset
+  putXOffset = PPUMonad . putSoftwareStatePPUStateXOffset
+  getLatestCompleteFrame =
+    PPUMonad $ getSoftwareStatePPUStateLatestCompleteFrame
+  putLatestCompleteFrame =
+    PPUMonad . putSoftwareStatePPUStateLatestCompleteFrame
+  getIncompleteVideoFrameNameTableMemory =
+    PPUMonad $ getSoftwareStatePPUStateIncompleteFrameNameTableMemory
+  putIncompleteVideoFrameNameTableMemory =
+    PPUMonad . putSoftwareStatePPUStateIncompleteFrameNameTableMemory
+
+
+instance Monad PPUMonad where
+  return = PPUMonad . return
+  a >>= b = PPUMonad ((runPPU a) >>= (runPPU . b))
+
+
+runCPU :: CPUMonad a -> MonadicState a
+runCPU (CPUMonad action) = action
+
+
+runPPU :: PPUMonad a -> MonadicState a
+runPPU (PPUMonad action) = action
+
+
 powerOnSoftwareState :: SoftwareState
 powerOnSoftwareState =
   SoftwareState {
@@ -344,28 +486,22 @@ debugFetch :: DataBus
 debugFetch dataBus addressMapping offset = do
   case addressMapping of
     MotherboardCPUMemory -> do
-      softwareState <- getSoftwareState
-      let memory = softwareStateMotherboardCPUMemory softwareState
+      memory <- getSoftwareStateMotherboardCPUMemory
       return $ memory ! offset
     MotherboardPPUTableMemory -> do
-      softwareState <- getSoftwareState
-      let memory = softwareStateMotherboardPPUTableMemory softwareState
+      memory <- getSoftwareStateMotherboardPPUTableMemory
       return $ memory ! offset
     MotherboardPPUPaletteMemory -> do
-      softwareState <- getSoftwareState
-      let memory = softwareStateMotherboardPPUPaletteMemory softwareState
+      memory <- getSoftwareStateMotherboardPPUPaletteMemory
       return $ memory ! offset
     MotherboardPPUSpriteMemory -> do
-      softwareState <- getSoftwareState
-      let memory = softwareStateMotherboardPPUSpriteMemory softwareState
+      memory <- getSoftwareStateMotherboardPPUSpriteMemory
       return $ memory ! offset
     ProgramReadOnlyMemory -> do
-      hardwareState <- getHardwareState
-      let memory = hardwareStateProgramReadOnlyMemory hardwareState
+      memory <- getHardwareStateProgramReadOnlyMemory
       return $ memory ! offset
     CharacterReadOnlyMemory -> do
-      hardwareState <- getHardwareState
-      let memory = hardwareStateCharacterReadOnlyMemory hardwareState
+      memory <- getHardwareStateCharacterReadOnlyMemory
       return $ memory ! offset
     PPURegisters -> do
       return 0x00
@@ -380,43 +516,28 @@ fetch :: DataBus
 fetch dataBus addressMapping offset = do
   value <- case addressMapping of
              MotherboardCPUMemory -> do
-               softwareState <- getSoftwareState
-               let !memory = softwareStateMotherboardCPUMemory softwareState
-                   !value = memory ! offset
-               return value
+               memory <- getSoftwareStateMotherboardCPUMemory
+               return $ memory ! offset
              MotherboardPPUTableMemory -> do
-               softwareState <- getSoftwareState
-               let !memory = softwareStateMotherboardPPUTableMemory
-                              softwareState
-                   !value = memory ! offset
-               return value
+               memory <- getSoftwareStateMotherboardPPUTableMemory
+               return $ memory ! offset
              MotherboardPPUPaletteMemory -> do
-               softwareState <- getSoftwareState
-               let !memory = softwareStateMotherboardPPUPaletteMemory
-                              softwareState
-                   !value = memory ! offset
-               return value
+               memory <- getSoftwareStateMotherboardPPUPaletteMemory
+               return $ memory ! offset
              MotherboardPPUSpriteMemory -> do
-               softwareState <- getSoftwareState
-               let !memory = softwareStateMotherboardPPUSpriteMemory
-                              softwareState
-                   !value = memory ! offset
-               return value
+               memory <- getSoftwareStateMotherboardPPUSpriteMemory
+               return $ memory ! offset
              ProgramReadOnlyMemory -> do
-               hardwareState <- getHardwareState
-               let !memory = hardwareStateProgramReadOnlyMemory hardwareState
-                   !value = memory ! offset
-               return value
+               memory <- getHardwareStateProgramReadOnlyMemory
+               return $ memory ! offset
              CharacterReadOnlyMemory -> do
-               hardwareState <- getHardwareState
-               let !memory = hardwareStateCharacterReadOnlyMemory hardwareState
-                   !value = memory ! offset
-               return value
+               memory <- getHardwareStateCharacterReadOnlyMemory
+               return $ memory ! offset
              PPURegisters -> do
                let !register = PPU.decodeRegister offset
                    !readable = PPU.registerReadable register
                if readable
-                 then PPU.registerFetch ppuCallbacks register
+                 then runPPU $ PPU.registerFetch register
                  else getLastDataBusValue dataBus
              NoMemory -> do
                getLastDataBusValue dataBus
@@ -432,48 +553,28 @@ store :: DataBus
 store dataBus addressMapping offset value = do
   case addressMapping of
     MotherboardCPUMemory -> do
-      softwareState <- getSoftwareState
-      let !memory = softwareStateMotherboardCPUMemory softwareState
-          !memory' = memory // [(offset, value)]
-          !softwareState' =
-             softwareState {
-                 softwareStateMotherboardCPUMemory = memory'
-               }
-      putSoftwareState softwareState'
+      memory <- getSoftwareStateMotherboardCPUMemory
+      let memory' = memory // [(offset, value)]
+      putSoftwareStateMotherboardCPUMemory memory'
     MotherboardPPUTableMemory -> do
-      softwareState <- getSoftwareState
-      let !memory = softwareStateMotherboardPPUTableMemory softwareState
-          !memory' = memory // [(offset, value)]
-          !softwareState' =
-             softwareState {
-                 softwareStateMotherboardPPUTableMemory = memory'
-               }
-      putSoftwareState softwareState'
+      memory <- getSoftwareStateMotherboardPPUTableMemory
+      let memory' = memory // [(offset, value)]
+      putSoftwareStateMotherboardPPUTableMemory memory'
     MotherboardPPUPaletteMemory -> do
-      softwareState <- getSoftwareState
-      let !memory = softwareStateMotherboardPPUPaletteMemory softwareState
-          !memory' = memory // [(offset, value)]
-          !softwareState' =
-             softwareState {
-                 softwareStateMotherboardPPUPaletteMemory = memory'
-               }
-      putSoftwareState softwareState'
+      memory <- getSoftwareStateMotherboardPPUPaletteMemory
+      let memory' = memory // [(offset, value)]
+      putSoftwareStateMotherboardPPUPaletteMemory memory'
     MotherboardPPUSpriteMemory -> do
-      softwareState <- getSoftwareState
-      let !memory = softwareStateMotherboardPPUSpriteMemory softwareState
-          !memory' = memory // [(offset, value)]
-          !softwareState' =
-             softwareState {
-                 softwareStateMotherboardPPUSpriteMemory = memory'
-               }
-      putSoftwareState softwareState'
+      memory <- getSoftwareStateMotherboardPPUSpriteMemory
+      let memory' = memory // [(offset, value)]
+      putSoftwareStateMotherboardPPUSpriteMemory memory'
     ProgramReadOnlyMemory -> return ()
     CharacterReadOnlyMemory -> return ()
     PPURegisters -> do
       let !register = PPU.decodeRegister offset
           !writeable = PPU.registerWriteable register
       if writeable
-        then PPU.registerStore ppuCallbacks register value
+        then runPPU $ PPU.registerStore register value
         else return ()
     NoMemory -> return ()
   putLastDataBusValue dataBus value
@@ -481,149 +582,55 @@ store dataBus addressMapping offset value = do
 
 getLastDataBusValue :: DataBus -> MonadicState Word8
 getLastDataBusValue dataBus = do
-  softwareState <- getSoftwareState
   case dataBus of
-    CPUDataBus -> return $ softwareStateLastCPUDataBusValue softwareState
-    PPUDataBus -> return $ softwareStateLastPPUDataBusValue softwareState
+    CPUDataBus -> getSoftwareStateLastCPUDataBusValue
+    PPUDataBus -> getSoftwareStateLastPPUDataBusValue
 
 
 putLastDataBusValue :: DataBus -> Word8 -> MonadicState ()
 putLastDataBusValue dataBus value = do
-  softwareState <- getSoftwareState
-  let softwareState' =
-        case dataBus of
-          CPUDataBus ->
-            softwareState {
-                softwareStateLastCPUDataBusValue = value
-              }
-          PPUDataBus ->
-            softwareState {
-                softwareStateLastPPUDataBusValue = value
-              }
-  putSoftwareState softwareState'
-
-
-cpuCallbacks :: ((Word16 -> MonadicState Word8),
-                 (Word16 -> Word8 -> MonadicState ()),
-                 (MonadicState Bool),
-                 (MonadicState Bool),
-                 (MonadicState CPU.CPU_6502_State),
-                 (CPU.CPU_6502_State -> MonadicState ()))
-cpuCallbacks = ((\address -> do
-                   (addressMapping, localAddress) <- cpuDecodeAddress address
-                   fetch CPUDataBus addressMapping localAddress),
-                (\address value -> do
-                   (addressMapping, localAddress) <- cpuDecodeAddress address
-                   store CPUDataBus addressMapping localAddress value),
-                (return False),
-                (do
-                   softwareState <- getSoftwareState
-                   let ppuState = softwareStatePPUState softwareState
-                       nmiAsserted = PPU.assertingNMI ppuState
-                   return nmiAsserted),
-                (do
-                   softwareState <- getSoftwareState
-                   return $ softwareStateCPUState softwareState),
-                (\cpuState -> do
-                   softwareState <- getSoftwareState
-                   let softwareState' =
-                         softwareState {
-                             softwareStateCPUState = cpuState
-                           }
-                   putSoftwareState softwareState'))
-
-
-ppuCallbacks :: ((Word16 -> MonadicState Word8),
-                 (Word16 -> Word8 -> MonadicState ()),
-                 (MonadicState (Word16 -> Word8)),
-                 (MonadicState PPU.PPU_NES_State),
-                 (PPU.PPU_NES_State -> MonadicState ()))
-ppuCallbacks = ((\address -> do
-                   (addressMapping, localAddress) <- ppuDecodeAddress address
-                   fetch PPUDataBus addressMapping localAddress),
-                (\address value -> do
-                   (addressMapping, localAddress) <- ppuDecodeAddress address
-                   store PPUDataBus addressMapping localAddress value),
-                (do
-                   softwareState <- getSoftwareState
-                   let memory =
-                         softwareStateMotherboardPPUTableMemory softwareState
-                   return (\offset -> memory ! fromIntegral offset)),
-                (do
-                   softwareState <- getSoftwareState
-                   return $ softwareStatePPUState softwareState),
-                (\ppuState -> do
-                   softwareState <- getSoftwareState
-                   let softwareState' =
-                         softwareState {
-                             softwareStatePPUState = ppuState
-                           }
-                   putSoftwareState softwareState'))
+  case dataBus of
+    CPUDataBus -> putSoftwareStateLastCPUDataBusValue value
+    PPUDataBus -> putSoftwareStateLastPPUDataBusValue value
 
 
 cycle :: MonadicState ()
 {-# INLINE cycle #-}
 cycle = do
-  softwareState <- getSoftwareState
-  let clockCount = softwareStateMotherboardClockCount softwareState
+  clockCount <- getSoftwareStateMotherboardClockCount
   mapM_ (\(divisor, chip) -> do
            if mod clockCount divisor == 0
              then case chip of
-               CPU_6502 -> CPU.cycle cpuCallbacks
-               PPU_NES -> PPU.cycle ppuCallbacks
+               CPU_6502 -> runCPU CPU.cycle
+               PPU_NES -> runPPU PPU.cycle
              else return ())
         [(4, PPU_NES),
          (12, CPU_6502)]
-  softwareState <- getSoftwareState
   let clockCount' = mod (clockCount + 1) 12
-      !softwareState' = softwareState {
-                            softwareStateMotherboardClockCount = clockCount'
-                          }
-  putSoftwareState softwareState'
+  putSoftwareStateMotherboardClockCount clockCount'
 
 
 getAtCPUCycle :: MonadicState Bool
 getAtCPUCycle = do
-  softwareState <- getSoftwareState
-  let clockCount = softwareStateMotherboardClockCount softwareState
+  clockCount <- getSoftwareStateMotherboardClockCount
   return $ mod clockCount 12 == 0
 
 
 getAboutToBeginInstruction :: MonadicState Bool
 getAboutToBeginInstruction = do
-  softwareState <- getSoftwareState
   atCPUCycle <- getAtCPUCycle
-  let cpuState = softwareStateCPUState softwareState
-      atInstructionStart =
-        CPU.atInstructionStart cpuState
-        && atCPUCycle
-  return atInstructionStart
+  atInstructionStart <- runCPU CPU.getAtInstructionStart
+  return $ atCPUCycle && atInstructionStart
 
 
 disassembleUpcomingInstruction :: MonadicState String
 disassembleUpcomingInstruction = do
-  state <- getState
-  softwareState <- getSoftwareState
-  let cpuState = softwareStateCPUState softwareState
-      ppuState = softwareStatePPUState softwareState
-      debugFetch' address =
-        let (result, _) =
-              runMonadicState
-               (do
-                 (addressMapping, localAddress) <- cpuDecodeAddress address
-                 debugFetch CPUDataBus addressMapping localAddress)
-               state
-        in result
-      disassembly = CPU.disassembleInstruction
-                     cpuState
-                     debugFetch'
-                     [("CYC",
-                       leftPad (show $ PPU.ppuNESStateHorizontalClock ppuState)
-                               3),
-                      ("SL",
-                       show $ PPU.ppuNESStateVerticalClock ppuState),
-                      ("F",
-                       case PPU.ppuNESStateLatestCompleteFrame ppuState of
-                         Nothing -> "no"
-                         Just _ -> "yes")]
-  return disassembly
+  horizontalClock <- getSoftwareStatePPUStateHorizontalClock
+  verticalClock <- getSoftwareStatePPUStateVerticalClock
+  latestCompleteFrame <- getSoftwareStatePPUStateLatestCompleteFrame
+  runCPU $ CPU.disassembleInstruction
+             [("CYC", leftPad (show horizontalClock) 3),
+              ("SL", show verticalClock),
+              ("F", case latestCompleteFrame of
+                      Nothing -> "no"
+                      Just _ -> "yes")]
