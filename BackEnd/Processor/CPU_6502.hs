@@ -381,20 +381,20 @@ cycle = do
                 let maybeArithmetic =
                       microcodeInstructionArithmeticOperation
                        microcodeInstruction
-                registerByte <- getInternalRegister internalRegister
-                status <- getStatusRegister
-                let (!status', !newByte) =
-                       case maybeArithmetic of
-                         Nothing -> (status, fetchedByte')
-                         Just arithmetic ->
-                           performArithmetic arithmetic
-                                             status
-                                             registerByte
-                                             fetchedByte'
-                putInternalRegister internalRegister newByte
-                if internalRegister == StatusRegister
-                  then return ()
-                  else putStatusRegister status'
+                case maybeArithmetic of
+                  Nothing -> do
+                    putInternalRegister internalRegister fetchedByte'
+                  Just arithmetic -> do
+                    registerByte <- getInternalRegister internalRegister
+                    status <- getStatusRegister
+                    let (status', newByte) = performArithmetic arithmetic
+                                                               status
+                                                               registerByte
+                                                               fetchedByte'
+                    putInternalRegister internalRegister newByte
+                    if internalRegister /= StatusRegister
+                      then putStatusRegister status'
+                      else return ()
             return fetchedByte'
           Write -> do
             storedByte' <-
