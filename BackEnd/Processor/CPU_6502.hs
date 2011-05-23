@@ -624,10 +624,8 @@ cycle = do
         then if checkForInstead microcodeInstruction
                 && programCounterHighByteWasWrong
                then do
-                 trace "Case A" $ return ()
                  putMicrocodeInstructionQueue microcodeInstructionQueue'
                else do
-                 trace "Case B" $ return ()
                  putMicrocodeInstructionQueue
                   $ case interruptNoticed' of
                       Nothing -> decodeOperation fetchedByte
@@ -637,10 +635,8 @@ cycle = do
                  putInterruptNoticed Nothing
         else case microcodeInstructionConditional microcodeInstruction of
                Nothing -> do
-                 trace "Case C" $ return ()
                  putMicrocodeInstructionQueue microcodeInstructionQueue'
                Just (condition, ifTrue, ifFalse) -> do
-                 trace "Case D" $ return ()
                  testResult <- testCondition condition
                  if testResult
                    then putMicrocodeInstructionQueue ifTrue
@@ -694,7 +690,6 @@ getEffectiveAddress microcodeInstruction = do
 
 getInternalRegister :: (MonadChip m) => InternalRegister -> m Word8
 getInternalRegister internalRegister = do
-  trace (show internalRegister) $ return ()
   case internalRegister of
     ProgramCounterHighByte -> do
       programCounter <- getProgramCounter
