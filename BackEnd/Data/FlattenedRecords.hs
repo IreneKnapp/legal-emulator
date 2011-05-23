@@ -11,8 +11,6 @@ import qualified Data.Map as Map
 import Data.Maybe
 import Language.Haskell.TH
 
-import Debug.Trace
-
 
 data RecordConstructionInformation =
   RecordConstructionInformation Name
@@ -170,7 +168,6 @@ getFlattenedRecordFields monadicRecordName recordTypeConstructorName = do
                                       recordDataConstructorName
         >>= return . (fmap (fixRecursiveRecordInformation
                              $ nameBase recordTypeConstructorName))
-  traceShow maybeRecordInformation $ return ()
   case maybeRecordInformation of
     Nothing -> error $ "Not defined appropriately: "
                        ++ show recordTypeConstructorName
