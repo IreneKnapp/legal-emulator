@@ -19,8 +19,6 @@ import qualified Motherboard.NES as NES
 import qualified PPU.PPU_NES as PPU
 import qualified Processor.CPU_6502 as CPU
 
-import Debug.Trace
-
 
 foreign export ccall "string_free" stringFree
     :: CString -> IO ()
@@ -206,11 +204,6 @@ gamestateFrameForward state tracePointer = do
                          return $ traceLines ++ [thisLine]
                        else return traceLines
                 else return []
-            if atCPUCycle && atInstructionStart
-              then do
-                line <- NES.disassembleUpcomingInstruction
-                trace (line ++ "\n") $ return ()
-              else return ()
             NES.cycle
             loop vblankEnded' traceLines
   let (traceLines, state') = NES.runMonadicState (loop False []) state
