@@ -37,12 +37,14 @@ defineFlattenedRecord recordTypeConstructorName = do
       continuationName = mkName "continuation"
       recordName = mkName "record"
       valueName = mkName "value"
+      mName = mkName "m"
+      fName = mkName "f"
+      kName = mkName "k"
       aName = mkName "a"
-      bName = mkName "b"
-      bPrimeName = mkName "b'"
-      intermediateName = mkName "intermediate"
       resultName = mkName "result"
       actionName = mkName "action"
+      runName = mkName $ "run" ++ nameBase monadicRecordName
+      runPrimeName = mkName $ "run" ++ nameBase monadicRecordName ++ "'"
       flattenedFieldTemporaryNames =
         map (\(_, fieldIndex) ->
                 computeFieldTemporaryName fieldIndex)
@@ -69,12 +71,9 @@ defineFlattenedRecord recordTypeConstructorName = do
                     []
       instanceDeclaration =
         let returnLambdaExpression =
-              LamE ([VarP continuationName]
-                    ++ map VarP flattenedFieldTemporaryNames)
-                   $ functionCallExpression
-                      $ [VarE continuationName,
-                         VarE valueName]
-                        ++ map VarE flattenedFieldTemporaryNames
+              LamE [VarP continuationName]
+                   $ functionCallExpression [VarE continuationName,
+                                             VarE valueName]
             returnDeclaration =
               FunD (mkName "return")
                    [Clause [VarP valueName]
@@ -83,52 +82,63 @@ defineFlattenedRecord recordTypeConstructorName = do
                                     returnLambdaExpression)
                            []]
             bindInnerLambdaExpression =
-              LamE ([VarP intermediateName]
-                    ++ map VarP flattenedFieldAlternateTemporaryNames)
-                   $ LetE [ValD (ConP monadicRecordName
-                                      [VarP bPrimeName])
-                                (NormalB
-                                  $ functionCallExpression
-                                     [VarE bName,
-                                      VarE intermediateName])
-                                []]
-                          $ functionCallExpression
-                             $ [VarE bPrimeName,
-                                VarE continuationName]
-                               ++ map VarE
-                                      flattenedFieldAlternateTemporaryNames
-            bindOuterLambdaExpression =
-              LamE ([VarP continuationName]
-                    ++ map VarP flattenedFieldTemporaryNames)
+              LamE [VarP aName]
                    $ functionCallExpression
-                      $ [VarE aName,
-                         bindInnerLambdaExpression]
-                        ++ map VarE flattenedFieldTemporaryNames
+                      [VarE runPrimeName,
+                       functionCallExpression [VarE fName,
+                                               VarE aName],
+                       VarE kName]
+            bindOuterLambdaExpression =
+              LamE [VarP kName]
+                   $ functionCallExpression [VarE runPrimeName,
+                                             VarE mName,
+                                             bindInnerLambdaExpression]
             bindDeclaration =
-             FunD
-              (mkName ">>=")
-              [Clause [ConP monadicRecordName
-                            [VarP monadContentTypeName],
-                       VarP bName]
-                      (NormalB
-                        $ AppE (ConE monadicRecordName)
-                               bindOuterLambdaExpression)
-                      []]
+              FunD
+               (mkName ">>=")
+               [Clause [VarP mName,
+                        VarP fName]
+                       (NormalB
+                         $ AppE (ConE monadicRecordName)
+                                bindOuterLambdaExpression)
+                       []]
         in InstanceD []
                      (AppT (ConT $ mkName "Monad")
                            (ConT monadicRecordName))
                      [returnDeclaration,
                       bindDeclaration]
-      runName = mkName $ "run" ++ nameBase monadicRecordName
+      runPrimeSignatureDeclaration =
+        SigD runPrimeName
+             $ ForallT [PlainTV monadContentTypeName]
+                       []
+                       $ functionType
+                          [AppT (ConT monadicRecordName)
+                                (VarT aName),
+                           ForallT [PlainTV continuationResultTypeName]
+                                   []
+                                   $ functionType
+                                      $ [functionType
+                                          $ [VarT monadContentTypeName]
+                                            ++ flattenedFieldTypes
+                                            ++ [VarT
+                                                 continuationResultTypeName]]
+                                        ++ flattenedFieldTypes
+                                        ++ [VarT continuationResultTypeName]]
+      runPrimeDeclaration =
+        FunD runPrimeName
+             [Clause [ConP monadicRecordName
+                           [VarP actionName]]
+                     (NormalB $ VarE actionName)
+                     []]
       runSignatureDeclaration =
         SigD runName
              $ ForallT [PlainTV monadContentTypeName]
                        []
                        $ functionType
                           [AppT (ConT monadicRecordName)
-                                (VarT aName),
+                                (VarT monadContentTypeName),
                            ConT recordTypeConstructorName,
-                           tupleType [VarT aName,
+                           tupleType [VarT monadContentTypeName,
                                       ConT recordTypeConstructorName]]
       runDeclaration =
         let lambdaExpression =
@@ -150,6 +160,8 @@ defineFlattenedRecord recordTypeConstructorName = do
                         []]
   return $ [newtypeDeclaration,
             instanceDeclaration,
+            runPrimeSignatureDeclaration,
+            runPrimeDeclaration,
             runSignatureDeclaration,
             runDeclaration]
            ++ accessorDeclarations
