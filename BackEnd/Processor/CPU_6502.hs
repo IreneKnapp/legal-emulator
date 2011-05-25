@@ -2557,11 +2557,13 @@ getAtInstructionStart = do
     (microcodeInstruction : _) ->
       if microcodeInstructionDecodeOperation microcodeInstruction
         then do
-          internalOverflow <- getInternalOverflow
           if microcodeInstructionInsteadFixProgramCounterHighByteIfNecessary
                  microcodeInstruction
-             && internalOverflow
-            then return False
+            then do
+              internalOverflow <- getInternalOverflow
+              if internalOverflow
+                then return False
+                else return True
             else return True
         else return False
 
