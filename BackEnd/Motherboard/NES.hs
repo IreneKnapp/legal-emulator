@@ -7,6 +7,7 @@ module Motherboard.NES
    State(..),
    HardwareState(..),
    SoftwareState(..),
+   MonadicState(..),
    runMonadicState,
    runCPU,
    runPPU,

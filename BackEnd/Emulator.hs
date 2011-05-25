@@ -171,7 +171,8 @@ gamestateFrameForward
     :: StablePtr NES.State -> Ptr CString -> IO (StablePtr NES.State)
 gamestateFrameForward state tracePointer = do
   state <- deRefStablePtr state
-  let loop vblankEnded !traceLines = do
+  let loop :: Bool -> [String] -> NES.MonadicState [String]
+      loop vblankEnded !traceLines = do
         aboutToBeginInstruction <- NES.getAboutToBeginInstruction
         atCPUCycle <- NES.getAtCPUCycle
         motherboardClock <- NES.getSoftwareStateMotherboardClockCount
