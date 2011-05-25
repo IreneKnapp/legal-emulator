@@ -83,24 +83,25 @@ defineFlattenedRecord recordTypeConstructorName = do
                            []]
             bindInnerLambdaExpression =
               LamE [VarP aName]
-                   $ functionCallExpression
+                   $ strictFunctionCallExpression
                       [VarE runPrimeName,
-                       functionCallExpression [VarE fName,
-                                               VarE aName],
+                       strictFunctionCallExpression [VarE fName,
+                                                     VarE aName],
                        VarE kName]
             bindOuterLambdaExpression =
               LamE [VarP kName]
-                   $ functionCallExpression [VarE runPrimeName,
-                                             VarE mName,
-                                             bindInnerLambdaExpression]
+                   $ strictFunctionCallExpression [VarE runPrimeName,
+                                                   VarE mName,
+                                                   bindInnerLambdaExpression]
             bindDeclaration =
               FunD
                (mkName ">>=")
                [Clause [VarP mName,
                         VarP fName]
                        (NormalB
-                         $ AppE (ConE monadicRecordName)
-                                bindOuterLambdaExpression)
+                         $ strictFunctionCallExpression
+                            [ConE monadicRecordName,
+                             bindOuterLambdaExpression])
                        []]
         in InstanceD []
                      (AppT (ConT $ mkName "Monad")
@@ -701,6 +702,20 @@ functionType types = foldr1 (AppT . AppT ArrowT) types
 
 functionCallExpression :: [Exp] -> Exp
 functionCallExpression expressions = foldl1 AppE expressions
+
+
+strictFunctionCallExpression :: [Exp] -> Exp
+strictFunctionCallExpression expressions =
+  let tempName = mkName "temp"
+      seqName = mkName "seq"
+  in foldl1 (\a b -> LetE [ValD (VarP tempName)
+                                (NormalB b)
+                                []]
+                          $ AppE (AppE (VarE seqName)
+                                       (VarE tempName))
+                                 (AppE a
+                                       (VarE tempName)))
+            expressions
 
 
 tupleType :: [Type] -> Type
