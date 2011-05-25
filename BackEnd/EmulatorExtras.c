@@ -9,7 +9,7 @@
 extern void __stginit_legalzmemulatorzm1zi0_Emulator();
 
 #ifndef RTS_OPTS_ENABLED
-#define RTS_OPTS_ENABLES=RtsOptsAll
+#define RTS_OPTS_ENABLES RtsOptsAll
 #endif
 
 const RtsOptsEnabledEnum rtsOptsEnabled = RTS_OPTS_ENABLED;
