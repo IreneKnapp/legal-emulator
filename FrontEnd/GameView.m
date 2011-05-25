@@ -30,6 +30,8 @@
     }
     gamestate_free(gamestate);
     gamestate = next_gamestate;
+    emulator_terminate();
+    exit(0);
     
     NSString *windowTitle = @"No Game";
     if(game) {
