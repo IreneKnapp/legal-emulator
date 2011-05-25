@@ -295,7 +295,7 @@
 				INSTALL_PATH = "$(HOME)/Applications";
 				OTHER_LDFLAGS = (
 					"$(BUILT_PRODUCTS_DIR)/libHSlegal-emulator-1.0$(HASKELL_LIBRARY_WAY).a",
-					"$(GHC_LIBRARY_PATH)/libHSrts_thr$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/libHSrts_debug$(HASKELL_LIBRARY_WAY).a",
 					"$(GHC_LIBRARY_PATH)/libHSffi$(HASKELL_LIBRARY_WAY).a",
 					"$(GHC_LIBRARY_PATH)/base-4.3.1.0/libHSbase-4.3.1.0$(HASKELL_LIBRARY_WAY).a",
 					"$(GHC_LIBRARY_PATH)/integer-gmp-0.2.0.2/libHSinteger-gmp-0.2.0.2$(HASKELL_LIBRARY_WAY).a",
@@ -321,7 +321,7 @@
 				INSTALL_PATH = "$(HOME)/Applications";
 				OTHER_LDFLAGS = (
 					"$(BUILT_PRODUCTS_DIR)/libHSlegal-emulator-1.0$(HASKELL_LIBRARY_WAY).a",
-					"$(GHC_LIBRARY_PATH)/libHSrts_thr$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/libHSrts_debug$(HASKELL_LIBRARY_WAY).a",
 					"$(GHC_LIBRARY_PATH)/libHSffi$(HASKELL_LIBRARY_WAY).a",
 					"$(GHC_LIBRARY_PATH)/base-4.3.1.0/libHSbase-4.3.1.0$(HASKELL_LIBRARY_WAY).a",
 					"$(GHC_LIBRARY_PATH)/integer-gmp-0.2.0.2/libHSinteger-gmp-0.2.0.2$(HASKELL_LIBRARY_WAY).a",
@@ -426,7 +426,7 @@
 				INSTALL_PATH = "$(HOME)/Applications";
 				OTHER_LDFLAGS = (
 					"$(BUILT_PRODUCTS_DIR)/libHSlegal-emulator-1.0$(HASKELL_LIBRARY_WAY).a",
-					"$(GHC_LIBRARY_PATH)/libHSrts_thr$(HASKELL_LIBRARY_WAY).a",
+					"$(GHC_LIBRARY_PATH)/libHSrts_debug$(HASKELL_LIBRARY_WAY).a",
 					"$(GHC_LIBRARY_PATH)/libHSffi$(HASKELL_LIBRARY_WAY).a",
 					"$(GHC_LIBRARY_PATH)/base-4.3.1.0/libHSbase-4.3.1.0$(HASKELL_LIBRARY_WAY).a",
 					"$(GHC_LIBRARY_PATH)/integer-gmp-0.2.0.2/libHSinteger-gmp-0.2.0.2$(HASKELL_LIBRARY_WAY).a",
