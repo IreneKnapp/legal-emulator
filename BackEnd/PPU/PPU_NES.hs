@@ -338,8 +338,10 @@ registerStore register value = do
                         .|. (shiftL (fromIntegral valueHighFive) 5)
                         .|. (shiftL (fromIntegral valueLowThree) 12),
                         xOffset)
+          {-
           trace ("Write of $" ++ showHexWord8 value ++ " to Address1.")
                 $ return ()
+          -}
           putWrittenOddNumberOfTimesToAddresses
            writtenOddNumberOfTimesToAddresses'
           putPermanentAddress permanentAddress'
@@ -363,8 +365,10 @@ registerStore register value = do
                   else ((permanentAddress .&. 0xFF00)
                         .|. (fromIntegral value),
                         permanentAddress')
+          {-
           trace ("Write of $" ++ showHexWord8 value ++ " to Address2.")
                 $ return ()
+          -}
           putWrittenOddNumberOfTimesToAddresses
            writtenOddNumberOfTimesToAddresses'
           putPermanentAddress permanentAddress'
@@ -376,9 +380,11 @@ registerStore register value = do
                               + if addressIncrementVertically
                                   then 32
                                   else 1
+      {-
       trace ("Write of $" ++ showHexWord8 value ++ " to $"
              ++ showHexWord16 permanentAddress ++ ".")
             $ return ()
+      -}
       putPermanentAddress permanentAddress'
       storeByte permanentAddress value
 
