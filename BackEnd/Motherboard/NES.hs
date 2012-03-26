@@ -251,9 +251,6 @@ instance NFData Mirroring where
 instance NFData System where
 
 
-$(defineFlattenedRecord ''State)
-
-
 newtype CPUMonad a = CPUMonad (MonadicState a)
 
 

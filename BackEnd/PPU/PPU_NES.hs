@@ -167,12 +167,6 @@ instance NFData IncompleteVideoFrame where
     (rnf $ incompleteVideoFrameNameTableMemory incompleteVideoFrame)
 
 
-instance NFData (Word16 -> Word8) where
-  rnf function =
-    seq function ()
-    -- TODO this is not a deepseq and does not have the desired effect!
-
-
 instance NFData VideoFrame where
   rnf videoFrame = rnf $ videoFrameNameTable videoFrame
 
