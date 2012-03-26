@@ -27,11 +27,29 @@ defineFlattenedRecord :: Name -> Q [Dec]
 defineFlattenedRecord recordTypeConstructorName = do
   let monadicRecordName =
         mkName $ "Monadic" ++ nameBase recordTypeConstructorName
+      monadicRecordPrimeName =
+        mkName $ "Monadic" ++ nameBase recordTypeConstructorName ++ "'"
+      runPrimeName = mkName $ "run" ++ nameBase monadicRecordName ++ "'"
+      runPrimePrimeName = mkName $ "run" ++ nameBase monadicRecordName ++ "''"
+      unwrapperExpression =
+        InfixE (Just $ VarE runPrimePrimeName)
+               (VarE $ mkName ".")
+               (Just $ VarE runPrimeName)
+      wrapperExpression content =
+        AppE (ConE monadicRecordName)
+             (AppE (ConE monadicRecordPrimeName)
+                   content)
+      wrapperPattern content =
+        ConP monadicRecordName
+             [ConP monadicRecordPrimeName
+                   [content]]
   (recordDataConstructorName,
    recordConstruction,
    flattenedFieldTypes,
    accessorDeclarations)
-    <- getFlattenedRecordFields monadicRecordName recordTypeConstructorName
+    <- getFlattenedRecordFields monadicRecordName
+                                wrapperExpression
+                                recordTypeConstructorName
   let monadContentTypeName = mkName "a"
       continuationResultTypeName = mkName "r"
       continuationName = mkName "continuation"
@@ -44,7 +62,6 @@ defineFlattenedRecord recordTypeConstructorName = do
       resultName = mkName "result"
       actionName = mkName "action"
       runName = mkName $ "run" ++ nameBase monadicRecordName
-      runPrimeName = mkName $ "run" ++ nameBase monadicRecordName ++ "'"
       flattenedFieldTemporaryNames =
         map (\(_, fieldIndex) ->
                 computeFieldTemporaryName fieldIndex)
@@ -53,21 +70,33 @@ defineFlattenedRecord recordTypeConstructorName = do
         map (\(_, fieldIndex) ->
                 computeFieldAlternateTemporaryName fieldIndex)
             $ zip flattenedFieldTypes [0..]
-      newtypeDeclaration =
-        let monadInnerType =
-              ForallT
-               [PlainTV continuationResultTypeName]
-               []
-               $ functionType
-                  $ [functionType $ [VarT monadContentTypeName]
-                                    ++ flattenedFieldTypes
-                                    ++ [VarT continuationResultTypeName]]
-                    ++ flattenedFieldTypes
-                    ++ [VarT continuationResultTypeName]
+      innerNewtypeDeclaration =
+        let innerType =
+              functionType
+               $ [functionType $ [VarT monadContentTypeName]
+                                 ++ flattenedFieldTypes
+                                 ++ [VarT continuationResultTypeName]]
+                 ++ flattenedFieldTypes
+                 ++ [VarT continuationResultTypeName]
+        in NewtypeD []
+                    monadicRecordPrimeName
+                    [PlainTV continuationResultTypeName,
+                     PlainTV monadContentTypeName]
+                    (RecC monadicRecordPrimeName
+                          [(runPrimePrimeName, NotStrict, innerType)])
+                    []
+      outerNewtypeDeclaration =
+        let innerType =
+              AppT (AppT (ConT monadicRecordPrimeName)
+                         (AppT (AppT (TupleT 2)
+                                     (VarT monadContentTypeName))
+                               (ConT recordTypeConstructorName)))
+                   (VarT monadContentTypeName)
         in NewtypeD []
                     monadicRecordName
                     [PlainTV monadContentTypeName]
-                    (NormalC monadicRecordName [(NotStrict, monadInnerType)])
+                    (RecC monadicRecordName
+                          [(runPrimeName, NotStrict, innerType)])
                     []
       instanceDeclaration =
         let returnLambdaExpression =
@@ -77,20 +106,18 @@ defineFlattenedRecord recordTypeConstructorName = do
             returnDeclaration =
               FunD (mkName "return")
                    [Clause [VarP valueName]
-                           (NormalB
-                             $ AppE (ConE monadicRecordName)
-                                    returnLambdaExpression)
+                           (NormalB $ wrapperExpression returnLambdaExpression)
                            []]
             bindInnerLambdaExpression =
               LamE [VarP aName]
                    $ strictFunctionCallExpression
-                      [VarE runPrimeName,
+                      [unwrapperExpression,
                        strictFunctionCallExpression [VarE fName,
                                                      VarE aName],
                        VarE kName]
             bindOuterLambdaExpression =
               LamE [VarP kName]
-                   $ strictFunctionCallExpression [VarE runPrimeName,
+                   $ strictFunctionCallExpression [unwrapperExpression,
                                                    VarE mName,
                                                    bindInnerLambdaExpression]
             bindDeclaration =
@@ -98,39 +125,13 @@ defineFlattenedRecord recordTypeConstructorName = do
                (mkName ">>=")
                [Clause [VarP mName,
                         VarP fName]
-                       (NormalB
-                         $ strictFunctionCallExpression
-                            [ConE monadicRecordName,
-                             bindOuterLambdaExpression])
+                       (NormalB $ wrapperExpression bindOuterLambdaExpression)
                        []]
         in InstanceD []
                      (AppT (ConT $ mkName "Monad")
                            (ConT monadicRecordName))
                      [returnDeclaration,
                       bindDeclaration]
-      runPrimeSignatureDeclaration =
-        SigD runPrimeName
-             $ ForallT [PlainTV monadContentTypeName]
-                       []
-                       $ functionType
-                          [AppT (ConT monadicRecordName)
-                                (VarT aName),
-                           ForallT [PlainTV continuationResultTypeName]
-                                   []
-                                   $ functionType
-                                      $ [functionType
-                                          $ [VarT monadContentTypeName]
-                                            ++ flattenedFieldTypes
-                                            ++ [VarT
-                                                 continuationResultTypeName]]
-                                        ++ flattenedFieldTypes
-                                        ++ [VarT continuationResultTypeName]]
-      runPrimeDeclaration =
-        FunD runPrimeName
-             [Clause [ConP monadicRecordName
-                           [VarP actionName]]
-                     (NormalB $ VarE actionName)
-                     []]
       runSignatureDeclaration =
         SigD runName
              $ ForallT [PlainTV monadContentTypeName]
@@ -149,8 +150,7 @@ defineFlattenedRecord recordTypeConstructorName = do
                       $ [VarE resultName,
                          computeRecordConstructor recordConstruction]
         in FunD runName
-                [Clause [ConP monadicRecordName
-                              [VarP actionName],
+                [Clause [wrapperPattern $ VarP actionName,
                          VarP recordName]
                         (NormalB
                           $ functionCallExpression
@@ -159,18 +159,22 @@ defineFlattenedRecord recordTypeConstructorName = do
                                ++ computeRecordDissectors (VarE recordName)
                                                           recordConstruction)
                         []]
-  return $ [newtypeDeclaration,
+  return $ [innerNewtypeDeclaration,
+            outerNewtypeDeclaration,
             instanceDeclaration,
-            runPrimeSignatureDeclaration,
-            runPrimeDeclaration,
             runSignatureDeclaration,
             runDeclaration]
            ++ accessorDeclarations
 
 
 getFlattenedRecordFields
-    :: Name -> Name -> Q (Name, RecordConstructionInformation, [Type], [Dec])
-getFlattenedRecordFields monadicRecordName recordTypeConstructorName = do
+    :: Name
+    -> (Exp -> Exp)
+    -> Name
+    -> Q (Name, RecordConstructionInformation, [Type], [Dec])
+getFlattenedRecordFields monadicRecordName
+                         wrapperExpression
+                         recordTypeConstructorName = do
   maybeRecordInformation <- do
     maybeOneLevelInformation <-
       getOneLevelRecordInformation recordTypeConstructorName
@@ -193,11 +197,13 @@ getFlattenedRecordFields monadicRecordName recordTypeConstructorName = do
                                [0 .. length flatFields - 1]
           immediateFieldAccessorDeclarations =
             concat $ map (computeFieldAccessorDeclarations monadicRecordName
+                                                           wrapperExpression
                                                            temporaryNames)
                          immediateFields
           recordFieldAccessorDeclarations =
             concat $ map (computeRecordAccessorDeclarations
                            monadicRecordName
+                           wrapperExpression
                            temporaryNames)
                          recordFields
           accessorDeclarations =
@@ -210,9 +216,10 @@ getFlattenedRecordFields monadicRecordName recordTypeConstructorName = do
 
 
 computeFieldAccessorDeclarations
-    :: Name -> [Name] -> FieldInformation -> [Dec]
+    :: Name -> (Exp -> Exp) -> [Name] -> FieldInformation -> [Dec]
 computeFieldAccessorDeclarations
     monadicRecordName
+    wrapperExpression
     temporaryNames
     (path, accessorBaseName, type', index) =
   let getterName = mkName $ "get" ++ accessorBaseName
@@ -222,12 +229,12 @@ computeFieldAccessorDeclarations
       setterSignatureDeclaration =
         computeSetterSignatureDeclaration monadicRecordName setterName type'
       getterDeclaration =
-        computeFieldGetterDeclaration monadicRecordName
+        computeFieldGetterDeclaration wrapperExpression
                                       getterName
                                       index
                                       temporaryNames
       setterDeclaration =
-        computeFieldSetterDeclaration monadicRecordName
+        computeFieldSetterDeclaration wrapperExpression
                                       setterName
                                       index
                                       temporaryNames
@@ -238,9 +245,10 @@ computeFieldAccessorDeclarations
 
 
 computeRecordAccessorDeclarations
-    :: Name -> [Name] -> RecordInformation -> [Dec]
+    :: Name -> (Exp -> Exp) -> [Name] -> RecordInformation -> [Dec]
 computeRecordAccessorDeclarations
     monadicRecordName
+    wrapperExpression
     temporaryNames
     (path, accessorBaseName, type', construction) =
   let getterName = mkName $ "get" ++ accessorBaseName
@@ -250,12 +258,12 @@ computeRecordAccessorDeclarations
       setterSignatureDeclaration =
         computeSetterSignatureDeclaration monadicRecordName setterName type'
       getterDeclaration =
-        computeRecordGetterDeclaration monadicRecordName
+        computeRecordGetterDeclaration wrapperExpression
                                        getterName
                                        construction
                                        temporaryNames
       setterDeclaration =
-        computeRecordSetterDeclaration monadicRecordName
+        computeRecordSetterDeclaration wrapperExpression
                                        setterName
                                        construction
                                        temporaryNames
@@ -280,9 +288,9 @@ computeSetterSignatureDeclaration monadicRecordName setterName typeToSet =
                             nullType]
 
 
-computeFieldGetterDeclaration :: Name -> Name -> Int -> [Name] -> Dec
+computeFieldGetterDeclaration :: (Exp -> Exp) -> Name -> Int -> [Name] -> Dec
 computeFieldGetterDeclaration
-    monadicRecordName getterName fieldIndex temporaryNames =
+    wrapperExpression getterName fieldIndex temporaryNames =
   let continuationName = mkName "continuation"
       lambdaExpression =
         LamE ([VarP continuationName]
@@ -292,15 +300,13 @@ computeFieldGetterDeclaration
                                         ++ map VarE temporaryNames
   in FunD getterName
           [Clause []
-                  (NormalB
-                    $ AppE (ConE monadicRecordName)
-                           lambdaExpression)
+                  (NormalB $ wrapperExpression lambdaExpression)
                   []]
 
 
-computeFieldSetterDeclaration :: Name -> Name -> Int -> [Name] -> Dec
+computeFieldSetterDeclaration :: (Exp -> Exp) -> Name -> Int -> [Name] -> Dec
 computeFieldSetterDeclaration
-    monadicRecordName setterName fieldIndex temporaryNames =
+    wrapperExpression setterName fieldIndex temporaryNames =
   let continuationName = mkName "continuation"
       valueName = mkName "value"
       replacedNamesForPattern =
@@ -320,18 +326,14 @@ computeFieldSetterDeclaration
                                         ++ replacedNamesForExpression
   in FunD setterName
           [Clause [VarP valueName]
-                  (NormalB
-                    $ functionCallExpression [VarE $ mkName "deepseq",
-                                              VarE valueName,
-                                              AppE (ConE monadicRecordName)
-                                                   lambdaExpression])
+                  (NormalB $ wrapperExpression lambdaExpression)
                   []]
 
 
 computeRecordGetterDeclaration
-    :: Name -> Name -> RecordConstructionInformation -> [Name] -> Dec
+    :: (Exp -> Exp) -> Name -> RecordConstructionInformation -> [Name] -> Dec
 computeRecordGetterDeclaration
-    monadicRecordName
+    wrapperExpression
     getterName
     construction
     allTemporaryNames =
@@ -345,16 +347,14 @@ computeRecordGetterDeclaration
                   ++ map VarE allTemporaryNames
   in FunD getterName
           [Clause []
-                  (NormalB
-                    $ AppE (ConE monadicRecordName)
-                           lambdaExpression)
+                  (NormalB $ wrapperExpression lambdaExpression)
                   []]
 
 
 computeRecordSetterDeclaration
-    :: Name -> Name -> RecordConstructionInformation -> [Name] -> Dec
+    :: (Exp -> Exp) -> Name -> RecordConstructionInformation -> [Name] -> Dec
 computeRecordSetterDeclaration
-    monadicRecordName
+    wrapperExpression
     setterName
     construction
     allTemporaryNames =
@@ -382,11 +382,7 @@ computeRecordSetterDeclaration
                           $ zip allTemporaryNames [0..])
   in FunD setterName
           [Clause [VarP recordName]
-                  (NormalB
-                    $ functionCallExpression [VarE $ mkName "deepseq",
-                                              VarE recordName,
-                                              AppE (ConE monadicRecordName)
-                                                   lambdaExpression])
+                  (NormalB $ wrapperExpression lambdaExpression)
                   []]
 
 
@@ -705,6 +701,8 @@ functionCallExpression expressions = foldl1 AppE expressions
 
 
 strictFunctionCallExpression :: [Exp] -> Exp
+strictFunctionCallExpression = functionCallExpression
+{-
 strictFunctionCallExpression expressions =
   let tempName = mkName "temp"
       seqName = mkName "seq"
@@ -715,7 +713,7 @@ strictFunctionCallExpression expressions =
                                        (VarE tempName))
                                  (AppE a
                                        (VarE tempName)))
-            expressions
+            expressions-}
 
 
 tupleType :: [Type] -> Type
