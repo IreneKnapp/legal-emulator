@@ -18,7 +18,6 @@ description:
 Library
   exposed-modules: Emulator
   other-modules: Assembly,
-                 Data.FlattenedRecords,
                  Data.Instances,
                  Data.Strict.Maybe,
                  FileFormat.INES,
@@ -32,6 +31,7 @@ Library
                  containers >= 0.4.0.0 && < 1,
                  bytestring >= 0.9.1.10 && < 1,
                  utf8-string >= 0.3.6 && < 1,
-                 deepseq >= 1.1.0.2 && < 2
+                 deepseq >= 1.1.0.2 && < 2,
+                 mtl >= 2.0.1.0 && < 3
   ghc-options: -O2
   ghc-prof-options: -auto-all -caf-all
